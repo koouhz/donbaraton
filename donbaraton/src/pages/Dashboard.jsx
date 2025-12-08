@@ -2,14 +2,16 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { 
-  TrendingUp, Users, ShoppingCart, Package, Utensils, 
-  Plus, Box, User, RefreshCw, Eye, DollarSign,
-  ChefHat, Coffee, Beer, BarChart3, Calendar
+  TrendingUp, Users, ShoppingCart, Package, DollarSign,
+  Plus, Box, User, RefreshCw, Eye, BarChart3, 
+  Calendar, AlertTriangle, CheckCircle, Store, Layers
 } from "lucide-react";
 import { supabase } from "../bd/supabaseClient";
 
 // Componente Card
 const Card = ({ title, value, subtitle, icon, trend, onClick, clickable }) => {
+  const [hover, setHover] = useState(false);
+
   const cardStyle = {
     background: "white",
     padding: "24px",
@@ -17,21 +19,18 @@ const Card = ({ title, value, subtitle, icon, trend, onClick, clickable }) => {
     border: "1px solid #e9d8b5",
     transition: "all 0.3s ease",
     cursor: clickable ? "pointer" : "default",
-    minWidth: "280px"
+    minWidth: "280px",
+    boxShadow: hover && clickable ? "0 4px 12px rgba(122, 59, 6, 0.1)" : "none",
+    transform: hover && clickable ? "translateY(-2px)" : "none",
+    borderColor: hover && clickable ? "#7a3b06" : "#e9d8b5"
   };
-
-  const hoverStyle = clickable ? {
-    ':hover': {
-      transform: "translateY(-2px)",
-      boxShadow: "0 4px 12px rgba(122, 59, 6, 0.1)",
-      borderColor: "#7a3b06"
-    }
-  } : {};
 
   return (
     <div 
-      style={{...cardStyle, ...hoverStyle}}
+      style={cardStyle}
       onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
     >
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
         <div>
@@ -76,7 +75,7 @@ const Card = ({ title, value, subtitle, icon, trend, onClick, clickable }) => {
 
 // Componente de Gráfica de Barras Simple
 const BarChart = ({ data, title, color = "#7a3b06" }) => {
-  const maxValue = Math.max(...data.map(item => item.value));
+  const maxValue = Math.max(...data.map(item => item.value), 1);
   
   return (
     <div style={styles.chartCard}>
@@ -90,7 +89,8 @@ const BarChart = ({ data, title, color = "#7a3b06" }) => {
                 style={{
                   ...styles.bar,
                   width: `${(item.value / maxValue) * 100}%`,
-                  backgroundColor: color
+                  backgroundColor: color,
+                  opacity: 0.8
                 }}
               />
               <span style={styles.barValue}>{formatCurrencyShort(item.value)}</span>
@@ -105,9 +105,18 @@ const BarChart = ({ data, title, color = "#7a3b06" }) => {
 // Componente de Gráfica de Donut Simple
 const DonutChart = ({ data, title }) => {
   const total = data.reduce((sum, item) => sum + item.value, 0);
-  const colors = ['#7a3b06', '#28a745', '#007bff', '#ffc107', '#dc3545'];
+  const colors = ['#7a3b06', '#28a745', '#007bff', '#ffc107', '#dc3545', '#6f42c1'];
   
-  let currentAngle = 0;
+  if (total === 0) {
+    return (
+      <div style={styles.chartCard}>
+        <h3 style={styles.chartTitle}>{title}</h3>
+        <div style={styles.noData}>
+          <p>No hay datos disponibles</p>
+        </div>
+      </div>
+    );
+  }
   
   return (
     <div style={styles.chartCard}>
@@ -120,14 +129,12 @@ const DonutChart = ({ data, title }) => {
               const angle = (percentage / 100) * 360;
               const largeArc = angle > 180 ? 1 : 0;
               
-              const x1 = 60 + 50 * Math.cos((currentAngle * Math.PI) / 180);
-              const y1 = 60 + 50 * Math.sin((currentAngle * Math.PI) / 180);
-              const x2 = 60 + 50 * Math.cos(((currentAngle + angle) * Math.PI) / 180);
-              const y2 = 60 + 50 * Math.sin(((currentAngle + angle) * Math.PI) / 180);
+              const x1 = 60 + 50 * Math.cos((index * (360 / data.length) * Math.PI) / 180);
+              const y1 = 60 + 50 * Math.sin((index * (360 / data.length) * Math.PI) / 180);
+              const x2 = 60 + 50 * Math.cos(((index + 1) * (360 / data.length) * Math.PI) / 180);
+              const y2 = 60 + 50 * Math.sin(((index + 1) * (360 / data.length) * Math.PI) / 180);
               
               const path = `M 60 60 L ${x1} ${y1} A 50 50 0 ${largeArc} 1 ${x2} ${y2} Z`;
-              
-              currentAngle += angle;
               
               return (
                 <path
@@ -140,6 +147,9 @@ const DonutChart = ({ data, title }) => {
               );
             })}
             <circle cx="60" cy="60" r="30" fill="white" />
+            <text x="60" y="60" textAnchor="middle" dy=".3em" fontSize="12" fill="#7a3b06" fontWeight="bold">
+              {total.toFixed(0)}
+            </text>
           </svg>
         </div>
         <div style={styles.donutLegend}>
@@ -165,38 +175,13 @@ const DonutChart = ({ data, title }) => {
 
 // Función para formatear moneda en formato corto
 const formatCurrencyShort = (amount) => {
+  if (!amount || amount === 0) return "Bs. 0";
   if (amount >= 1000000) {
     return `Bs. ${(amount / 1000000).toFixed(1)}M`;
   } else if (amount >= 1000) {
     return `Bs. ${(amount / 1000).toFixed(1)}K`;
   }
-  return `Bs. ${amount}`;
-};
-
-// Agregar estilos globales
-const addGlobalStyles = () => {
-  if (document.getElementById('dashboard-styles')) return;
-  
-  const styleSheet = document.createElement('style');
-  styleSheet.id = 'dashboard-styles';
-  styleSheet.textContent = `
-    @keyframes pulse {
-      0% { opacity: 1; }
-      50% { opacity: 0.5; }
-      100% { opacity: 1; }
-    }
-    
-    @keyframes spin {
-      from { transform: rotate(0deg); }
-      to { transform: rotate(360deg); }
-    }
-    
-    @keyframes loading {
-      0% { background-position: 200% 0; }
-      100% { background-position: -200% 0; }
-    }
-  `;
-  document.head.appendChild(styleSheet);
+  return `Bs. ${amount.toFixed(2)}`;
 };
 
 // Componente de Header del Dashboard
@@ -216,7 +201,7 @@ function DashboardHeader({ lastUpdate, onRefresh, loading }) {
     <header style={styles.header}>
       <div style={styles.headerContent}>
         <div style={styles.headerTitle}>
-          <h1 style={styles.title}>Panel Principal</h1>
+          <h1 style={styles.title}>Panel Principal - Don Baratón</h1>
           <p style={styles.subtitle}>
             <span style={styles.statusDot}></span>
             Actualizado: {formatFullDate(lastUpdate)}
@@ -225,8 +210,8 @@ function DashboardHeader({ lastUpdate, onRefresh, loading }) {
         
         <div style={styles.headerActions}>
           <div style={styles.restaurantBadge}>
-            <Coffee size={16} />
-            Beef & Beer
+            <Store size={16} />
+            Don Baratón
           </div>
           <button 
             onClick={onRefresh}
@@ -253,10 +238,10 @@ function DashboardHeader({ lastUpdate, onRefresh, loading }) {
 function QuickActions({ onAction }) {
   const actions = [
     { 
-      key: 'pedido', 
-      label: 'Nuevo Pedido', 
+      key: 'ventas', 
+      label: 'Nueva Venta', 
       icon: <Plus size={20} />,
-      description: 'Crear nuevo pedido'
+      description: 'Crear nueva venta'
     },
     { 
       key: 'inventario', 
@@ -271,16 +256,19 @@ function QuickActions({ onAction }) {
       description: 'Administrar empleados'
     },
     { 
-      key: 'ventas', 
-      label: 'Ver Ventas', 
-      icon: <Eye size={20} />,
-      description: 'Reportes de ventas'
+      key: 'compras', 
+      label: 'Nueva Compra', 
+      icon: <ShoppingCart size={20} />,
+      description: 'Registrar compra'
     }
   ];
 
   return (
     <section style={styles.quickActions}>
-      <h2 style={styles.quickActionsTitle}>Acciones Rápidas</h2>
+      <h2 style={styles.quickActionsTitle}>
+        <Layers size={20} />
+        Acciones Rápidas
+      </h2>
       <div style={styles.actionsGrid}>
         {actions.map(action => (
           <button
@@ -300,6 +288,47 @@ function QuickActions({ onAction }) {
   );
 }
 
+// Componente de Alerta
+function Alert({ type, message }) {
+  const alertStyles = {
+    success: {
+      background: "#d4edda",
+      color: "#155724",
+      borderColor: "#c3e6cb"
+    },
+    warning: {
+      background: "#fff3cd",
+      color: "#856404",
+      borderColor: "#ffeaa7"
+    },
+    danger: {
+      background: "#f8d7da",
+      color: "#721c24",
+      borderColor: "#f5c6cb"
+    }
+  };
+
+  const style = alertStyles[type] || alertStyles.warning;
+
+  return (
+    <div style={{
+      padding: "12px 16px",
+      borderRadius: "8px",
+      border: `1px solid ${style.borderColor}`,
+      backgroundColor: style.background,
+      color: style.color,
+      fontSize: "14px",
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      marginBottom: "20px"
+    }}>
+      {type === "success" ? <CheckCircle size={18} /> : <AlertTriangle size={18} />}
+      {message}
+    </div>
+  );
+}
+
 // Componente de Carga
 function DashboardSkeleton() {
   return (
@@ -307,11 +336,8 @@ function DashboardSkeleton() {
       <div style={styles.header}>
         <div style={styles.headerContent}>
           <div style={styles.headerTitle}>
-            <h1 style={styles.title}>Panel Principal</h1>
-            <p style={styles.subtitle}>
-              <span style={styles.statusDot}></span>
-              Actualizado: Cargando...
-            </p>
+            <div style={styles.skeletonTitle}></div>
+            <div style={styles.skeletonSubtitle}></div>
           </div>
         </div>
       </div>
@@ -326,15 +352,16 @@ function DashboardSkeleton() {
   );
 }
 
+// Función principal del Dashboard
 export default function Dashboard() {
   const navigate = useNavigate();
   const [stats, setStats] = useState({
     ventasHoy: 0,
     ventasMes: 0,
-    pedidosActivos: 0,
-    mesasOcupadas: 0,
+    clientesRegistrados: 0,
+    productosStockBajo: 0,
     empleadosActivos: 0,
-    productosCategoria: { comida: 0, bebida: 0 }
+    proveedoresActivos: 0
   });
   const [chartData, setChartData] = useState({
     ventasMensuales: [],
@@ -343,33 +370,58 @@ export default function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [error, setError] = useState(null);
+  const [alert, setAlert] = useState(null);
 
+  // Estilos globales
   useEffect(() => {
-    addGlobalStyles();
+    if (document.getElementById('dashboard-styles')) return;
+    
+    const styleSheet = document.createElement('style');
+    styleSheet.id = 'dashboard-styles';
+    styleSheet.textContent = `
+      @keyframes pulse {
+        0% { opacity: 1; }
+        50% { opacity: 0.5; }
+        100% { opacity: 1; }
+      }
+      
+      @keyframes spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+      
+      @keyframes loading {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+      }
+    `;
+    document.head.appendChild(styleSheet);
   }, []);
 
   const formatCurrency = (amount) => {
+    if (!amount) return "Bs. 0.00";
     return new Intl.NumberFormat('es-BO', {
       style: 'currency',
       currency: 'BOB',
       minimumFractionDigits: 2
-    }).format(amount || 0);
+    }).format(amount);
   };
 
-  // Funciones para obtener datos
+  // Funciones para obtener datos de Supabase
   const fetchVentasHoy = async () => {
     try {
       const hoy = new Date().toISOString().split('T')[0];
       
       const { data, error } = await supabase
         .from('ventas')
-        .select('monto_total, fecha')
-        .gte('fecha', `${hoy}T00:00:00`)
-        .lte('fecha', `${hoy}T23:59:59`);
+        .select('total')
+        .gte('fecha_hora', `${hoy}T00:00:00`)
+        .lte('fecha_hora', `${hoy}T23:59:59`)
+        .eq('estadoA', true);
 
       if (error) throw error;
       
-      const total = data.reduce((sum, venta) => sum + (parseFloat(venta.monto_total) || 0), 0);
+      const total = data.reduce((sum, venta) => sum + (parseFloat(venta.total) || 0), 0);
       return { total, count: data.length };
     } catch (error) {
       console.error('Error fetching ventas hoy:', error);
@@ -380,24 +432,25 @@ export default function Dashboard() {
   const fetchVentasMes = async () => {
     try {
       const startDate = new Date();
-      startDate.setDate(1); // Primer día del mes
+      startDate.setDate(1);
       startDate.setHours(0, 0, 0, 0);
       
       const endDate = new Date();
-      endDate.setMonth(endDate.getMonth() + 1, 0); // Último día del mes
+      endDate.setMonth(endDate.getMonth() + 1, 0);
       endDate.setHours(23, 59, 59, 999);
       
       const { data, error } = await supabase
         .from('ventas')
-        .select('monto_total, fecha')
-        .gte('fecha', startDate.toISOString())
-        .lte('fecha', endDate.toISOString());
+        .select('total, fecha_hora')
+        .gte('fecha_hora', startDate.toISOString())
+        .lte('fecha_hora', endDate.toISOString())
+        .eq('estadoA', true);
 
       if (error) throw error;
       
-      const total = data.reduce((sum, venta) => sum + (parseFloat(venta.monto_total) || 0), 0);
+      const total = data.reduce((sum, venta) => sum + (parseFloat(venta.total) || 0), 0);
       
-      // Generar datos para gráfica de ventas mensuales (últimos 6 meses)
+      // Generar datos para gráfica de ventas mensuales
       const ventasMensuales = generarDatosMensuales(data);
       
       return { total, ventasMensuales };
@@ -407,7 +460,6 @@ export default function Dashboard() {
     }
   };
 
-  // Función para generar datos mensuales de los últimos 6 meses
   const generarDatosMensuales = (ventasData) => {
     const meses = [];
     const ahora = new Date();
@@ -421,9 +473,9 @@ export default function Dashboard() {
     
     // Calcular ventas por mes
     ventasData.forEach(venta => {
-      const fechaVenta = new Date(venta.fecha);
+      const fechaVenta = new Date(venta.fecha_hora);
       const mesVenta = fechaVenta.toLocaleDateString('es-ES', { month: 'short' });
-      const monto = parseFloat(venta.monto_total) || 0;
+      const monto = parseFloat(venta.total) || 0;
       
       const mesIndex = meses.findIndex(mes => mes.label === mesVenta);
       if (mesIndex !== -1) {
@@ -434,85 +486,115 @@ export default function Dashboard() {
     return meses;
   };
 
-  const fetchPedidosActivos = async () => {
+  const fetchClientesRegistrados = async () => {
     try {
-      const { data, error } = await supabase
-        .from('pedidos')
-        .select('id_pedido')
-        .not('nromesa', 'is', null);
+      const { count, error } = await supabase
+        .from('clientes')
+        .select('*', { count: 'exact', head: true })
+        .eq('estadoA', true)
+        .eq('estado', 'ACTIVO');
 
       if (error) throw error;
-      return data?.length || 0;
+      return count || 0;
     } catch (error) {
-      console.error('Error fetching pedidos activos:', error);
+      console.error('Error fetching clientes:', error);
       return 0;
     }
   };
 
-  const fetchMesasOcupadas = async () => {
+  const fetchProductosStockBajo = async () => {
     try {
       const { data, error } = await supabase
-        .from('mesas')
-        .select('nromesa')
-        .eq('estado', 'ocupada');
+        .from('productos')
+        .select('id, nombre, stock_actual, stock_minimo')
+        .eq('estadoA', true)
+        .lt('stock_actual', supabase.raw('stock_minimo + 5'));
 
       if (error) throw error;
       return data?.length || 0;
     } catch (error) {
-      console.error('Error fetching mesas ocupadas:', error);
+      console.error('Error fetching productos stock bajo:', error);
       return 0;
     }
   };
 
   const fetchEmpleadosActivos = async () => {
     try {
-      const { data, error } = await supabase
+      const { count, error } = await supabase
         .from('empleados')
-        .select('ci');
+        .select('*', { count: 'exact', head: true })
+        .eq('estadoA', true)
+        .neq('estado', 'INACTIVO');
 
       if (error) throw error;
-      return data?.length || 0;
+      return count || 0;
     } catch (error) {
-      console.error('Error fetching empleados activos:', error);
+      console.error('Error fetching empleados:', error);
       return 0;
     }
   };
 
-  const fetchProductosPorCategoria = async () => {
+  const fetchProveedoresActivos = async () => {
     try {
-      const { data, error } = await supabase
-        .from('productos')
-        .select('id_producto, categoria_productos(tipo)')
-        .not('id_categoriaproducto', 'is', null);
+      const { count, error } = await supabase
+        .from('proveedores')
+        .select('*', { count: 'exact', head: true })
+        .eq('estadoA', true)
+        .eq('estado', 'ACTIVO');
 
       if (error) throw error;
-
-      const categorias = { comida: 0, bebida: 0 };
-      
-      data?.forEach(producto => {
-        const tipo = producto.categoria_productos?.tipo;
-        if (tipo === 'comida') {
-          categorias.comida++;
-        } else if (tipo === 'bebida') {
-          categorias.bebida++;
-        }
-      });
-
-      return categorias;
+      return count || 0;
     } catch (error) {
-      console.error('Error en fetchProductosPorCategoria:', error);
-      return { comida: 0, bebida: 0 };
+      console.error('Error fetching proveedores:', error);
+      return 0;
     }
   };
 
   const fetchDatosGraficas = async () => {
     try {
-      // Distribución de ventas por categoría (datos de ejemplo mejorados)
-      const categoriasVentas = [
-        { label: 'Comidas', value: 15600 },
-        { label: 'Bebidas', value: 8400 },
-        { label: 'Postres', value: 3200 }
-      ];
+      // Obtener ventas por categoría de los últimos 30 días
+      const thirtyDaysAgo = new Date();
+      thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+      
+      const { data: ventasData, error: ventasError } = await supabase
+        .from('ventas')
+        .select(`
+          id,
+          detalle_ventas (
+            producto_id,
+            productos (
+              categoria_id,
+              categorias (nombre)
+            ),
+            subtotal
+          )
+        `)
+        .gte('fecha_hora', thirtyDaysAgo.toISOString())
+        .eq('estadoA', true);
+
+      if (ventasError) throw ventasError;
+
+      // Procesar ventas por categoría
+      const categoriasVentasMap = {};
+      
+      ventasData?.forEach(venta => {
+        venta.detalle_ventas?.forEach(detalle => {
+          const categoriaNombre = detalle.productos?.categorias?.nombre || 'Sin categoría';
+          const subtotal = parseFloat(detalle.subtotal) || 0;
+          
+          if (categoriasVentasMap[categoriaNombre]) {
+            categoriasVentasMap[categoriaNombre] += subtotal;
+          } else {
+            categoriasVentasMap[categoriaNombre] = subtotal;
+          }
+        });
+      });
+
+      // Convertir a array para la gráfica
+      const categoriasVentas = Object.entries(categoriasVentasMap).map(([label, value]) => ({
+        label: label.length > 10 ? label.substring(0, 10) + '...' : label,
+        value: value
+      })).slice(0, 5); // Limitar a 5 categorías
 
       return {
         categoriasVentas
@@ -529,31 +611,32 @@ export default function Dashboard() {
     try {
       setLoading(true);
       setError(null);
+      setAlert(null);
 
       const [
         ventasHoyData,
         ventasMesData,
-        pedidosActivosData,
-        mesasOcupadasData,
+        clientesRegistradosData,
+        productosStockBajoData,
         empleadosActivosData,
-        productosCategoriaData,
+        proveedoresActivosData,
         datosGraficas
       ] = await Promise.allSettled([
         fetchVentasHoy(),
         fetchVentasMes(),
-        fetchPedidosActivos(),
-        fetchMesasOcupadas(),
+        fetchClientesRegistrados(),
+        fetchProductosStockBajo(),
         fetchEmpleadosActivos(),
-        fetchProductosPorCategoria(),
+        fetchProveedoresActivos(),
         fetchDatosGraficas()
       ]);
 
       const ventasHoy = ventasHoyData.status === 'fulfilled' ? ventasHoyData.value : { total: 0, count: 0 };
       const ventasMes = ventasMesData.status === 'fulfilled' ? ventasMesData.value : { total: 0, ventasMensuales: [] };
-      const pedidosActivos = pedidosActivosData.status === 'fulfilled' ? pedidosActivosData.value : 0;
-      const mesasOcupadas = mesasOcupadasData.status === 'fulfilled' ? mesasOcupadasData.value : 0;
+      const clientesRegistrados = clientesRegistradosData.status === 'fulfilled' ? clientesRegistradosData.value : 0;
+      const productosStockBajo = productosStockBajoData.status === 'fulfilled' ? productosStockBajoData.value : 0;
       const empleadosActivos = empleadosActivosData.status === 'fulfilled' ? empleadosActivosData.value : 0;
-      const productosCategoria = productosCategoriaData.status === 'fulfilled' ? productosCategoriaData.value : { comida: 0, bebida: 0 };
+      const proveedoresActivos = proveedoresActivosData.status === 'fulfilled' ? proveedoresActivosData.value : 0;
       const graficas = datosGraficas.status === 'fulfilled' ? datosGraficas.value : {
         categoriasVentas: []
       };
@@ -561,18 +644,31 @@ export default function Dashboard() {
       setStats({
         ventasHoy: ventasHoy.total,
         ventasMes: ventasMes.total,
-        pedidosActivos: pedidosActivos,
-        mesasOcupadas: mesasOcupadas,
-        empleadosActivos: empleadosActivos,
-        productosCategoria: productosCategoria
+        clientesRegistrados,
+        productosStockBajo,
+        empleadosActivos,
+        proveedoresActivos
       });
 
       setChartData({
-        ventasMensuales: ventasMes.ventasMensuales,
-        categoriasVentas: graficas.categoriasVentas
+        ventasMensuales: ventasMes.ventasMensuales.length > 0 ? ventasMes.ventasMensuales : generarDatosDefault(),
+        categoriasVentas: graficas.categoriasVentas.length > 0 ? graficas.categoriasVentas : [
+          { label: 'Abarrotes', value: 12000 },
+          { label: 'Lácteos', value: 8500 },
+          { label: 'Bebidas', value: 6500 }
+        ]
       });
 
       setLastUpdate(new Date());
+
+      // Mostrar alerta si hay productos con stock bajo
+      if (productosStockBajo > 0) {
+        setAlert({
+          type: 'warning',
+          message: `Hay ${productosStockBajo} productos con stock bajo. Revisa el inventario.`
+        });
+      }
+
     } catch (error) {
       console.error('Error al cargar estadísticas:', error);
       setError('No se pudieron cargar las estadísticas. Verifica la conexión.');
@@ -581,16 +677,36 @@ export default function Dashboard() {
     }
   };
 
+  const generarDatosDefault = () => {
+    const ahora = new Date();
+    const meses = [];
+    
+    for (let i = 5; i >= 0; i--) {
+      const fecha = new Date(ahora.getFullYear(), ahora.getMonth() - i, 1);
+      const nombreMes = fecha.toLocaleDateString('es-ES', { month: 'short' });
+      meses.push({ 
+        label: nombreMes, 
+        value: Math.floor(Math.random() * 50000) + 10000 
+      });
+    }
+    
+    return meses;
+  };
+
   useEffect(() => {
     fetchStats();
+    
+    // Refrescar automáticamente cada 5 minutos
+    const intervalId = setInterval(fetchStats, 300000);
+    return () => clearInterval(intervalId);
   }, []);
 
   const handleQuickAction = (action) => {
     const routes = {
-      pedido: '/pedidos',
+      ventas: '/ventas',
       inventario: '/inventario',
-      personal: '/personal',
-      ventas: '/ventas'
+      personal: '/empleados',
+      compras: '/compras'
     };
     
     if (routes[action]) {
@@ -598,7 +714,7 @@ export default function Dashboard() {
     }
   };
 
-  if (loading) {
+  if (loading && !lastUpdate) {
     return <DashboardSkeleton />;
   }
 
@@ -611,10 +727,13 @@ export default function Dashboard() {
         loading={loading}
       />
 
+      {/* Alertas */}
+      {alert && <Alert type={alert.type} message={alert.message} />}
+
       {/* Mensaje de error */}
       {error && (
         <div style={styles.errorBanner}>
-          <BarChart3 size={18} />
+          <AlertTriangle size={18} />
           <span>{error}</span>
           <button onClick={fetchStats} style={styles.retryButton}>
             Reintentar
@@ -635,16 +754,6 @@ export default function Dashboard() {
         />
         
         <Card 
-          title="Pedidos activos" 
-          value={stats.pedidosActivos}
-          subtitle={`${stats.mesasOcupadas} mesas ocupadas`}
-          icon={<ShoppingCart size={20} />}
-          trend={stats.pedidosActivos > 0 ? "up" : "neutral"}
-          onClick={() => handleQuickAction('pedido')}
-          clickable
-        />
-        
-        <Card 
           title="Ventas del mes" 
           value={formatCurrency(stats.ventasMes)}
           subtitle="Ingresos mensuales"
@@ -653,12 +762,22 @@ export default function Dashboard() {
         />
         
         <Card 
-          title="Personal activo" 
-          value={stats.empleadosActivos}
-          subtitle="Total empleados"
+          title="Clientes activos" 
+          value={stats.clientesRegistrados}
+          subtitle="Clientes registrados"
           icon={<Users size={20} />}
-          trend="neutral"
-          onClick={() => handleQuickAction('personal')}
+          trend={stats.clientesRegistrados > 0 ? "up" : "neutral"}
+          onClick={() => navigate('/clientes')}
+          clickable
+        />
+        
+        <Card 
+          title="Stock bajo" 
+          value={stats.productosStockBajo}
+          subtitle="Productos por reabastecer"
+          icon={<Package size={20} />}
+          trend={stats.productosStockBajo > 0 ? "down" : "neutral"}
+          onClick={() => navigate('/alertas-stock')}
           clickable
         />
       </section>
@@ -672,25 +791,14 @@ export default function Dashboard() {
         
         <div style={styles.chartsGrid}>
           <BarChart 
-            title="Ventas Mensuales (Bs)" 
-            data={chartData.ventasMensuales.length > 0 ? chartData.ventasMensuales : [
-              { label: 'Ene', value: 45000 },
-              { label: 'Feb', value: 52000 },
-              { label: 'Mar', value: 48000 },
-              { label: 'Abr', value: 61000 },
-              { label: 'May', value: 58000 },
-              { label: 'Jun', value: 72000 }
-            ]}
+            title="Ventas Mensuales (Últimos 6 meses)" 
+            data={chartData.ventasMensuales}
             color="#7a3b06"
           />
           
           <DonutChart 
-            title="Distribución de Ventas"
-            data={chartData.categoriasVentas.length > 0 ? chartData.categoriasVentas : [
-              { label: 'Comidas', value: 15600 },
-              { label: 'Bebidas', value: 8400 },
-              { label: 'Postres', value: 3200 }
-            ]}
+            title="Ventas por Categoría"
+            data={chartData.categoriasVentas}
           />
         </div>
       </section>
@@ -700,23 +808,17 @@ export default function Dashboard() {
         <div style={styles.infoGrid}>
           <div style={styles.infoCard}>
             <div style={styles.infoHeader}>
-              <ChefHat size={18} />
-              <h3 style={styles.infoTitle}>Productos por Categoría</h3>
+              <Users size={18} />
+              <h3 style={styles.infoTitle}>Personal</h3>
             </div>
             <div style={styles.categoryInfo}>
               <div style={styles.categoryItem}>
-                <span style={styles.categoryName}>Comidas</span>
-                <span style={styles.categoryCount}>{stats.productosCategoria.comida}</span>
+                <span style={styles.categoryName}>Empleados activos</span>
+                <span style={styles.categoryCount}>{stats.empleadosActivos}</span>
               </div>
               <div style={styles.categoryItem}>
-                <span style={styles.categoryName}>Bebidas</span>
-                <span style={styles.categoryCount}>{stats.productosCategoria.bebida}</span>
-              </div>
-              <div style={styles.categoryItem}>
-                <span style={styles.categoryName}>Total</span>
-                <span style={styles.categoryCount}>
-                  {stats.productosCategoria.comida + stats.productosCategoria.bebida}
-                </span>
+                <span style={styles.categoryName}>Proveedores activos</span>
+                <span style={styles.categoryCount}>{stats.proveedoresActivos}</span>
               </div>
             </div>
           </div>
@@ -750,7 +852,7 @@ export default function Dashboard() {
   );
 }
 
-// Estilos corregidos
+// Estilos actualizados
 const styles = {
   dashboardContainer: {
     padding: "20px",
@@ -856,7 +958,6 @@ const styles = {
     gap: "20px",
     marginBottom: "30px",
   },
-  // Sección de Gráficas
   chartsSection: {
     marginBottom: "30px",
   },
@@ -879,6 +980,7 @@ const styles = {
     padding: "20px",
     borderRadius: "12px",
     border: "1px solid #e9d8b5",
+    minHeight: "300px",
   },
   chartTitle: {
     color: "#7a3b06",
@@ -927,6 +1029,8 @@ const styles = {
     display: "flex",
     gap: "20px",
     alignItems: "center",
+    justifyContent: "center",
+    height: "200px",
   },
   donutChart: {
     flexShrink: 0,
@@ -956,6 +1060,14 @@ const styles = {
     fontSize: "11px",
     fontWeight: "600",
     color: "#7a3b06",
+  },
+  noData: {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    height: "200px",
+    color: "#6d4611",
+    fontSize: "14px",
   },
   // Sección de Información
   infoSection: {
@@ -1016,15 +1128,6 @@ const styles = {
     alignItems: "center",
     padding: "6px 0",
   },
-  summaryItemSpan: {
-    color: "#6d4611",
-    fontSize: "14px",
-  },
-  summaryItemStrong: {
-    color: "#7a3b06",
-    fontWeight: "600",
-    fontSize: "14px",
-  },
   // Acciones Rápidas
   quickActions: {
     marginTop: "30px",
@@ -1034,6 +1137,9 @@ const styles = {
     color: "#7a3b06",
     marginBottom: "20px",
     fontWeight: "600",
+    display: "flex",
+    alignItems: "center",
+    gap: "10px",
   },
   actionsGrid: {
     display: "grid",
@@ -1067,6 +1173,7 @@ const styles = {
   actionLabel: {
     fontWeight: "500",
   },
+  // Skeleton
   cardSkeleton: {
     background: "white",
     borderRadius: "12px",
@@ -1080,6 +1187,23 @@ const styles = {
   skeletonLoader: {
     width: "80%",
     height: "20px",
+    background: "linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)",
+    backgroundSize: "200% 100%",
+    animation: "loading 1.5s infinite",
+    borderRadius: "4px",
+  },
+  skeletonTitle: {
+    width: "200px",
+    height: "28px",
+    background: "linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)",
+    backgroundSize: "200% 100%",
+    animation: "loading 1.5s infinite",
+    borderRadius: "4px",
+    marginBottom: "10px",
+  },
+  skeletonSubtitle: {
+    width: "150px",
+    height: "16px",
     background: "linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%)",
     backgroundSize: "200% 100%",
     animation: "loading 1.5s infinite",
