@@ -2,9 +2,11 @@ import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { 
   Home, Shield, DollarSign, Users, Package, 
-  UtensilsCrossed, Receipt, ShoppingCart, Truck, 
-  Wallet, Menu, X, LogOut, Eye, EyeOff,
-  UserCheck, AlertCircle, Settings
+  ShoppingCart, Receipt, Truck, Wallet, 
+  Menu, X, LogOut, Eye, EyeOff,
+  UserCheck, AlertCircle, Settings,
+  Building, Calculator, Warehouse, ShoppingBag, CreditCard,
+  BarChart3, Calendar, Bell, FileText, ClipboardList
 } from "lucide-react";
 
 // Importa tu logo - ajusta la ruta según donde tengas tu imagen
@@ -17,27 +19,53 @@ export default function Sidebar({ onLogout, empleado }) {
   const [isOpen, setIsOpen] = useState(false);
   const [showRoleInfo, setShowRoleInfo] = useState(false);
 
-  // Definición de permisos por rol
+  // Definición de permisos por rol - ACTUALIZADO para Don Baratón
   const rolePermissions = {
     administrador: [
-      "Panel principal", "Roles y cargos", "Sueldos", "Personal", 
-      "Inventario", "Productos", "Mesas", "Pedidos", "Ventas", "Proveedores", "Gastos"
+      "Panel Principal", "Roles y Permisos", "Personal", "Clientes",
+      "Productos", "Categorías", "Proveedores", "Inventario",
+      "Compras", "Ventas", "Caja", "Reportes",
+      "Alertas", "Backups", "Configuración"
     ],
     cajero: [
-      "Panel principal", "Ventas", "Gastos"
+      "Panel Principal", "Ventas", "Caja", "Clientes",
+      "Cierre de Caja"
     ],
-    mesero: [
-      "Panel principal", "Mesas", "Pedidos"
+    "encargado de almacén": [
+      "Panel Principal", "Inventario", "Productos", "Categorías",
+      "Alertas de Stock", "Movimientos de Inventario", "Reportes de Inventario"
+    ],
+    "encargado de compras": [
+      "Panel Principal", "Compras", "Proveedores", "Órdenes de Compra",
+      "Recepción de Mercadería", "Cuentas por Pagar", "Reportes de Compras"
+    ],
+    "supervisor de caja": [
+      "Panel Principal", "Ventas", "Caja", "Cierre de Caja",
+      "Reportes de Ventas", "Devoluciones", "Clientes"
+    ],
+    gerente: [
+      "Panel Principal", "Ventas", "Compras", "Inventario",
+      "Reportes", "Alertas", "Personal", "Clientes", "Proveedores"
+    ],
+    contador: [
+      "Panel Principal", "Reportes", "Ventas", "Compras",
+      "Caja", "Cuentas por Pagar", "Balance General"
     ],
     usuario: [
-      "Panel principal"
+      "Panel Principal"
     ]
   };
 
   // Todos los permisos disponibles en el sistema
   const allPermissions = [
-    "Panel principal", "Roles y cargos", "Sueldos", "Personal", 
-    "Inventario", "Productos", "Mesas", "Pedidos", "Ventas", "Proveedores", "Gastos"
+    "Panel Principal", "Roles y Permisos", "Personal", "Clientes",
+    "Productos", "Categorías", "Proveedores", "Inventario",
+    "Compras", "Ventas", "Caja", "Reportes",
+    "Alertas", "Backups", "Configuración", "Órdenes de Compra",
+    "Recepción de Mercadería", "Cuentas por Pagar", "Cierre de Caja",
+    "Devoluciones", "Movimientos de Inventario", "Alertas de Stock",
+    "Reportes de Inventario", "Reportes de Ventas", "Reportes de Compras",
+    "Balance General"
   ];
 
   useEffect(() => {
@@ -53,84 +81,182 @@ export default function Sidebar({ onLogout, empleado }) {
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-  // Items del menú con permisos
+  // Items del menú con permisos - ACTUALIZADO para Don Baratón
   const menuItems = [
     { 
-      label: "Panel principal", 
+      label: "Panel Principal", 
       icon: Home, 
       path: "/",
-      roles: ["administrador", "cajero", "mesero", "usuario"],
-      description: "Dashboard y estadísticas"
+      roles: ["administrador", "cajero", "encargado de almacén", "encargado de compras", "supervisor de caja", "gerente", "contador", "usuario"],
+      description: "Dashboard y estadísticas generales"
     },
+    // SECCIÓN: ADMINISTRACIÓN
     { 
-      label: "Roles y cargos", 
+      label: "Roles y Permisos", 
       icon: Shield, 
-      path: "/roles-cargos",
+      path: "/roles",
       roles: ["administrador"],
-      description: "Gestión de permisos y puestos"
-    },
-    { 
-      label: "Sueldos", 
-      icon: DollarSign, 
-      path: "/sueldos",
-      roles: ["administrador"],
-      description: "Administración de salarios"
+      description: "Gestión de roles y permisos del sistema"
     },
     { 
       label: "Personal", 
       icon: Users, 
-      path: "/personal",
-      roles: ["administrador"],
-      description: "Gestión de empleados"
+      path: "/empleados",
+      roles: ["administrador", "gerente"],
+      description: "Gestión de empleados y usuarios"
     },
     { 
-      label: "Inventario", 
-      icon: Package, 
-      path: "/inventario",
-      roles: ["administrador"],
-      description: "Control de stock y productos"
+      label: "Clientes", 
+      icon: Building, 
+      path: "/clientes",
+      roles: ["administrador", "cajero", "supervisor de caja", "gerente"],
+      description: "Gestión de clientes y registro"
     },
+    // SECCIÓN: PRODUCTOS
     { 
       label: "Productos", 
-      icon: ShoppingCart, 
+      icon: Package, 
       path: "/productos",
-      roles: ["administrador"],
-      description: "Gestión de productos del menú"
+      roles: ["administrador", "encargado de almacén", "gerente"],
+      description: "Gestión de productos y precios"
     },
     { 
-      label: "Mesas", 
-      icon: UtensilsCrossed, 
-      path: "/mesas",
-      roles: ["administrador", "mesero"],
-      description: "Gestión de mesas y salones"
+      label: "Categorías", 
+      icon: ClipboardList, 
+      path: "/categorias",
+      roles: ["administrador", "encargado de almacén"],
+      description: "Categorías y clasificación de productos"
     },
-    { 
-      label: "Pedidos", 
-      icon: Receipt, 
-      path: "/pedidos",
-      roles: ["administrador", "mesero"],
-      description: "Tomar y gestionar pedidos"
-    },
-    { 
-      label: "Ventas", 
-      icon: ShoppingCart, 
-      path: "/ventas",
-      roles: ["administrador", "cajero"],
-      description: "Registro y control de ventas"
-    },
+    // SECCIÓN: PROVEEDORES
     { 
       label: "Proveedores", 
       icon: Truck, 
       path: "/proveedores",
-      roles: ["administrador"],
+      roles: ["administrador", "encargado de compras", "gerente"],
       description: "Gestión de proveedores"
     },
     { 
-      label: "Gastos", 
-      icon: Wallet, 
-      path: "/gastos",
-      roles: ["administrador", "cajero"],
-      description: "Control de egresos y gastos"
+      label: "Compras", 
+      icon: ShoppingBag, 
+      path: "/compras",
+      roles: ["administrador", "encargado de compras"],
+      description: "Órdenes de compra y recepción"
+    },
+    { 
+      label: "Órdenes de Compra", 
+      icon: FileText, 
+      path: "/ordenes-compra",
+      roles: ["administrador", "encargado de compras"],
+      description: "Crear y gestionar órdenes de compra"
+    },
+    { 
+      label: "Cuentas por Pagar", 
+      icon: CreditCard, 
+      path: "/cuentas-por-pagar",
+      roles: ["administrador", "encargado de compras", "contador"],
+      description: "Gestión de deudas con proveedores"
+    },
+    // SECCIÓN: INVENTARIO
+    { 
+      label: "Inventario", 
+      icon: Warehouse, 
+      path: "/inventario",
+      roles: ["administrador", "encargado de almacén", "gerente"],
+      description: "Control de stock y existencia"
+    },
+    { 
+      label: "Movimientos de Inventario", 
+      icon: BarChart3, 
+      path: "/movimientos-inventario",
+      roles: ["administrador", "encargado de almacén"],
+      description: "Historial de entradas y salidas"
+    },
+    { 
+      label: "Alertas de Stock", 
+      icon: Bell, 
+      path: "/alertas-stock",
+      roles: ["administrador", "encargado de almacén"],
+      description: "Alertas de stock mínimo y vencimientos"
+    },
+    // SECCIÓN: VENTAS
+    { 
+      label: "Ventas", 
+      icon: ShoppingCart, 
+      path: "/ventas",
+      roles: ["administrador", "cajero", "supervisor de caja", "gerente", "contador"],
+      description: "Registro y gestión de ventas"
+    },
+    { 
+      label: "Caja", 
+      icon: Receipt, 
+      path: "/caja",
+      roles: ["administrador", "cajero", "supervisor de caja"],
+      description: "Operaciones de caja y pagos"
+    },
+    { 
+      label: "Cierre de Caja", 
+      icon: Calculator, 
+      path: "/cierre-caja",
+      roles: ["administrador", "cajero", "supervisor de caja", "contador"],
+      description: "Cierre diario de caja"
+    },
+    { 
+      label: "Devoluciones", 
+      icon: ShoppingCart, 
+      path: "/devoluciones",
+      roles: ["administrador", "supervisor de caja"],
+      description: "Gestión de devoluciones de productos"
+    },
+    // SECCIÓN: REPORTES
+    { 
+      label: "Reportes", 
+      icon: BarChart3, 
+      path: "/reportes",
+      roles: ["administrador", "gerente", "contador"],
+      description: "Reportes y análisis del sistema"
+    },
+    { 
+      label: "Reportes de Ventas", 
+      icon: BarChart3, 
+      path: "/reportes-ventas",
+      roles: ["administrador", "supervisor de caja", "gerente", "contador"],
+      description: "Reportes específicos de ventas"
+    },
+    { 
+      label: "Reportes de Compras", 
+      icon: BarChart3, 
+      path: "/reportes-compras",
+      roles: ["administrador", "encargado de compras", "contador"],
+      description: "Reportes de compras y proveedores"
+    },
+    { 
+      label: "Balance General", 
+      icon: Calculator, 
+      path: "/balance",
+      roles: ["administrador", "contador"],
+      description: "Balance financiero y contable"
+    },
+    // SECCIÓN: SISTEMA
+    { 
+      label: "Backups", 
+      icon: FileText, 
+      path: "/backups",
+      roles: ["administrador"],
+      description: "Copia de seguridad del sistema"
+    },
+    { 
+      label: "Configuración", 
+      icon: Settings, 
+      path: "/configuracion",
+      roles: ["administrador"],
+      description: "Configuración general del sistema"
+    },
+    { 
+      label: "Asistencias", 
+      icon: Calendar, 
+      path: "/asistencias",
+      roles: ["administrador", "gerente"],
+      description: "Control de asistencias del personal"
     },
   ];
 
@@ -138,22 +264,43 @@ export default function Sidebar({ onLogout, empleado }) {
   const getEmpleadoRol = () => {
     if (!empleado) return "usuario";
     
+    // Si viene del objeto empleado con relación roles
     if (empleado.roles && empleado.roles.nombre) {
       return empleado.roles.nombre.toLowerCase();
     }
     
+    // Si viene directamente el campo rol
     if (empleado.rol) {
       return empleado.rol.toLowerCase();
     }
     
+    // Si viene id_rol y necesitas mapearlo
     if (empleado.id_rol) {
       const rolMap = {
         1: "administrador",
         2: "cajero", 
-        3: "mesero",
-        4: "usuario"
+        3: "encargado de almacén",
+        4: "encargado de compras",
+        5: "supervisor de caja",
+        6: "gerente",
+        7: "contador",
+        8: "usuario"
       };
       return rolMap[empleado.id_rol] || "usuario";
+    }
+    
+    // Si viene cargo (alternativa)
+    if (empleado.cargo) {
+      const cargoMap = {
+        "Administrador": "administrador",
+        "Cajero": "cajero",
+        "Encargado de Almacén": "encargado de almacén",
+        "Encargado de Compras": "encargado de compras",
+        "Supervisor de Caja": "supervisor de caja",
+        "Gerente": "gerente",
+        "Contador": "contador"
+      };
+      return cargoMap[empleado.cargo] || "usuario";
     }
     
     return "usuario";
@@ -182,10 +329,14 @@ export default function Sidebar({ onLogout, empleado }) {
 
   const getRoleColor = (roleName) => {
     const colors = {
-      administrador: "#dc3545",
-      cajero: "#28a745", 
-      mesero: "#ffc107",
-      usuario: "#6c757d"
+      administrador: "#dc3545", // Rojo
+      cajero: "#28a745", // Verde
+      "encargado de almacén": "#17a2b8", // Celeste
+      "encargado de compras": "#007bff", // Azul
+      "supervisor de caja": "#6f42c1", // Púrpura
+      gerente: "#fd7e14", // Naranja
+      contador: "#20c997", // Verde azulado
+      usuario: "#6c757d" // Gris
     };
     return colors[roleName] || "#6c757d";
   };
@@ -194,10 +345,35 @@ export default function Sidebar({ onLogout, empleado }) {
     const badges = {
       administrador: "ADM",
       cajero: "CAJ",
-      mesero: "MES",
+      "encargado de almacén": "ALM",
+      "encargado de compras": "COM",
+      "supervisor de caja": "SUP",
+      gerente: "GER",
+      contador: "CON",
       usuario: "USR"
     };
     return badges[roleName] || "USR";
+  };
+
+  // Función para obtener el nombre formateado del empleado
+  const getEmpleadoNombre = () => {
+    if (!empleado) return "Usuario";
+    
+    // Si hay nombres y apellidos separados
+    if (empleado.nombres) {
+      const nombre = empleado.nombres.split(' ')[0]; // Primer nombre
+      if (empleado.apellido_paterno) {
+        return `${nombre} ${empleado.apellido_paterno.charAt(0)}.`;
+      }
+      return nombre;
+    }
+    
+    // Si viene como campo completo
+    if (empleado.nombre_completo) {
+      return empleado.nombre_completo;
+    }
+    
+    return "Usuario";
   };
 
   // Estilos en objetos JavaScript
@@ -336,7 +512,7 @@ export default function Sidebar({ onLogout, empleado }) {
           <div style={sidebarStyles.logoContainer}>
             <img 
               src={logo} 
-              alt="Beef & Beer Logo" 
+              alt="Don Baratón Logo" 
               style={sidebarStyles.logoImage}
               onError={(e) => {
                 // Fallback si la imagen no carga
@@ -346,13 +522,13 @@ export default function Sidebar({ onLogout, empleado }) {
             />
             {/* Fallback en caso de que la imagen no cargue */}
             <div style={sidebarStyles.logoFallback}>
-              B&B
+              DB
             </div>
           </div>
           
           <div style={sidebarStyles.brandSection}>
-            <h2 style={sidebarStyles.brandTitle}>Beef & Beer</h2>
-            <span style={sidebarStyles.brandSubtitle}>Sistema de gestión</span>
+            <h2 style={sidebarStyles.brandTitle}>Don Baratón</h2>
+            <span style={sidebarStyles.brandSubtitle}>Gestión Comercial</span>
           </div>
           
           {/* Información del usuario */}
@@ -362,8 +538,7 @@ export default function Sidebar({ onLogout, empleado }) {
             </div>
             <div style={sidebarStyles.userDetails}>
               <p style={sidebarStyles.userName}>
-                {empleado.nombre} {empleado.pat}
-                {empleado.mat && ` ${empleado.mat}`}
+                {getEmpleadoNombre()}
               </p>
               <div style={sidebarStyles.userRoleSection}>
                 <span 
@@ -371,7 +546,7 @@ export default function Sidebar({ onLogout, empleado }) {
                     ...sidebarStyles.userRoleBadge,
                     backgroundColor: getRoleColor(empleadoRol)
                   }}
-                  title={`Rol: ${empleadoRol}`}
+                  title={`Rol: ${empleadoRol.charAt(0).toUpperCase() + empleadoRol.slice(1)}`}
                 >
                   {getRoleBadge(empleadoRol)}
                 </span>
@@ -386,7 +561,7 @@ export default function Sidebar({ onLogout, empleado }) {
             </div>
           </div>
 
-          {/* Información de permisos del rol - ACTUALIZADO */}
+          {/* Información de permisos del rol */}
           {showRoleInfo && (
             <div style={sidebarStyles.rolePermissionsInfo}>
               {/* Permisos disponibles (VERDE) */}
@@ -413,12 +588,19 @@ export default function Sidebar({ onLogout, empleado }) {
                     <span>Permisos restringidos</span>
                   </div>
                   <ul style={sidebarStyles.permissionsList}>
-                    {unavailablePermissions.map((permiso, index) => (
+                    {unavailablePermissions.slice(0, 5).map((permiso, index) => (
                       <li key={`unavailable-${index}`} style={sidebarStyles.permissionItem}>
                         <div style={sidebarStyles.permissionDotUnavailable}></div>
                         <span style={sidebarStyles.permissionTextUnavailable}>{permiso}</span>
                       </li>
                     ))}
+                    {unavailablePermissions.length > 5 && (
+                      <li style={sidebarStyles.permissionItem}>
+                        <span style={{fontSize: '10px', color: '#6d4611'}}>
+                          + {unavailablePermissions.length - 5} más...
+                        </span>
+                      </li>
+                    )}
                   </ul>
                 </div>
               )}
@@ -486,8 +668,8 @@ export default function Sidebar({ onLogout, empleado }) {
 
           {/* Footer */}
           <div style={sidebarStyles.sidebarCopyright}>
-            © 2025 Beef & Beer
-            <span style={sidebarStyles.version}>v1.0.0</span>
+            © 2025 Don Baratón
+            <span style={sidebarStyles.version}>v2.0.0</span>
           </div>
         </div>
       </aside>
