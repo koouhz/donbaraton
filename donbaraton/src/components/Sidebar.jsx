@@ -1,16 +1,15 @@
+// src/components/Sidebar.jsx (actualizado con navegación corregida)
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
 import { 
   Home, Shield, Users, Package, 
   ShoppingCart, Receipt, Truck, Wallet, 
-  Menu, X, LogOut, Eye, EyeOff,
+  LogOut, Eye, EyeOff,
   UserCheck, AlertCircle, Settings,
   Building, Calculator, Warehouse, ShoppingBag, CreditCard,
-  BarChart3, Calendar, Bell, FileText, ClipboardList
+  BarChart3, Calendar, Bell, FileText, ClipboardList,
+  Store, ChevronRight, CheckCircle
 } from "lucide-react";
-
-// Importa tu logo - ajusta la ruta según donde tengas tu imagen
-import logo from '../logo/images.jpg';
 
 // ==================== CONSTANTES Y CONFIGURACIÓN ====================
 
@@ -49,81 +48,72 @@ const CARGO_MAP = {
   "Contador": ROLES.CONTADOR
 };
 
-// Permisos por rol - centralizado para fácil mantenimiento
+// Permisos por rol
 const ROLE_PERMISSIONS = {
   [ROLES.ADMINISTRADOR]: [
     "Panel Principal", "Roles y Permisos", "Personal", "Clientes",
     "Productos", "Categorías", "Proveedores", "Inventario",
-    "Compras", "Ventas", "Caja", "Reportes",
-    "Alertas", "Backups", "Configuración", "Órdenes de Compra",
-    "Recepción de Mercadería", "Cuentas por Pagar", "Cierre de Caja",
-    "Devoluciones", "Movimientos de Inventario", "Alertas de Stock",
-    "Reportes de Inventario", "Reportes de Ventas", "Reportes de Compras",
-    "Balance General", "Asistencias"
+    "Compras", "Ventas", "Caja", "Reportes", "Alertas",
+    "Configuración", "Órdenes de Compra", "Cierre de Caja"
   ],
   [ROLES.CAJERO]: [
     "Panel Principal", "Ventas", "Caja", "Clientes", "Cierre de Caja"
   ],
   [ROLES.ENCARGADO_ALMACEN]: [
     "Panel Principal", "Inventario", "Productos", "Categorías",
-    "Alertas de Stock", "Movimientos de Inventario", "Reportes de Inventario"
+    "Alertas de Stock", "Movimientos de Inventario"
   ],
   [ROLES.ENCARGADO_COMPRAS]: [
-    "Panel Principal", "Compras", "Proveedores", "Órdenes de Compra",
-    "Recepción de Mercadería", "Cuentas por Pagar", "Reportes de Compras"
+    "Panel Principal", "Compras", "Proveedores", "Órdenes de Compra"
   ],
   [ROLES.SUPERVISOR_CAJA]: [
     "Panel Principal", "Ventas", "Caja", "Cierre de Caja",
-    "Reportes de Ventas", "Devoluciones", "Clientes"
+    "Reportes de Ventas", "Clientes"
   ],
   [ROLES.GERENTE]: [
     "Panel Principal", "Ventas", "Compras", "Inventario",
-    "Reportes", "Alertas", "Personal", "Clientes", "Proveedores", "Asistencias"
+    "Reportes", "Alertas", "Personal", "Clientes", "Proveedores"
   ],
   [ROLES.CONTADOR]: [
     "Panel Principal", "Reportes", "Ventas", "Compras",
-    "Caja", "Cuentas por Pagar", "Balance General", "Reportes de Ventas",
-    "Reportes de Compras", "Cierre de Caja"
+    "Caja", "Cuentas por Pagar", "Cierre de Caja"
   ],
   [ROLES.USUARIO]: ["Panel Principal"]
 };
 
-// Configuración del menú - separada del componente para mayor claridad
+// Configuración del menú - IMPORTANTE: Rutas actualizadas
 const MENU_CONFIG = [
   // SECCIÓN: PANEL PRINCIPAL
   { 
     label: "Panel Principal", 
     icon: Home, 
-    path: "/",
-    roles: Object.values(ROLES), // Todos los roles tienen acceso
-    description: "Dashboard y estadísticas generales",
-    section: "general"
+    path: "/dashboard",  // Cambiado de "/" a "/dashboard"
+    exact: true,
+    roles: Object.values(ROLES),
+    description: "Dashboard y estadísticas"
   },
   
   // SECCIÓN: ADMINISTRACIÓN
   { 
     label: "Roles y Permisos", 
     icon: Shield, 
-    path: "/roles",
+    path: "/roles-cargos",  // Cambiado de "/roles" a "/roles-cargos"
     roles: [ROLES.ADMINISTRADOR],
-    description: "Gestión de roles y permisos del sistema",
-    section: "administracion"
+    description: "Gestión de roles y permisos"
   },
   { 
     label: "Personal", 
     icon: Users, 
     path: "/empleados",
     roles: [ROLES.ADMINISTRADOR, ROLES.GERENTE],
-    description: "Gestión de empleados y usuarios",
-    section: "administracion"
+    description: "Gestión de empleados"
   },
   { 
     label: "Clientes", 
     icon: Building, 
     path: "/clientes",
     roles: [ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.SUPERVISOR_CAJA, ROLES.GERENTE],
-    description: "Gestión de clientes y registro",
-    section: "administracion"
+    description: "Gestión de clientes"
   },
   
   // SECCIÓN: PRODUCTOS
@@ -132,16 +122,14 @@ const MENU_CONFIG = [
     icon: Package, 
     path: "/productos",
     roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_ALMACEN, ROLES.GERENTE],
-    description: "Gestión de productos y precios",
-    section: "productos"
+    description: "Gestión de productos"
   },
   { 
     label: "Categorías", 
     icon: ClipboardList, 
     path: "/categorias",
     roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_ALMACEN],
-    description: "Categorías y clasificación de productos",
-    section: "productos"
+    description: "Categorías de productos"
   },
   
   // SECCIÓN: PROVEEDORES Y COMPRAS
@@ -150,32 +138,14 @@ const MENU_CONFIG = [
     icon: Truck, 
     path: "/proveedores",
     roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_COMPRAS, ROLES.GERENTE],
-    description: "Gestión de proveedores",
-    section: "compras"
+    description: "Gestión de proveedores"
   },
   { 
     label: "Compras", 
     icon: ShoppingBag, 
     path: "/compras",
     roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_COMPRAS],
-    description: "Órdenes de compra y recepción",
-    section: "compras"
-  },
-  { 
-    label: "Órdenes de Compra", 
-    icon: FileText, 
-    path: "/ordenes-compra",
-    roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_COMPRAS],
-    description: "Crear y gestionar órdenes de compra",
-    section: "compras"
-  },
-  { 
-    label: "Cuentas por Pagar", 
-    icon: CreditCard, 
-    path: "/cuentas-por-pagar",
-    roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_COMPRAS, ROLES.CONTADOR],
-    description: "Gestión de deudas con proveedores",
-    section: "compras"
+    description: "Órdenes de compra"
   },
   
   // SECCIÓN: INVENTARIO
@@ -184,24 +154,7 @@ const MENU_CONFIG = [
     icon: Warehouse, 
     path: "/inventario",
     roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_ALMACEN, ROLES.GERENTE],
-    description: "Control de stock y existencia",
-    section: "inventario"
-  },
-  { 
-    label: "Movimientos de Inventario", 
-    icon: BarChart3, 
-    path: "/movimientos-inventario",
-    roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_ALMACEN],
-    description: "Historial de entradas y salidas",
-    section: "inventario"
-  },
-  { 
-    label: "Alertas de Stock", 
-    icon: Bell, 
-    path: "/alertas-stock",
-    roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_ALMACEN],
-    description: "Alertas de stock mínimo y vencimientos",
-    section: "inventario"
+    description: "Control de stock"
   },
   
   // SECCIÓN: VENTAS
@@ -210,32 +163,21 @@ const MENU_CONFIG = [
     icon: ShoppingCart, 
     path: "/ventas",
     roles: [ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.SUPERVISOR_CAJA, ROLES.GERENTE, ROLES.CONTADOR],
-    description: "Registro y gestión de ventas",
-    section: "ventas"
+    description: "Registro de ventas"
   },
   { 
     label: "Caja", 
     icon: Receipt, 
     path: "/caja",
     roles: [ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.SUPERVISOR_CAJA],
-    description: "Operaciones de caja y pagos",
-    section: "ventas"
+    description: "Operaciones de caja"
   },
   { 
     label: "Cierre de Caja", 
     icon: Calculator, 
     path: "/cierre-caja",
     roles: [ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.SUPERVISOR_CAJA, ROLES.CONTADOR],
-    description: "Cierre diario de caja",
-    section: "ventas"
-  },
-  { 
-    label: "Devoluciones", 
-    icon: ShoppingCart, 
-    path: "/devoluciones",
-    roles: [ROLES.ADMINISTRADOR, ROLES.SUPERVISOR_CAJA],
-    description: "Gestión de devoluciones de productos",
-    section: "ventas"
+    description: "Cierre diario de caja"
   },
   
   // SECCIÓN: REPORTES
@@ -244,71 +186,29 @@ const MENU_CONFIG = [
     icon: BarChart3, 
     path: "/reportes",
     roles: [ROLES.ADMINISTRADOR, ROLES.GERENTE, ROLES.CONTADOR],
-    description: "Reportes y análisis del sistema",
-    section: "reportes"
-  },
-  { 
-    label: "Reportes de Ventas", 
-    icon: BarChart3, 
-    path: "/reportes-ventas",
-    roles: [ROLES.ADMINISTRADOR, ROLES.SUPERVISOR_CAJA, ROLES.GERENTE, ROLES.CONTADOR],
-    description: "Reportes específicos de ventas",
-    section: "reportes"
-  },
-  { 
-    label: "Reportes de Compras", 
-    icon: BarChart3, 
-    path: "/reportes-compras",
-    roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_COMPRAS, ROLES.CONTADOR],
-    description: "Reportes de compras y proveedores",
-    section: "reportes"
-  },
-  { 
-    label: "Balance General", 
-    icon: Calculator, 
-    path: "/balance",
-    roles: [ROLES.ADMINISTRADOR, ROLES.CONTADOR],
-    description: "Balance financiero y contable",
-    section: "reportes"
+    description: "Reportes del sistema"
   },
   
   // SECCIÓN: SISTEMA
-  { 
-    label: "Backups", 
-    icon: FileText, 
-    path: "/backups",
-    roles: [ROLES.ADMINISTRADOR],
-    description: "Copia de seguridad del sistema",
-    section: "sistema"
-  },
   { 
     label: "Configuración", 
     icon: Settings, 
     path: "/configuracion",
     roles: [ROLES.ADMINISTRADOR],
-    description: "Configuración general del sistema",
-    section: "sistema"
-  },
-  { 
-    label: "Asistencias", 
-    icon: Calendar, 
-    path: "/asistencias",
-    roles: [ROLES.ADMINISTRADOR, ROLES.GERENTE],
-    description: "Control de asistencias del personal",
-    section: "administracion"
+    description: "Configuración general"
   },
 ];
 
-// Configuración de colores por rol
+// Configuración de colores por rol (usando los del Dashboard)
 const ROLE_COLORS = {
-  [ROLES.ADMINISTRADOR]: "#dc3545", // Rojo
-  [ROLES.CAJERO]: "#28a745", // Verde
-  [ROLES.ENCARGADO_ALMACEN]: "#17a2b8", // Celeste
-  [ROLES.ENCARGADO_COMPRAS]: "#007bff", // Azul
-  [ROLES.SUPERVISOR_CAJA]: "#6f42c1", // Púrpura
-  [ROLES.GERENTE]: "#fd7e14", // Naranja
-  [ROLES.CONTADOR]: "#20c997", // Verde azulado
-  [ROLES.USUARIO]: "#6c757d" // Gris
+  [ROLES.ADMINISTRADOR]: "#1a5d1a", // Verde oscuro
+  [ROLES.CAJERO]: "#2e8b57", // Verde mar
+  [ROLES.ENCARGADO_ALMACEN]: "#3cb371", // Verde medio
+  [ROLES.ENCARGADO_COMPRAS]: "#20b2aa", // Verde azulado
+  [ROLES.SUPERVISOR_CAJA]: "#5f9ea0", // Verde azulado oscuro
+  [ROLES.GERENTE]: "#8fbc8f", // Verde grisáceo
+  [ROLES.CONTADOR]: "#66cdaa", // Verde aguamarina
+  [ROLES.USUARIO]: "#98fb98" // Verde claro
 };
 
 // Configuración de badges por rol
@@ -323,10 +223,16 @@ const ROLE_BADGES = {
   [ROLES.USUARIO]: "USR"
 };
 
-// ==================== HOOKS PERSONALIZADOS ====================
+// ==================== COMPONENTE PRINCIPAL ====================
 
-const useResponsive = () => {
+export default function Sidebar({ onLogout, empleado }) {
+  const location = useLocation();
+  const navigate = useNavigate();
+  const [showRoleInfo, setShowRoleInfo] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
+  const [logoError, setLogoError] = useState(false);
+  const [breadcrumbs, setBreadcrumbs] = useState([]);
+  const [currentPage, setCurrentPage] = useState("");
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -338,278 +244,67 @@ const useResponsive = () => {
     return () => window.removeEventListener("resize", checkScreenSize);
   }, []);
 
-  return isMobile;
-};
-
-// ==================== COMPONENTES AUXILIARES ====================
-
-const LoadingState = () => (
-  <aside style={styles.sidebarLoading}>
-    <div style={styles.loadingContent}>
-      <div style={styles.loadingSpinner}></div>
-      <p>Cargando información...</p>
-    </div>
-  </aside>
-);
-
-const MobileMenuButton = ({ isOpen, toggleMenu }) => (
-  <button 
-    onClick={toggleMenu}
-    style={styles.mobileMenuButton}
-    aria-label={isOpen ? "Cerrar menú" : "Abrir menú"}
-  >
-    {isOpen ? <X size={20} /> : <Menu size={20} />}
-  </button>
-);
-
-const MobileOverlay = ({ closeMenu }) => (
-  <div
-    onClick={closeMenu}
-    style={styles.sidebarOverlay}
-  />
-);
-
-const Logo = ({ logo }) => (
-  <div style={sidebarStyles.logoContainer}>
-    <img 
-      src={logo} 
-      alt="Don Baratón Logo" 
-      style={sidebarStyles.logoImage}
-      onError={(e) => {
-        e.target.style.display = 'none';
-        e.target.nextSibling.style.display = 'flex';
-      }}
-    />
-    <div style={sidebarStyles.logoFallback}>
-      DB
-    </div>
-  </div>
-);
-
-const UserInfo = ({ 
-  empleado, 
-  empleadoRol, 
-  showRoleInfo, 
-  toggleRoleInfo,
-  getEmpleadoNombre,
-  getRoleColor,
-  getRoleBadge 
-}) => (
-  <div style={sidebarStyles.userInfo}>
-    <div style={sidebarStyles.userAvatar}>
-      <UserCheck size={16} />
-    </div>
-    <div style={sidebarStyles.userDetails}>
-      <p style={sidebarStyles.userName}>
-        {getEmpleadoNombre(empleado)}
-      </p>
-      <div style={sidebarStyles.userRoleSection}>
-        <span 
-          style={{
-            ...sidebarStyles.userRoleBadge,
-            backgroundColor: getRoleColor(empleadoRol)
-          }}
-          title={`Rol: ${empleadoRol.charAt(0).toUpperCase() + empleadoRol.slice(1)}`}
-        >
-          {getRoleBadge(empleadoRol)}
-        </span>
-        <button 
-          style={sidebarStyles.roleInfoButton}
-          onClick={toggleRoleInfo}
-          title="Ver información de permisos"
-        >
-          {showRoleInfo ? <EyeOff size={12} /> : <Eye size={12} />}
-        </button>
-      </div>
-    </div>
-  </div>
-);
-
-const RolePermissionsInfo = ({ empleadoRol, unavailablePermissions }) => (
-  <div style={sidebarStyles.rolePermissionsInfo}>
-    <PermissionsSection 
-      title={`Permisos disponibles - ${empleadoRol.toUpperCase()}`}
-      permissions={ROLE_PERMISSIONS[empleadoRol] || []}
-      isAvailable={true}
-    />
+  // Efecto para actualizar breadcrumbs y página actual
+  useEffect(() => {
+    // Obtener la página actual basada en la ruta
+    const currentPath = location.pathname;
+    const currentMenuItem = MENU_CONFIG.find(item => item.path === currentPath);
     
-    {unavailablePermissions.length > 0 && (
-      <div style={sidebarStyles.unavailableSection}>
-        <PermissionsSection 
-          title="Permisos restringidos"
-          permissions={unavailablePermissions}
-          isAvailable={false}
-        />
-      </div>
-    )}
-  </div>
-);
-
-const PermissionsSection = ({ title, permissions, isAvailable }) => (
-  <div>
-    <div style={sidebarStyles.permissionsHeader}>
-      {isAvailable ? <Settings size={14} /> : <AlertCircle size={14} />}
-      <span>{title}</span>
-    </div>
-    <ul style={sidebarStyles.permissionsList}>
-      {permissions.slice(0, isAvailable ? permissions.length : 5).map((permiso, index) => (
-        <li key={`${isAvailable ? 'available' : 'unavailable'}-${index}`} 
-            style={sidebarStyles.permissionItem}>
-          <div style={{
-            ...sidebarStyles.permissionDot,
-            backgroundColor: isAvailable ? "#28a745" : "#dc3545"
-          }}></div>
-          <span style={{
-            ...sidebarStyles.permissionText,
-            color: isAvailable ? "#28a745" : "#dc3545"
-          }}>{permiso}</span>
-        </li>
-      ))}
-      {!isAvailable && permissions.length > 5 && (
-        <li style={sidebarStyles.permissionItem}>
-          <span style={{fontSize: '10px', color: '#6d4611'}}>
-            + {permissions.length - 5} más...
-          </span>
-        </li>
-      )}
-    </ul>
-  </div>
-);
-
-const Navigation = ({ filteredItems, location, isMobile, closeMenu }) => (
-  <nav style={sidebarStyles.sidebarNav}>
-    {filteredItems.length === 0 ? (
-      <NoPermissions />
-    ) : (
-      <NavigationList 
-        items={filteredItems} 
-        location={location} 
-        isMobile={isMobile} 
-        closeMenu={closeMenu} 
-      />
-    )}
-  </nav>
-);
-
-const NavigationList = ({ items, location, isMobile, closeMenu }) => {
-  const sections = {};
-  
-  // Agrupar items por sección
-  items.forEach(item => {
-    if (!sections[item.section]) {
-      sections[item.section] = [];
+    if (currentMenuItem) {
+      setCurrentPage(currentMenuItem.label);
+      
+      // Crear breadcrumbs
+      const crumbs = [
+        { label: "Inicio", path: "/dashboard" }
+      ];
+      
+      if (currentPath !== "/dashboard") {
+        crumbs.push({ 
+          label: currentMenuItem.label, 
+          path: currentPath 
+        });
+      }
+      
+      setBreadcrumbs(crumbs);
+    } else {
+      // Si no encuentra la ruta, usar la ruta actual
+      setCurrentPage(getPageTitleFromPath(currentPath));
+      
+      const crumbs = [
+        { label: "Inicio", path: "/dashboard" },
+        { label: getPageTitleFromPath(currentPath), path: currentPath }
+      ];
+      setBreadcrumbs(crumbs);
     }
-    sections[item.section].push(item);
-  });
+  }, [location.pathname]);
 
-  return (
-    <ul style={sidebarStyles.navList}>
-      {Object.entries(sections).map(([section, sectionItems]) => (
-        <li key={section}>
-          <div style={sidebarStyles.sectionDivider}></div>
-          {sectionItems.map((item, index) => (
-            <NavItem 
-              key={index}
-              item={item}
-              isActive={location.pathname === item.path}
-              isMobile={isMobile}
-              closeMenu={closeMenu}
-            />
-          ))}
-        </li>
-      ))}
-    </ul>
+  const getPageTitleFromPath = (path) => {
+    const item = MENU_CONFIG.find(item => item.path === path);
+    return item ? item.label : "Página Actual";
+  };
+
+  // Todos los permisos disponibles en el sistema
+  const allPermissions = Array.from(
+    new Set(Object.values(ROLE_PERMISSIONS).flat())
   );
-};
-
-const NavItem = ({ item, isActive, isMobile, closeMenu }) => {
-  const IconComponent = item.icon;
-  
-  return (
-    <li
-      style={{
-        ...sidebarStyles.navItem,
-        ...(isActive ? sidebarStyles.navItemActive : {})
-      }}
-    >
-      <Link
-        to={item.path}
-        style={sidebarStyles.navLink}
-        onClick={() => isMobile && closeMenu()}
-        title={item.description}
-      >
-        <span style={sidebarStyles.navIcon}>
-          <IconComponent size={16} />
-        </span>
-        <span style={sidebarStyles.navLabel}>
-          {item.label}
-        </span>
-        {isActive && <div style={sidebarStyles.navIndicator} />}
-      </Link>
-    </li>
-  );
-};
-
-const NoPermissions = () => (
-  <div style={sidebarStyles.noPermissions}>
-    <AlertCircle size={32} style={sidebarStyles.noPermissionsIcon} />
-    <p style={sidebarStyles.noPermissionsTitle}>Sin permisos</p>
-    <p style={sidebarStyles.noPermissionsDescription}>
-      Tu rol de usuario no tiene acceso a las funciones del sistema.
-    </p>
-  </div>
-);
-
-const Footer = ({ handleLogout }) => (
-  <div style={sidebarStyles.sidebarFooter}>
-    <button
-      onClick={handleLogout}
-      style={sidebarStyles.logoutButton}
-      title="Cerrar sesión del sistema"
-    >
-      <span style={sidebarStyles.logoutIcon}>
-        <LogOut size={16} />
-      </span>
-      <span>Cerrar Sesión</span>
-    </button>
-
-    <div style={sidebarStyles.sidebarCopyright}>
-      © 2025 Don Baratón
-      <span style={sidebarStyles.version}>v2.0.0</span>
-    </div>
-  </div>
-);
-
-// ==================== COMPONENTE PRINCIPAL ====================
-
-export default function Sidebar({ onLogout, empleado }) {
-  const location = useLocation();
-  const navigate = useNavigate();
-  const isMobile = useResponsive();
-  const [isOpen, setIsOpen] = useState(false);
-  const [showRoleInfo, setShowRoleInfo] = useState(false);
 
   // ==================== FUNCIONES AUXILIARES ====================
 
   const getEmpleadoRol = () => {
     if (!empleado) return ROLES.USUARIO;
     
-    // Prioridad 1: roles.nombre
     if (empleado.roles?.nombre) {
       return empleado.roles.nombre.toLowerCase();
     }
     
-    // Prioridad 2: campo rol
     if (empleado.rol) {
       return empleado.rol.toLowerCase();
     }
     
-    // Prioridad 3: id_rol
     if (empleado.id_rol) {
       return ROLE_MAP[empleado.id_rol] || ROLES.USUARIO;
     }
     
-    // Prioridad 4: cargo
     if (empleado.cargo) {
       return CARGO_MAP[empleado.cargo] || ROLES.USUARIO;
     }
@@ -617,7 +312,7 @@ export default function Sidebar({ onLogout, empleado }) {
     return ROLES.USUARIO;
   };
 
-  const getEmpleadoNombre = (empleado) => {
+  const getEmpleadoNombre = () => {
     if (!empleado) return "Usuario";
     
     if (empleado.nombres) {
@@ -628,22 +323,15 @@ export default function Sidebar({ onLogout, empleado }) {
       return nombre;
     }
     
-    if (empleado.nombre_completo) {
-      return empleado.nombre_completo;
-    }
-    
     return "Usuario";
   };
 
-  const getRoleColor = (roleName) => ROLE_COLORS[roleName] || "#6c757d";
+  const getRoleColor = (roleName) => ROLE_COLORS[roleName] || "#1a5d1a";
   const getRoleBadge = (roleName) => ROLE_BADGES[roleName] || "USR";
 
   const getUnavailablePermissions = (empleadoRol) => {
     const availablePerms = ROLE_PERMISSIONS[empleadoRol] || [];
-    const allPermissions = Object.values(ROLE_PERMISSIONS).flat();
-    const uniquePermissions = [...new Set(allPermissions)];
-    
-    return uniquePermissions.filter(perm => !availablePerms.includes(perm));
+    return allPermissions.filter(perm => !availablePerms.includes(perm));
   };
 
   // ==================== LÓGICA DEL COMPONENTE ====================
@@ -654,431 +342,673 @@ export default function Sidebar({ onLogout, empleado }) {
   );
   const unavailablePermissions = getUnavailablePermissions(empleadoRol);
 
+  // Función para determinar si un item está activo
+  const isItemActive = (itemPath, exact = false) => {
+    if (exact) {
+      return location.pathname === itemPath;
+    }
+    return location.pathname.startsWith(itemPath) || 
+           location.pathname === itemPath;
+  };
+
   const handleLogout = () => {
     if (window.confirm("¿Estás seguro de que deseas cerrar sesión?")) {
       onLogout();
     }
   };
 
-  const toggleMenu = () => setIsOpen(!isOpen);
-  const closeMenu = () => setIsOpen(false);
   const toggleRoleInfo = () => setShowRoleInfo(!showRoleInfo);
+
+  // Función para navegar a una página
+  const handleNavigation = (path) => {
+    navigate(path);
+  };
+
+  // ==================== ESTILOS ====================
+
+  const styles = {
+    sidebar: {
+      width: "280px",
+      height: "100vh",
+      background: "linear-gradient(160deg, #f8f9fa 0%, #e8f5e9 100%)",
+      padding: "25px 20px",
+      display: "flex",
+      flexDirection: "column",
+      boxShadow: "2px 0 20px rgba(26, 93, 26, 0.08)",
+      position: "fixed",
+      left: 0,
+      top: 0,
+      zIndex: 999,
+      overflow: "hidden",
+      borderRight: "1px solid rgba(26, 93, 26, 0.1)"
+    }
+  };
+
+  const sidebarStyles = {
+    header: {
+      marginBottom: "25px",
+      flexShrink: 0
+    },
+    logoContainer: {
+      position: "relative",
+      marginBottom: "20px",
+      display: "flex",
+      justifyContent: "center"
+    },
+    logoImage: {
+      width: "80px",
+      height: "80px",
+      borderRadius: "16px",
+      objectFit: "contain",
+      background: "white",
+      padding: "10px",
+      border: "3px solid white",
+      boxShadow: "0 6px 20px rgba(26, 93, 26, 0.2)"
+    },
+    logoFallback: {
+      width: "80px",
+      height: "80px",
+      borderRadius: "16px",
+      background: "linear-gradient(135deg, #1a5d1a, #2e8b57)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "white",
+      fontSize: "22px",
+      fontWeight: "bold",
+      border: "3px solid white",
+      boxShadow: "0 6px 20px rgba(26, 93, 26, 0.2)"
+    },
+    brandSection: {
+      textAlign: "center",
+      marginBottom: "25px"
+    },
+    brandTitle: {
+      margin: "0 0 6px 0",
+      fontSize: "24px",
+      fontWeight: 700,
+      background: "linear-gradient(135deg, #1a5d1a, #2e8b57)",
+      WebkitBackgroundClip: "text",
+      WebkitTextFillColor: "transparent",
+      backgroundClip: "text"
+    },
+    brandSubtitle: {
+      fontSize: "13px",
+      color: "#2e8b57",
+      opacity: 0.9,
+      letterSpacing: "0.5px"
+    },
+    userInfo: {
+      display: "flex",
+      alignItems: "center",
+      gap: "14px",
+      padding: "16px",
+      background: "rgba(255, 255, 255, 0.9)",
+      borderRadius: "14px",
+      border: "1px solid rgba(26, 93, 26, 0.15)",
+      boxShadow: "0 4px 12px rgba(26, 93, 26, 0.05)",
+      marginBottom: "15px"
+    },
+    userAvatar: {
+      width: "44px",
+      height: "44px",
+      borderRadius: "12px",
+      background: "linear-gradient(135deg, #1a5d1a, #2e8b57)",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      color: "white",
+      flexShrink: 0,
+      boxShadow: "0 4px 10px rgba(26, 93, 26, 0.2)"
+    },
+    userDetails: {
+      flex: 1,
+      minWidth: 0
+    },
+    userName: {
+      margin: "0 0 6px 0",
+      fontSize: "15px",
+      fontWeight: 600,
+      color: "#1a5d1a",
+      whiteSpace: "nowrap",
+      overflow: "hidden",
+      textOverflow: "ellipsis"
+    },
+    userRoleSection: {
+      display: "flex",
+      alignItems: "center",
+      gap: "10px"
+    },
+    userRoleBadge: {
+      padding: "3px 10px",
+      borderRadius: "20px",
+      color: "white",
+      fontSize: "11px",
+      fontWeight: 600,
+      textTransform: "uppercase",
+      letterSpacing: "0.5px",
+      boxShadow: "0 2px 8px rgba(0,0,0,0.1)"
+    },
+    roleInfoButton: {
+      background: "rgba(26, 93, 26, 0.1)",
+      border: "none",
+      color: "#1a5d1a",
+      cursor: "pointer",
+      padding: "4px 8px",
+      borderRadius: "8px",
+      transition: "all 0.2s ease",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: "12px"
+    },
+    rolePermissionsInfo: {
+      marginTop: "15px",
+      padding: "18px",
+      background: "rgba(255, 255, 255, 0.95)",
+      borderRadius: "14px",
+      border: "1px solid rgba(26, 93, 26, 0.1)",
+      maxHeight: "300px",
+      overflowY: "auto",
+      boxShadow: "0 6px 20px rgba(26, 93, 26, 0.08)"
+    },
+    currentPageBadge: {
+      display: "inline-block",
+      background: "rgba(26, 93, 26, 0.1)",
+      color: "#1a5d1a",
+      padding: "4px 10px",
+      borderRadius: "12px",
+      fontSize: "11px",
+      fontWeight: 500,
+      marginTop: "5px",
+      display: "flex",
+      alignItems: "center",
+      gap: "5px"
+    },
+    unavailableSection: {
+      marginTop: "18px",
+      paddingTop: "18px",
+      borderTop: "1px solid rgba(220, 53, 69, 0.15)"
+    },
+    permissionsHeader: {
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      marginBottom: "12px",
+      fontSize: "12px",
+      fontWeight: 600,
+      color: "#1a5d1a",
+      textTransform: "uppercase",
+      letterSpacing: "0.5px"
+    },
+    permissionsList: {
+      listStyle: "none",
+      padding: 0,
+      margin: 0
+    },
+    permissionItem: {
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      padding: "6px 0",
+      fontSize: "12px",
+      color: "#2e8b57"
+    },
+    permissionDotAvailable: {
+      width: "8px",
+      height: "8px",
+      borderRadius: "50%",
+      background: "linear-gradient(135deg, #28a745, #20c997)",
+      flexShrink: 0,
+      boxShadow: "0 2px 4px rgba(40, 167, 69, 0.3)"
+    },
+    permissionDotUnavailable: {
+      width: "8px",
+      height: "8px",
+      borderRadius: "50%",
+      background: "linear-gradient(135deg, #dc3545, #e83e8c)",
+      flexShrink: 0,
+      boxShadow: "0 2px 4px rgba(220, 53, 69, 0.3)"
+    },
+    permissionTextAvailable: {
+      color: "#28a745",
+      fontWeight: 500
+    },
+    permissionTextUnavailable: {
+      color: "#dc3545",
+      fontWeight: 500
+    },
+    sidebarNav: {
+      flex: 1,
+      overflowY: "auto",
+      overflowX: "hidden",
+      paddingRight: "8px"
+    },
+    navList: {
+      listStyle: "none",
+      padding: 0,
+      margin: 0
+    },
+    navItem: {
+      marginBottom: "8px",
+      borderRadius: "12px",
+      overflow: "hidden",
+      transition: "all 0.25s ease",
+      background: "transparent",
+      position: "relative",
+      cursor: "pointer"
+    },
+    navItemActive: {
+      background: "linear-gradient(135deg, rgba(26, 93, 26, 0.1), rgba(46, 139, 87, 0.15))",
+      color: "#1a5d1a",
+      fontWeight: 600,
+      boxShadow: "0 4px 15px rgba(26, 93, 26, 0.1)"
+    },
+    navLink: {
+      display: "flex",
+      alignItems: "center",
+      gap: "14px",
+      padding: "14px 16px",
+      color: "inherit",
+      textDecoration: "none",
+      fontSize: "14px",
+      transition: "all 0.25s ease",
+      position: "relative",
+      width: "100%"
+    },
+    navIcon: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: "36px",
+      height: "36px",
+      borderRadius: "10px",
+      background: "rgba(26, 93, 26, 0.08)",
+      transition: "all 0.25s ease",
+      flexShrink: 0,
+      color: "#1a5d1a"
+    },
+    navLabel: {
+      whiteSpace: "nowrap",
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      flex: 1
+    },
+    navActiveBadge: {
+      background: "linear-gradient(135deg, #1a5d1a, #2e8b57)",
+      color: "white",
+      fontSize: "10px",
+      padding: "2px 6px",
+      borderRadius: "10px",
+      fontWeight: 600,
+      display: "flex",
+      alignItems: "center",
+      gap: "3px"
+    },
+    navIndicator: {
+      position: "absolute",
+      left: 0,
+      top: 0,
+      bottom: 0,
+      width: "4px",
+      background: "linear-gradient(to bottom, #1a5d1a, #2e8b57)",
+      borderRadius: "0 4px 4px 0",
+      boxShadow: "0 2px 8px rgba(26, 93, 26, 0.3)"
+    },
+    noPermissions: {
+      textAlign: "center",
+      padding: "50px 20px",
+      color: "#2e8b57"
+    },
+    noPermissionsIcon: {
+      opacity: 0.5,
+      marginBottom: "18px",
+      color: "#1a5d1a"
+    },
+    noPermissionsTitle: {
+      margin: "0 0 10px 0",
+      fontSize: "17px",
+      fontWeight: 600,
+      color: "#1a5d1a"
+    },
+    noPermissionsDescription: {
+      margin: 0,
+      fontSize: "14px",
+      opacity: 0.7,
+      lineHeight: 1.5
+    },
+    sidebarFooter: {
+      marginTop: "20px",
+      flexShrink: 0
+    },
+    logoutButton: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      gap: "12px",
+      width: "100%",
+      padding: "14px 16px",
+      background: "linear-gradient(135deg, rgba(26, 93, 26, 0.1), rgba(220, 53, 69, 0.1))",
+      border: "1px solid rgba(220, 53, 69, 0.2)",
+      borderRadius: "12px",
+      color: "#dc3545",
+      cursor: "pointer",
+      fontSize: "14px",
+      fontWeight: 500,
+      transition: "all 0.25s ease",
+      marginBottom: "15px"
+    },
+    logoutIcon: {
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      width: "32px",
+      height: "32px",
+      borderRadius: "10px",
+      background: "rgba(220, 53, 69, 0.15)"
+    },
+    sidebarCopyright: {
+      fontSize: "12px",
+      color: "#6c757d",
+      textAlign: "center",
+      opacity: 0.8,
+      padding: "20px 0 10px",
+      borderTop: "1px solid rgba(26, 93, 26, 0.1)",
+      marginTop: "10px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "6px"
+    },
+    version: {
+      fontSize: "11px",
+      opacity: 0.6,
+      color: "#1a5d1a"
+    }
+  };
 
   // ==================== RENDER ====================
 
+  // Si no hay empleado, mostrar estado de carga
   if (!empleado) {
-    return <LoadingState />;
+    return (
+      <aside style={styles.sidebar}>
+        <div style={{ textAlign: "center", padding: "40px 20px" }}>
+          <div style={{
+            width: "30px",
+            height: "30px",
+            border: "3px solid rgba(26, 93, 26, 0.2)",
+            borderTop: "3px solid #1a5d1a",
+            borderRadius: "50%",
+            animation: "spin 1s linear infinite",
+            margin: "0 auto 15px"
+          }}></div>
+          <p style={{ color: "#1a5d1a", fontSize: "14px" }}>Cargando...</p>
+        </div>
+      </aside>
+    );
   }
 
   return (
-    <>
-      {isMobile && <MobileMenuButton isOpen={isOpen} toggleMenu={toggleMenu} />}
-      {isMobile && isOpen && <MobileOverlay closeMenu={closeMenu} />}
-
-      <aside 
-        style={{
-          ...styles.sidebar,
-          ...(isMobile ? styles.sidebarMobile : {}),
-          ...(isOpen ? styles.sidebarOpen : {})
-        }}
-      >
-        {/* Header */}
-        <div style={sidebarStyles.header}>
-          <Logo logo={logo} />
-          
-          <div style={sidebarStyles.brandSection}>
-            <h2 style={sidebarStyles.brandTitle}>Don Baratón</h2>
-            <span style={sidebarStyles.brandSubtitle}>Gestión Comercial</span>
-          </div>
-          
-          <UserInfo 
-            empleado={empleado}
-            empleadoRol={empleadoRol}
-            showRoleInfo={showRoleInfo}
-            toggleRoleInfo={toggleRoleInfo}
-            getEmpleadoNombre={getEmpleadoNombre}
-            getRoleColor={getRoleColor}
-            getRoleBadge={getRoleBadge}
-          />
-
-          {showRoleInfo && (
-            <RolePermissionsInfo 
-              empleadoRol={empleadoRol}
-              unavailablePermissions={unavailablePermissions}
+    <aside style={styles.sidebar}>
+      {/* Header del Sidebar */}
+      <div style={sidebarStyles.header}>
+        {/* Logo con imagen */}
+        <div style={sidebarStyles.logoContainer}>
+          {!logoError ? (
+            <img
+              src="../logo/images.jpg"
+              alt="Logo Supermercado"
+              style={sidebarStyles.logoImage}
+              onError={() => setLogoError(true)}
+              onLoad={() => setLogoError(false)}
             />
+          ) : (
+            <div style={sidebarStyles.logoFallback}>
+              <Store size={28} />
+            </div>
           )}
         </div>
+        
+        <div style={sidebarStyles.brandSection}>
+          <h2 style={sidebarStyles.brandTitle}>Supermercado</h2>
+          <span style={sidebarStyles.brandSubtitle}>Gestión Comercial Inteligente</span>
+        </div>
+        
+        {/* Información del usuario */}
+        <div style={sidebarStyles.userInfo}>
+          <div style={sidebarStyles.userAvatar}>
+            <UserCheck size={18} />
+          </div>
+          <div style={sidebarStyles.userDetails}>
+            <p style={sidebarStyles.userName}>
+              {getEmpleadoNombre()}
+            </p>
+            <div style={sidebarStyles.userRoleSection}>
+              <span 
+                style={{
+                  ...sidebarStyles.userRoleBadge,
+                  background: `linear-gradient(135deg, ${getRoleColor(empleadoRol)}, ${ROLE_COLORS[empleadoRol]}99)`
+                }}
+                title={`Rol: ${empleadoRol}`}
+              >
+                {getRoleBadge(empleadoRol)}
+              </span>
+              <button 
+                style={{
+                  ...sidebarStyles.roleInfoButton,
+                  background: showRoleInfo ? "rgba(26, 93, 26, 0.2)" : "rgba(26, 93, 26, 0.1)"
+                }}
+                onClick={toggleRoleInfo}
+                title="Ver información de permisos"
+              >
+                {showRoleInfo ? <EyeOff size={12} /> : <Eye size={12} />}
+              </button>
+            </div>
+            
+            {/* Indicador de página actual */}
+            {currentPage && (
+              <div style={sidebarStyles.currentPageBadge}>
+                <CheckCircle size={10} />
+                <span>{currentPage}</span>
+              </div>
+            )}
+          </div>
+        </div>
 
-        {/* Navegación */}
-        <Navigation 
-          filteredItems={filteredItems}
-          location={location}
-          isMobile={isMobile}
-          closeMenu={closeMenu}
-        />
+        {/* Información de permisos del rol */}
+        {showRoleInfo && (
+          <div style={sidebarStyles.rolePermissionsInfo}>
+            {/* Permisos disponibles (VERDE) */}
+            <div>
+              <div style={sidebarStyles.permissionsHeader}>
+                <Settings size={14} />
+                <span>Permisos disponibles - {empleadoRol.toUpperCase()}</span>
+              </div>
+              <ul style={sidebarStyles.permissionsList}>
+                {(ROLE_PERMISSIONS[empleadoRol] || []).slice(0, 6).map((permiso, index) => (
+                  <li key={`available-${index}`} style={sidebarStyles.permissionItem}>
+                    <div style={sidebarStyles.permissionDotAvailable}></div>
+                    <span style={sidebarStyles.permissionTextAvailable}>{permiso}</span>
+                  </li>
+                ))}
+                {(ROLE_PERMISSIONS[empleadoRol] || []).length > 6 && (
+                  <li style={sidebarStyles.permissionItem}>
+                    <span style={{fontSize: '11px', color: '#1a5d1a', opacity: 0.7}}>
+                      + {ROLE_PERMISSIONS[empleadoRol].length - 6} más...
+                    </span>
+                  </li>
+                )}
+              </ul>
+            </div>
+
+            {/* Permisos NO disponibles (ROJO) */}
+            {unavailablePermissions.length > 0 && (
+              <div style={sidebarStyles.unavailableSection}>
+                <div style={sidebarStyles.permissionsHeader}>
+                  <AlertCircle size={14} />
+                  <span>Permisos restringidos</span>
+                </div>
+                <ul style={sidebarStyles.permissionsList}>
+                  {unavailablePermissions.slice(0, 4).map((permiso, index) => (
+                    <li key={`unavailable-${index}`} style={sidebarStyles.permissionItem}>
+                      <div style={sidebarStyles.permissionDotUnavailable}></div>
+                      <span style={sidebarStyles.permissionTextUnavailable}>{permiso}</span>
+                    </li>
+                  ))}
+                  {unavailablePermissions.length > 4 && (
+                    <li style={sidebarStyles.permissionItem}>
+                      <span style={{fontSize: '11px', color: '#1a5d1a', opacity: 0.7}}>
+                        + {unavailablePermissions.length - 4} más...
+                      </span>
+                    </li>
+                  )}
+                </ul>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* Navegación */}
+      <nav style={sidebarStyles.sidebarNav}>
+        {filteredItems.length === 0 ? (
+          <div style={sidebarStyles.noPermissions}>
+            <AlertCircle size={36} style={sidebarStyles.noPermissionsIcon} />
+            <p style={sidebarStyles.noPermissionsTitle}>Sin permisos</p>
+            <p style={sidebarStyles.noPermissionsDescription}>
+              Tu rol de usuario no tiene acceso a las funciones del sistema.
+            </p>
+          </div>
+        ) : (
+          <ul style={sidebarStyles.navList}>
+            {filteredItems.map((item, index) => {
+              const active = isItemActive(item.path, item.exact);
+              const IconComponent = item.icon;
+              
+              return (
+                <li
+                  key={index}
+                  style={{
+                    ...sidebarStyles.navItem,
+                    ...(active ? sidebarStyles.navItemActive : {})
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!active) {
+                      e.currentTarget.style.background = "rgba(26, 93, 26, 0.05)";
+                      e.currentTarget.style.transform = "translateX(4px)";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!active) {
+                      e.currentTarget.style.background = "transparent";
+                      e.currentTarget.style.transform = "translateX(0)";
+                    }
+                  }}
+                >
+                  <div
+                    onClick={() => handleNavigation(item.path)}
+                    style={sidebarStyles.navLink}
+                    title={item.description}
+                  >
+                    <span style={{
+                      ...sidebarStyles.navIcon,
+                      background: active ? "linear-gradient(135deg, #1a5d1a, #2e8b57)" : sidebarStyles.navIcon.background,
+                      color: active ? "white" : "#1a5d1a",
+                      boxShadow: active ? "0 4px 10px rgba(26, 93, 26, 0.3)" : "none"
+                    }}>
+                      <IconComponent size={16} />
+                    </span>
+                    <span style={sidebarStyles.navLabel}>
+                      {item.label}
+                    </span>
+                    {active && (
+                      <span style={sidebarStyles.navActiveBadge}>
+                        <ChevronRight size={10} />
+                        Activa
+                      </span>
+                    )}
+                    {active && <div style={sidebarStyles.navIndicator} />}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+        )}
+      </nav>
+
+      {/* Botón de Cerrar Sesión */}
+      <div style={sidebarStyles.sidebarFooter}>
+        <button
+          onClick={handleLogout}
+          style={{
+            ...sidebarStyles.logoutButton,
+            ':hover': {
+              background: "linear-gradient(135deg, rgba(26, 93, 26, 0.15), rgba(220, 53, 69, 0.15))",
+              transform: "translateY(-2px)",
+              boxShadow: "0 6px 15px rgba(220, 53, 69, 0.2)"
+            }
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "linear-gradient(135deg, rgba(26, 93, 26, 0.15), rgba(220, 53, 69, 0.15))";
+            e.currentTarget.style.transform = "translateY(-2px)";
+            e.currentTarget.style.boxShadow = "0 6px 15px rgba(220, 53, 69, 0.2)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "linear-gradient(135deg, rgba(26, 93, 26, 0.1), rgba(220, 53, 69, 0.1))";
+            e.currentTarget.style.transform = "translateY(0)";
+            e.currentTarget.style.boxShadow = "none";
+          }}
+          title="Cerrar sesión del sistema"
+        >
+          <span style={sidebarStyles.logoutIcon}>
+            <LogOut size={16} />
+          </span>
+          <span>Cerrar Sesión</span>
+        </button>
 
         {/* Footer */}
-        <Footer handleLogout={handleLogout} />
-      </aside>
-    </>
+        <div style={sidebarStyles.sidebarCopyright}>
+          <div>© 2025 Sistema de Gestión</div>
+          <span style={sidebarStyles.version}>v2.0 • Diseñado con React</span>
+        </div>
+      </div>
+
+      {/* Estilos CSS inline */}
+      <style>{`
+        @keyframes spin {
+          0% { transform: rotate(0deg); }
+          100% { transform: rotate(360deg); }
+        }
+
+        /* Scrollbar personalizada para sidebar */
+        nav::-webkit-scrollbar {
+          width: 6px;
+        }
+        
+        nav::-webkit-scrollbar-track {
+          background: rgba(26, 93, 26, 0.05);
+          border-radius: 3px;
+        }
+        
+        nav::-webkit-scrollbar-thumb {
+          background: linear-gradient(135deg, #1a5d1a, #2e8b57);
+          border-radius: 3px;
+        }
+        
+        nav::-webkit-scrollbar-thumb:hover {
+          background: linear-gradient(135deg, #2e8b57, #1a5d1a);
+        }
+
+        /* Animación de entrada */
+        aside {
+          animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+          from { opacity: 0; transform: translateX(-20px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+      `}</style>
+    </aside>
   );
 }
-
-// ==================== ESTILOS ====================
-
-const styles = {
-  sidebarLoading: {
-    width: "250px",
-    height: "100vh",
-    background: "linear-gradient(145deg, #f7dca1, #f2c786)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center"
-  },
-  loadingContent: {
-    textAlign: "center",
-    color: "#7a3b06"
-  },
-  loadingSpinner: {
-    width: "30px",
-    height: "30px",
-    border: "3px solid rgba(122, 59, 6, 0.2)",
-    borderTop: "3px solid #7a3b06",
-    borderRadius: "50%",
-    animation: "spin 1s linear infinite",
-    margin: "0 auto 15px"
-  },
-  mobileMenuButton: {
-    position: "fixed",
-    top: "20px",
-    left: "20px",
-    zIndex: 1001,
-    background: "#7a3b06",
-    color: "white",
-    border: "none",
-    borderRadius: "8px",
-    width: "40px",
-    height: "40px",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    cursor: "pointer",
-    boxShadow: "0 2px 8px rgba(0,0,0,0.2)",
-    transition: "all 0.3s ease"
-  },
-  sidebarOverlay: {
-    position: "fixed",
-    top: 0,
-    left: 0,
-    right: 0,
-    bottom: 0,
-    backgroundColor: "rgba(0,0,0,0.5)",
-    zIndex: 998
-  },
-  sidebar: {
-    width: "280px",
-    height: "100vh",
-    background: "linear-gradient(145deg, #f7dca1, #f2c786)",
-    padding: "25px 20px",
-    display: "flex",
-    flexDirection: "column",
-    boxShadow: "2px 0 10px rgba(0,0,0,0.1)",
-    position: "relative",
-    zIndex: 999,
-    overflow: "hidden"
-  },
-  sidebarMobile: {
-    position: "fixed",
-    left: "-280px",
-    top: 0,
-    transition: "left 0.3s ease"
-  },
-  sidebarOpen: {
-    left: 0
-  }
-};
-
-const sidebarStyles = {
-  header: {
-    marginBottom: "25px",
-    flexShrink: 0
-  },
-  logoContainer: {
-    position: "relative",
-    marginBottom: "20px",
-    display: "flex",
-    justifyContent: "center"
-  },
-  logoImage: {
-    width: "80px",
-    height: "80px",
-    borderRadius: "50%",
-    objectFit: "cover",
-    border: "3px solid #7a3b06",
-    boxShadow: "0 4px 12px rgba(122, 59, 6, 0.2)",
-    transition: "all 0.3s ease",
-    cursor: "pointer"
-  },
-  logoFallback: {
-    width: "80px",
-    height: "80px",
-    borderRadius: "50%",
-    background: "linear-gradient(135deg, #7a3b06, #a85a1a)",
-    display: "none",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "#f7dca1",
-    fontSize: "18px",
-    fontWeight: "bold",
-    border: "3px solid #7a3b06",
-    boxShadow: "0 4px 12px rgba(122, 59, 6, 0.2)"
-  },
-  brandSection: {
-    textAlign: "center",
-    marginBottom: "20px"
-  },
-  brandTitle: {
-    margin: "0 0 4px 0",
-    fontSize: "22px",
-    fontWeight: 700,
-    color: "#7a3b06"
-  },
-  brandSubtitle: {
-    fontSize: "13px",
-    color: "#6d4611",
-    opacity: 0.9
-  },
-  userInfo: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    padding: "15px",
-    background: "rgba(122, 59, 6, 0.08)",
-    borderRadius: "12px",
-    border: "1px solid rgba(122, 59, 6, 0.1)"
-  },
-  userAvatar: {
-    width: "40px",
-    height: "40px",
-    borderRadius: "8px",
-    background: "rgba(122, 59, 6, 0.12)",
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    color: "#7a3b06",
-    flexShrink: 0
-  },
-  userDetails: {
-    flex: 1,
-    minWidth: 0
-  },
-  userName: {
-    margin: "0 0 6px 0",
-    fontSize: "14px",
-    fontWeight: 600,
-    color: "#7a3b06",
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis"
-  },
-  userRoleSection: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px"
-  },
-  userRoleBadge: {
-    padding: "2px 8px",
-    borderRadius: "12px",
-    color: "white",
-    fontSize: "10px",
-    fontWeight: 600,
-    textTransform: "uppercase"
-  },
-  roleInfoButton: {
-    background: "none",
-    border: "none",
-    color: "#6d4611",
-    cursor: "pointer",
-    padding: "2px",
-    borderRadius: "4px",
-    transition: "all 0.2s ease"
-  },
-  rolePermissionsInfo: {
-    marginTop: "15px",
-    padding: "15px",
-    background: "rgba(255, 255, 255, 0.6)",
-    borderRadius: "8px",
-    border: "1px solid rgba(122, 59, 6, 0.1)",
-    maxHeight: "300px",
-    overflowY: "auto"
-  },
-  unavailableSection: {
-    marginTop: "15px",
-    paddingTop: "15px",
-    borderTop: "1px solid rgba(220, 53, 69, 0.2)"
-  },
-  permissionsHeader: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    marginBottom: "10px",
-    fontSize: "12px",
-    fontWeight: 600,
-    color: "#7a3b06"
-  },
-  permissionsList: {
-    listStyle: "none",
-    padding: 0,
-    margin: 0
-  },
-  permissionItem: {
-    display: "flex",
-    alignItems: "center",
-    gap: "8px",
-    padding: "4px 0",
-    fontSize: "11px",
-    color: "#6d4611"
-  },
-  permissionDot: {
-    width: "6px",
-    height: "6px",
-    borderRadius: "50%",
-    flexShrink: 0
-  },
-  permissionText: {
-    fontWeight: 500
-  },
-  sidebarNav: {
-    flex: 1,
-    overflowY: "auto",
-    overflowX: "hidden",
-    paddingRight: "5px"
-  },
-  navList: {
-    listStyle: "none",
-    padding: 0,
-    margin: 0
-  },
-  sectionDivider: {
-    height: "1px",
-    background: "rgba(122, 59, 6, 0.1)",
-    margin: "8px 0"
-  },
-  navItem: {
-    marginBottom: "4px",
-    borderRadius: "10px",
-    overflow: "hidden",
-    transition: "all 0.25s ease",
-    background: "transparent",
-    position: "relative",
-    cursor: "pointer"
-  },
-  navItemActive: {
-    background: "linear-gradient(135deg, #f7dca1, #e6b85c)",
-    color: "#7a3b06",
-    fontWeight: 600,
-    boxShadow: "0 4px 12px rgba(122, 59, 6, 0.15)"
-  },
-  navLink: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    padding: "12px 14px",
-    color: "inherit",
-    textDecoration: "none",
-    fontSize: "14px",
-    transition: "all 0.25s ease",
-    position: "relative"
-  },
-  navIcon: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: "32px",
-    height: "32px",
-    borderRadius: "8px",
-    background: "rgba(122, 59, 6, 0.08)",
-    transition: "all 0.25s ease",
-    flexShrink: 0
-  },
-  navLabel: {
-    whiteSpace: "nowrap",
-    overflow: "hidden",
-    textOverflow: "ellipsis",
-    flex: 1
-  },
-  navIndicator: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    bottom: 0,
-    width: "3px",
-    background: "#7a3b06",
-    borderRadius: "0 2px 2px 0"
-  },
-  noPermissions: {
-    textAlign: "center",
-    padding: "40px 20px",
-    color: "#6d4611"
-  },
-  noPermissionsIcon: {
-    opacity: 0.5,
-    marginBottom: "15px"
-  },
-  noPermissionsTitle: {
-    margin: "0 0 8px 0",
-    fontSize: "16px",
-    fontWeight: 600,
-    color: "#7a3b06"
-  },
-  noPermissionsDescription: {
-    margin: 0,
-    fontSize: "13px",
-    opacity: 0.7,
-    lineHeight: 1.4
-  },
-  sidebarFooter: {
-    marginTop: "15px",
-    flexShrink: 0
-  },
-  logoutButton: {
-    display: "flex",
-    alignItems: "center",
-    gap: "12px",
-    width: "100%",
-    padding: "12px 16px",
-    background: "rgba(122, 59, 6, 0.08)",
-    border: "1px solid rgba(122, 59, 6, 0.2)",
-    borderRadius: "10px",
-    color: "#7a3b06",
-    cursor: "pointer",
-    fontSize: "14px",
-    fontWeight: 500,
-    transition: "all 0.25s ease"
-  },
-  logoutIcon: {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "center",
-    width: "30px",
-    height: "30px",
-    borderRadius: "8px",
-    background: "rgba(122, 59, 6, 0.12)"
-  },
-  sidebarCopyright: {
-    fontSize: "12px",
-    color: "#6d4611",
-    textAlign: "center",
-    opacity: 0.8,
-    padding: "15px 0 5px",
-    borderTop: "1px solid rgba(122, 59, 6, 0.1)",
-    marginTop: "15px",
-    display: "flex",
-    flexDirection: "column",
-    gap: "4px"
-  },
-  version: {
-    fontSize: "10px",
-    opacity: 0.6
-  }
-};
