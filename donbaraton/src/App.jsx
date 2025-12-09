@@ -1,5 +1,3 @@
-// src/App.jsx
-
 import { useState, useEffect } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./layout/Layout";
