@@ -28,7 +28,7 @@ export default function Ventas() {
     if (user) {
       try { 
         const parsed = JSON.parse(user);
-        return { id: parsed.id || 1, username: parsed.username || 'admin' }; 
+        return { id: parsed.usuario_id || 1, username: parsed.username || 'admin' }; 
       } catch { return { id: 1, username: 'admin' }; }
     }
     return { id: 1, username: 'admin' };
@@ -161,7 +161,7 @@ export default function Ventas() {
 
       const { data, error } = await supabase.rpc('fn_registrar_venta', {
         p_cliente_id: clienteSeleccionado.id,
-        p_tipo_comprobante: 'RECIBO',
+        p_tipo_comprobante: 'TICKET',
         p_detalles_json: detallesJson,
         p_medio_pago: medioPago,
         p_monto_total: total,
@@ -476,9 +476,9 @@ export default function Ventas() {
                 <button 
                   style={{
                     ...styles.paymentMethod,
-                    ...(medioPago === 'TARJETA' ? styles.paymentMethodActive : {})
+                    ...(medioPago === 'DEBITO' ? styles.paymentMethodActive : {})
                   }}
-                  onClick={() => setMedioPago('TARJETA')}
+                  onClick={() => setMedioPago('DEBITO')}
                 >
                   <CreditCard size={24} />
                   Tarjeta
