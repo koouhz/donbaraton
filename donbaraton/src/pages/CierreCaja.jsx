@@ -22,7 +22,7 @@ export default function CierreCaja() {
     if (user) {
       try { 
         const parsed = JSON.parse(user);
-        return { id: parsed.id || 1, username: parsed.username || 'admin' }; 
+        return { id: parsed.usuario_id || 1, username: parsed.username || 'admin' }; 
       } catch { return { id: 1, username: 'admin' }; }
     }
     return { id: 1, username: 'admin' };
