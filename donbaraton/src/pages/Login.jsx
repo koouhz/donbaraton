@@ -4,7 +4,8 @@ import { supabase } from "../lib/supabaseClient";
 import { Eye, EyeOff, Store, AlertCircle, CheckCircle, X, LogIn } from "lucide-react";
 
 // Función para hashear contraseñas
-async function hashPassword(password) {
+// Función para hashear contraseñas
+export async function hashPassword(password) {
   const encoder = new TextEncoder();
   const data = encoder.encode(password);
   const hash = await crypto.subtle.digest('SHA-256', data);
@@ -40,7 +41,7 @@ export default function Login({ onLogin }) {
         p_accion: accion,
         p_detalles: detalles
       });
-      
+
       if (error) {
         console.warn("Error al registrar auditoría:", error.message);
         return null;
@@ -57,7 +58,7 @@ export default function Login({ onLogin }) {
     try {
       // Primero hashear la contraseña
       const hashedPassword = await hashPassword(password);
-      
+
       // Usar el procedimiento almacenado fn_autenticar_usuario
       const { data, error } = await supabase.rpc('fn_autenticar_usuario', {
         p_username: username,
@@ -72,7 +73,7 @@ export default function Login({ onLogin }) {
       // El procedimiento retorna una tabla, así que data es un array
       if (data && data.length > 0) {
         const usuarioAutenticado = data[0];
-        
+
         // Ahora obtener los datos completos del usuario
         const { data: datosCompletos, error: errorCompletos } = await supabase.rpc(
           'fn_obtener_datos_usuario',
@@ -91,11 +92,10 @@ export default function Login({ onLogin }) {
           };
         }
 
-        // Parsear el JSON retornado por fn_obtener_datos_usuario
+        // Parsear el JSON retornado
         if (datosCompletos) {
-          const datosParseados = datosCompletos;
           return {
-            ...datosParseados,
+            ...datosCompletos,
             usuario_id: usuarioAutenticado.usuario_id,
             username: usuarioAutenticado.username,
             rol: usuarioAutenticado.rol_nombre,
@@ -124,7 +124,7 @@ export default function Login({ onLogin }) {
         throw new Error("Por favor ingrese usuario y contraseña");
       }
 
-      // Registrar intento de login (sin saber si será exitoso)
+      // Registrar intento de login
       await registrarAuditoria(
         formData.username,
         'SISTEMA',
@@ -135,188 +135,66 @@ export default function Login({ onLogin }) {
       let empleadoData = null;
       let auditoriaId = null;
 
-      // 1. PRIMERO intentar con el NUEVO procedimiento almacenado
-      if (supabase) {
-        console.log("Intentando autenticar con procedimiento almacenado...");
-        
-        const usuarioAutenticado = await autenticarConProcedimiento(
+      console.log("Intentando autenticar con procedimiento almacenado...");
+
+      const usuarioAutenticado = await autenticarConProcedimiento(
+        formData.username,
+        formData.password
+      );
+
+      if (usuarioAutenticado) {
+        console.log("Autenticación exitosa con procedimiento:", usuarioAutenticado);
+
+        // Registrar auditoría de login exitoso
+        auditoriaId = await registrarAuditoria(
           formData.username,
-          formData.password
+          'SISTEMA',
+          'LOGIN',
+          `Inicio de sesión exitoso - Usuario: ${formData.username}`
         );
 
-        if (usuarioAutenticado) {
-          console.log("Autenticación exitosa con procedimiento:", usuarioAutenticado);
-          
-          // Registrar auditoría de login exitoso
-          auditoriaId = await registrarAuditoria(
-            formData.username,
-            'SISTEMA',
-            'LOGIN',
-            `Inicio de sesión exitoso - Usuario: ${formData.username} - Procedimiento almacenado`
-          );
+        // Construir objeto de empleado con estructura esperada
+        empleadoData = {
+          // Datos del usuario
+          usuario_id: usuarioAutenticado.usuario_id || usuarioAutenticado.id,
+          username: usuarioAutenticado.username,
+          estado: 'ACTIVO',
+          rol_id: usuarioAutenticado.rol_id || 1,
 
-          // Construir objeto de empleado con estructura esperada
-          empleadoData = {
-            // Datos del usuario
-            usuario_id: usuarioAutenticado.usuario_id || usuarioAutenticado.id,
-            username: usuarioAutenticado.username,
-            estado: 'ACTIVO',
-            rol_id: 1, // Necesitarías obtener esto del procedimiento
-            
-            // Datos del empleado
-            id: usuarioAutenticado.empleado?.id || usuarioAutenticado.empleado_id || `EMP-${usuarioAutenticado.usuario_id}`,
-            ci: "",
-            expedido: "",
-            nombres: usuarioAutenticado.empleado?.nombres || "Usuario",
-            apellido_paterno: usuarioAutenticado.empleado?.apellido_paterno || "",
-            apellido_materno: "",
-            email: "",
-            telefono: "",
-            celular: "",
-            cargo_id: 0,
-            cargo: usuarioAutenticado.cargo || usuarioAutenticado.empleado?.cargo || "Sin cargo",
-            salario: 0,
-            estado_empleado: "ACTIVO",
-            
-            // Datos del rol
-            rol: usuarioAutenticado.rol?.toUpperCase() || "EMPLEADO",
-            roles: {
-              id: 1,
-              nombre: usuarioAutenticado.rol || "Sin rol",
-              descripcion: "Rol no especificado"
-            },
-            
-            // Información adicional
-            token: `jwt-token-${usuarioAutenticado.usuario_id}`,
-            fecha_login: new Date().toISOString(),
-            estadoA: true,
-            auditoria_id: auditoriaId
-          };
-        }
-      }
+          // Datos del empleado
+          id: usuarioAutenticado.empleado?.id || usuarioAutenticado.empleado_id,
+          ci: usuarioAutenticado.empleado?.ci || "",
+          expedido: usuarioAutenticado.empleado?.expedido || "",
+          nombres: usuarioAutenticado.empleado?.nombres || "Usuario",
+          apellido_paterno: usuarioAutenticado.empleado?.apellido_paterno || "",
+          apellido_materno: usuarioAutenticado.empleado?.apellido_materno || "",
+          email: usuarioAutenticado.empleado?.email || "",
+          telefono: usuarioAutenticado.empleado?.telefono || "",
+          celular: usuarioAutenticado.empleado?.celular || "",
+          cargo_id: usuarioAutenticado.empleado?.cargo_id || 0,
+          cargo: usuarioAutenticado.cargo || "Sin cargo",
+          salario: usuarioAutenticado.empleado?.salario || 0,
+          estado_empleado: "ACTIVO",
 
-      // 2. SI NO FUNCIONA EL PROCEDIMIENTO, usar datos demo
-      if (!empleadoData) {
-        console.log("Usando datos demo (fallback)");
-        
-        // USUARIOS DE PRUEBA (basados en tu estructura de BD)
-        const usuariosDemo = [
-          {
-            usuario_id: 1,
-            username: "admin",
-            estado: "ACTIVO",
-            rol_id: 1,
-            id: "EMP-0001",
-            ci: "1234567",
-            expedido: "LP",
-            nombres: "Juan",
-            apellido_paterno: "Pérez",
-            apellido_materno: "Gómez",
-            email: "admin@supermercado.com",
-            telefono: "77777777",
-            celular: "77777777",
-            cargo_id: 1,
-            cargo: "Administrador",
-            salario: 5000,
-            estado_empleado: "ACTIVO",
-            rol: "ADMIN",
-            roles: {
-              id: 1,
-              nombre: "Administrador",
-              descripcion: "Acceso completo al sistema"
-            },
-            token: "jwt-demo-token-admin",
-            fecha_login: new Date().toISOString(),
-            estadoA: true
+          // Datos del rol
+          rol: usuarioAutenticado.rol?.toUpperCase() || "EMPLEADO",
+          roles: {
+            id: usuarioAutenticado.rol_id || 1,
+            nombre: usuarioAutenticado.rol || "Sin rol",
+            descripcion: "Rol asignado"
           },
-          {
-            usuario_id: 2,
-            username: "cajero",
-            estado: "ACTIVO",
-            rol_id: 2,
-            id: "EMP-0002",
-            ci: "7654321",
-            expedido: "CB",
-            nombres: "María",
-            apellido_paterno: "López",
-            apellido_materno: "Rodríguez",
-            email: "cajero@supermercado.com",
-            telefono: "77777778",
-            celular: "77777778",
-            cargo_id: 2,
-            cargo: "Cajero",
-            salario: 3000,
-            estado_empleado: "ACTIVO",
-            rol: "CAJERO",
-            roles: {
-              id: 2,
-              nombre: "Cajero",
-              descripcion: "Puede realizar ventas"
-            },
-            token: "jwt-demo-token-cajero",
-            fecha_login: new Date().toISOString(),
-            estadoA: true
-          },
-          {
-            usuario_id: 3,
-            username: "almacen",
-            estado: "ACTIVO",
-            rol_id: 3,
-            id: "EMP-0003",
-            ci: "9876543",
-            expedido: "SC",
-            nombres: "Carlos",
-            apellido_paterno: "Martínez",
-            apellido_materno: "Vargas",
-            email: "almacen@supermercado.com",
-            telefono: "77777779",
-            celular: "77777779",
-            cargo_id: 3,
-            cargo: "Encargado de Almacén",
-            salario: 3500,
-            estado_empleado: "ACTIVO",
-            rol: "ALMACEN",
-            roles: {
-              id: 3,
-              nombre: "Encargado de almacén",
-              descripcion: "Gestión de inventario"
-            },
-            token: "jwt-demo-token-almacen",
-            fecha_login: new Date().toISOString(),
-            estadoA: true
-          }
-        ];
 
-        // Verificar contra usuarios demo
-        const usuarioEncontrado = usuariosDemo.find(user => 
-          user.username.toLowerCase() === formData.username.toLowerCase()
-        );
-
-        if (usuarioEncontrado && formData.password === "123") {
-          empleadoData = usuarioEncontrado;
-          
-          // Registrar auditoría de login demo
-          await registrarAuditoria(
-            formData.username,
-            'SISTEMA',
-            'LOGIN_DEMO',
-            `Login exitoso en modo demo - Usuario: ${formData.username}`
-          );
-        } else {
-          await registrarAuditoria(
-            formData.username,
-            'SISTEMA',
-            'LOGIN_FALLIDO',
-            `Credenciales incorrectas - Usuario: ${formData.username}`
-          );
-        }
+          // Información adicional
+          token: `jwt-token-${usuarioAutenticado.usuario_id}`,
+          fecha_login: new Date().toISOString(),
+          estadoA: true,
+          auditoria_id: auditoriaId
+        };
       }
 
       if (empleadoData) {
         setSuccess("Inicio de sesión exitoso");
-        console.log("Datos del empleado:", empleadoData);
-        
-        // Llamar a onLogin después de un breve delay
+
         setTimeout(() => {
           if (typeof onLogin === 'function') {
             onLogin(empleadoData);
@@ -326,20 +204,20 @@ export default function Login({ onLogin }) {
           }
         }, 800);
       } else {
-        setError("Credenciales incorrectas. Usa: admin/123, cajero/123, almacen/123");
+        setError("Credenciales incorrectas o usuario inactivo.");
+
+        // Registrar auditoría de intentos fallidos
+        await registrarAuditoria(
+          formData.username,
+          'SISTEMA',
+          'LOGIN_FALLIDO',
+          `Credenciales incorrectas - Usuario: ${formData.username}`
+        );
       }
 
     } catch (error) {
       console.error("Error en login:", error);
       setError(error.message || "Error al iniciar sesión");
-      
-      // Registrar auditoría de error
-      await registrarAuditoria(
-        formData.username || 'DESCONOCIDO',
-        'SISTEMA',
-        'ERROR_LOGIN',
-        `Error: ${error.message}`
-      );
     } finally {
       setLoading(false);
     }
@@ -411,8 +289,8 @@ export default function Login({ onLogin }) {
           }}>
             <AlertCircle size={16} />
             <span>{error}</span>
-            <button 
-              onClick={() => setError("")} 
+            <button
+              onClick={() => setError("")}
               style={{
                 background: "none",
                 border: "none",
@@ -475,7 +353,6 @@ export default function Login({ onLogin }) {
                 boxSizing: "border-box",
                 opacity: loading ? 0.7 : 1
               }}
-              placeholder="admin, cajero, almacen"
               maxLength={50}
               autoComplete="username"
             />
@@ -511,7 +388,6 @@ export default function Login({ onLogin }) {
                   boxSizing: "border-box",
                   opacity: loading ? 0.7 : 1
                 }}
-                placeholder="123"
                 maxLength={50}
                 autoComplete="current-password"
               />
@@ -596,96 +472,6 @@ export default function Login({ onLogin }) {
           </button>
         </form>
 
-        {/* Información adicional */}
-        <div style={{
-          marginTop: "30px",
-          paddingTop: "20px",
-          borderTop: "1px solid #e9ecef"
-        }}>
-          <p style={{
-            textAlign: "center",
-            color: "#6c757d",
-            fontSize: "14px",
-            marginBottom: "15px",
-            fontWeight: "500"
-          }}>
-            Usando procedimientos almacenados
-          </p>
-          <div style={{
-            background: "rgba(26, 93, 26, 0.05)",
-            padding: "15px",
-            borderRadius: "8px",
-            border: "1px solid rgba(26, 93, 26, 0.1)"
-          }}>
-            <p style={{
-              fontSize: "12px",
-              color: "#1a5d1a",
-              marginBottom: "8px",
-              fontWeight: "500"
-            }}>
-              Modos de autenticación:
-            </p>
-            <ul style={{
-              fontSize: "11px",
-              color: "#6c757d",
-              paddingLeft: "20px",
-              margin: 0
-            }}>
-              <li>1. Procedimiento almacenado (fn_autenticar_usuario)</li>
-              <li>2. Datos demo (fallback)</li>
-              <li>3. Auditoría automática (fn_registrar_auditoria)</li>
-            </ul>
-          </div>
-          
-          {/* Usuarios de prueba */}
-          <div style={{ marginTop: "20px" }}>
-            <p style={{
-              textAlign: "center",
-              color: "#6c757d",
-              fontSize: "14px",
-              marginBottom: "10px",
-              fontWeight: "500"
-            }}>
-              Usuarios de prueba (demo):
-            </p>
-            <div style={{
-              display: "grid",
-              gridTemplateColumns: "repeat(3, 1fr)",
-              gap: "8px"
-            }}>
-              <div style={{
-                background: "rgba(26, 93, 26, 0.05)",
-                padding: "10px 6px",
-                borderRadius: "6px",
-                textAlign: "center",
-                border: "1px solid rgba(26, 93, 26, 0.1)"
-              }}>
-                <div style={{ fontWeight: "bold", color: "#1a5d1a", fontSize: "12px" }}>admin</div>
-                <div style={{ fontSize: "11px", color: "#6c757d" }}>123</div>
-              </div>
-              <div style={{
-                background: "rgba(26, 93, 26, 0.05)",
-                padding: "10px 6px",
-                borderRadius: "6px",
-                textAlign: "center",
-                border: "1px solid rgba(26, 93, 26, 0.1)"
-              }}>
-                <div style={{ fontWeight: "bold", color: "#1a5d1a", fontSize: "12px" }}>cajero</div>
-                <div style={{ fontSize: "11px", color: "#6c757d" }}>123</div>
-              </div>
-              <div style={{
-                background: "rgba(26, 93, 26, 0.05)",
-                padding: "10px 6px",
-                borderRadius: "6px",
-                textAlign: "center",
-                border: "1px solid rgba(26, 93, 26, 0.1)"
-              }}>
-                <div style={{ fontWeight: "bold", color: "#1a5d1a", fontSize: "12px" }}>almacen</div>
-                <div style={{ fontSize: "11px", color: "#6c757d" }}>123</div>
-              </div>
-            </div>
-          </div>
-        </div>
 
         {/* Footer */}
         <div style={{ textAlign: "center", marginTop: "20px" }}>

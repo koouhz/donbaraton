@@ -1,11 +1,12 @@
 // src/pages/Personal.jsx
 import { useState, useEffect } from 'react';
-import { 
-  Users, Plus, Edit, Trash2, Search, 
+import {
+  Users, Plus, Edit, Trash2, Search,
   X, Save, Loader2, Phone, Mail, Briefcase, User
 } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
+import { hashPassword } from './Login';
 
 export default function Personal() {
   const [empleados, setEmpleados] = useState([]);
@@ -25,13 +26,15 @@ export default function Personal() {
     telefono: '',
     email: '',
     cargo_id: '',
-    salario: ''
+    salario: '',
+    username: '',
+    password: ''
   });
 
   const getUsername = () => {
     const user = localStorage.getItem('user');
     if (user) {
-      try { return JSON.parse(user).username || 'admin'; } 
+      try { return JSON.parse(user).username || 'admin'; }
       catch { return 'admin'; }
     }
     return 'admin';
@@ -69,8 +72,8 @@ export default function Personal() {
 
   const cargarEmpleados = async () => {
     try {
-      const { data, error } = await supabase.rpc('fn_leer_empleados', { 
-        p_buscar: searchTerm || null 
+      const { data, error } = await supabase.rpc('fn_leer_empleados', {
+        p_buscar: searchTerm || null
       });
       if (error) throw error;
       setEmpleados(data || []);
@@ -102,7 +105,9 @@ export default function Personal() {
         p_email: formData.email.trim() || null,
         p_cargo_id: parseInt(formData.cargo_id),
         p_salario: parseFloat(formData.salario) || 0,
-        p_usuario_auditoria: getUsername()
+        p_usuario_auditoria: getUsername(),
+        p_username: formData.username.trim() || null,
+        p_password_hash: formData.password ? await hashPassword(formData.password) : null
       });
 
       if (error) {
@@ -184,7 +189,10 @@ export default function Personal() {
       telefono: '',
       email: '',
       cargo_id: cargo?.id || '',
-      salario: ''
+      cargo_id: cargo?.id || '',
+      salario: '',
+      username: '',
+      password: ''
     });
     setShowModal(true);
   };
@@ -199,7 +207,7 @@ export default function Personal() {
     setFormData({
       ci: '', nombres: '', paterno: '', materno: '',
       fecha_nac: '', sexo: true, telefono: '', email: '',
-      cargo_id: '', salario: ''
+      cargo_id: '', salario: '', username: '', password: ''
     });
     setEditingItem(null);
   };
@@ -216,7 +224,7 @@ export default function Personal() {
   return (
     <div style={styles.container}>
       <Toaster position="top-right" />
-      
+
       <header style={styles.header}>
         <div>
           <h1 style={styles.title}>
@@ -270,7 +278,7 @@ export default function Personal() {
                 <th style={styles.th}>CI</th>
                 <th style={styles.th}>Cargo</th>
                 <th style={styles.th}>Estado</th>
-                <th style={{...styles.th, textAlign: 'center'}}>Acciones</th>
+                <th style={{ ...styles.th, textAlign: 'center' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -302,7 +310,7 @@ export default function Personal() {
                         {emp.estado}
                       </span>
                     </td>
-                    <td style={{...styles.td, textAlign: 'center'}}>
+                    <td style={{ ...styles.td, textAlign: 'center' }}>
                       <div style={styles.actionButtons}>
                         <button style={styles.editButton} onClick={() => openEditModal(emp)}>
                           <Edit size={16} />
@@ -342,7 +350,7 @@ export default function Personal() {
                       <input
                         type="text"
                         value={formData.ci}
-                        onChange={e => setFormData({...formData, ci: e.target.value})}
+                        onChange={e => setFormData({ ...formData, ci: e.target.value })}
                         style={styles.input}
                         placeholder="Carnet de identidad"
                       />
@@ -352,7 +360,7 @@ export default function Personal() {
                       <input
                         type="date"
                         value={formData.fecha_nac}
-                        onChange={e => setFormData({...formData, fecha_nac: e.target.value})}
+                        onChange={e => setFormData({ ...formData, fecha_nac: e.target.value })}
                         style={styles.input}
                       />
                     </div>
@@ -364,9 +372,34 @@ export default function Personal() {
                       <input
                         type="text"
                         value={formData.nombres}
-                        onChange={e => setFormData({...formData, nombres: e.target.value})}
+                        onChange={e => setFormData({ ...formData, nombres: e.target.value })}
                         style={styles.input}
                         placeholder="Nombres"
+                      />
+                    </div>
+                  </div>
+
+                  <div style={styles.formRow}>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Usuario (Sistema)</label>
+                      <input
+                        type="text"
+                        value={formData.username}
+                        onChange={e => setFormData({ ...formData, username: e.target.value })}
+                        style={styles.input}
+                        placeholder="Nombre de usuario"
+                        autoComplete="off"
+                      />
+                    </div>
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Contraseña</label>
+                      <input
+                        type="password"
+                        value={formData.password}
+                        onChange={e => setFormData({ ...formData, password: e.target.value })}
+                        style={styles.input}
+                        placeholder="Contraseña"
+                        autoComplete="new-password"
                       />
                     </div>
                   </div>
@@ -377,7 +410,7 @@ export default function Personal() {
                       <input
                         type="text"
                         value={formData.paterno}
-                        onChange={e => setFormData({...formData, paterno: e.target.value})}
+                        onChange={e => setFormData({ ...formData, paterno: e.target.value })}
                         style={styles.input}
                         placeholder="Apellido paterno"
                       />
@@ -387,7 +420,7 @@ export default function Personal() {
                       <input
                         type="text"
                         value={formData.materno}
-                        onChange={e => setFormData({...formData, materno: e.target.value})}
+                        onChange={e => setFormData({ ...formData, materno: e.target.value })}
                         style={styles.input}
                         placeholder="Apellido materno"
                       />
@@ -399,7 +432,7 @@ export default function Personal() {
                       <label style={styles.label}>Sexo</label>
                       <select
                         value={formData.sexo}
-                        onChange={e => setFormData({...formData, sexo: e.target.value === 'true'})}
+                        onChange={e => setFormData({ ...formData, sexo: e.target.value === 'true' })}
                         style={styles.input}
                       >
                         <option value="true">Masculino</option>
@@ -416,7 +449,7 @@ export default function Personal() {
                   <input
                     type="tel"
                     value={formData.telefono}
-                    onChange={e => setFormData({...formData, telefono: e.target.value})}
+                    onChange={e => setFormData({ ...formData, telefono: e.target.value })}
                     style={styles.input}
                     placeholder="Número de teléfono"
                   />
@@ -426,7 +459,7 @@ export default function Personal() {
                   <input
                     type="email"
                     value={formData.email}
-                    onChange={e => setFormData({...formData, email: e.target.value})}
+                    onChange={e => setFormData({ ...formData, email: e.target.value })}
                     style={styles.input}
                     placeholder="correo@ejemplo.com"
                   />
@@ -438,7 +471,7 @@ export default function Personal() {
                   <label style={styles.label}>Cargo *</label>
                   <select
                     value={formData.cargo_id}
-                    onChange={e => setFormData({...formData, cargo_id: e.target.value})}
+                    onChange={e => setFormData({ ...formData, cargo_id: e.target.value })}
                     style={styles.input}
                   >
                     <option value="">Seleccione...</option>
@@ -452,7 +485,7 @@ export default function Personal() {
                   <input
                     type="number"
                     value={formData.salario}
-                    onChange={e => setFormData({...formData, salario: e.target.value})}
+                    onChange={e => setFormData({ ...formData, salario: e.target.value })}
                     style={styles.input}
                     placeholder="0.00"
                     step="0.01"
