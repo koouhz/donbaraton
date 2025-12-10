@@ -1,8 +1,8 @@
 // src/pages/Dashboard.jsx
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { 
-  TrendingUp, Users, ShoppingCart, Package, 
+import {
+  TrendingUp, Users, ShoppingCart, Package,
   DollarSign, ChefHat, Calendar, RefreshCw,
   BarChart3, PieChart, Box, User, Plus,
   PackageOpen, ShoppingBag, CreditCard, AlertCircle,
@@ -40,7 +40,7 @@ const COLORS = {
 // Componente Card simplificado
 const DashboardCard = ({ title, value, subtitle, icon, color, trend, onClick }) => {
   const getTrendIcon = () => {
-    switch(trend) {
+    switch (trend) {
       case "up": return <ArrowUp size={14} />;
       case "down": return <ArrowDown size={14} />;
       case "warning": return <div style={{ width: "14px", height: "14px", borderRadius: "50%", backgroundColor: COLORS.status.warning }} />;
@@ -49,7 +49,7 @@ const DashboardCard = ({ title, value, subtitle, icon, color, trend, onClick }) 
   };
 
   const getTrendColor = () => {
-    switch(trend) {
+    switch (trend) {
       case "up": return COLORS.status.success;
       case "down": return COLORS.status.danger;
       case "warning": return COLORS.status.warning;
@@ -58,7 +58,7 @@ const DashboardCard = ({ title, value, subtitle, icon, color, trend, onClick }) 
   };
 
   return (
-    <div 
+    <div
       style={styles.card}
       onClick={onClick}
       className="dashboard-card"
@@ -69,18 +69,18 @@ const DashboardCard = ({ title, value, subtitle, icon, color, trend, onClick }) 
           <div style={styles.cardValue}>{value}</div>
           <div style={styles.cardSubtitle}>{subtitle}</div>
         </div>
-        <div style={{...styles.cardIcon, backgroundColor: `${color}15`, color: color}}>
+        <div style={{ ...styles.cardIcon, backgroundColor: `${color}15`, color: color }}>
           {icon}
         </div>
       </div>
-      
-      <div style={{...styles.cardTrend, color: getTrendColor()}}>
+
+      <div style={{ ...styles.cardTrend, color: getTrendColor() }}>
         {getTrendIcon()}
         <span style={{ marginLeft: "6px" }}>
-          {trend === "up" ? "Aumentando" : 
-           trend === "down" ? "Disminuyendo" : 
-           trend === "warning" ? "Requiere atención" : 
-           "Estable"}
+          {trend === "up" ? "Aumentando" :
+            trend === "down" ? "Disminuyendo" :
+              trend === "warning" ? "Requiere atención" :
+                "Estable"}
         </span>
       </div>
     </div>
@@ -90,13 +90,13 @@ const DashboardCard = ({ title, value, subtitle, icon, color, trend, onClick }) 
 // Componente de gráfica de barras simplificado
 const SimpleBarChart = ({ data, color, title }) => {
   const maxValue = Math.max(...data.map(item => item.value));
-  
+
   const formatCurrencyShort = (amount) => {
     if (amount >= 1000000) return `Bs. ${(amount / 1000000).toFixed(1)}M`;
     if (amount >= 1000) return `Bs. ${(amount / 1000).toFixed(1)}K`;
     return `Bs. ${amount}`;
   };
-  
+
   return (
     <div style={styles.chartCard}>
       <h3 style={styles.chartTitle}>{title}</h3>
@@ -105,7 +105,7 @@ const SimpleBarChart = ({ data, color, title }) => {
           <div key={index} style={styles.barContainer}>
             <div style={styles.barLabel}>{item.label}</div>
             <div style={styles.barWrapper}>
-              <div 
+              <div
                 style={{
                   ...styles.bar,
                   width: `${(item.value / maxValue) * 100}%`,
@@ -131,13 +131,13 @@ const SimpleDonutChart = ({ data, colors, title }) => {
     COLORS.secondary.dark,
     COLORS.secondary.main
   ];
-  
+
   const formatCurrencyShort = (amount) => {
     if (amount >= 1000000) return `Bs. ${(amount / 1000000).toFixed(1)}M`;
     if (amount >= 1000) return `Bs. ${(amount / 1000).toFixed(1)}K`;
     return `Bs. ${amount}`;
   };
-  
+
   return (
     <div style={styles.chartCard}>
       <h3 style={styles.chartTitle}>{title}</h3>
@@ -153,11 +153,11 @@ const SimpleDonutChart = ({ data, colors, title }) => {
         <div style={styles.donutLegend}>
           {data.map((item, index) => (
             <div key={index} style={styles.legendItem}>
-              <div 
+              <div
                 style={{
                   ...styles.legendColor,
                   backgroundColor: chartColors[index % chartColors.length]
-                }} 
+                }}
               />
               <span style={styles.legendLabel}>{item.label}</span>
               <span style={styles.legendValue}>
@@ -194,13 +194,13 @@ const SimpleDashboardHeader = ({ lastUpdate, onRefresh, loading, title, subtitle
             Actualizado: {formatDateTime(lastUpdate)}
           </p>
         </div>
-        
+
         <div style={styles.headerActions}>
           <div style={styles.restaurantBadge}>
             <Store size={16} />
-            Supermercado
+            Don Baraton
           </div>
-          <button 
+          <button
             onClick={onRefresh}
             disabled={loading}
             style={{
@@ -284,19 +284,19 @@ const fetchVentasHoy = async () => {
     hoy.setHours(0, 0, 0, 0);
     const mañana = new Date(hoy);
     mañana.setDate(mañana.getDate() + 1);
-    
+
     const { data, error } = await supabase
       .from('ventas')
       .select('total')
       .gte('fecha_hora', hoy.toISOString())
       .lt('fecha_hora', mañana.toISOString())
       .eq('estadoa', true);
-    
+
     if (error) throw error;
-    
+
     const totalVentas = data.reduce((sum, venta) => sum + (venta.total || 0), 0);
     const cantidadVentas = data.length;
-    
+
     return {
       total: totalVentas,
       cantidad: cantidadVentas
@@ -315,9 +315,9 @@ const fetchPedidosActivos = async () => {
       .select('*')
       .eq('estado', 'PENDIENTE')
       .eq('estadoa', true);
-    
+
     if (error) throw error;
-    
+
     return data.length;
   } catch (error) {
     console.error('Error fetching pedidos activos:', error);
@@ -333,12 +333,12 @@ const fetchInventarioStats = async () => {
       .from('productos')
       .select('id, stock_actual, stock_minimo')
       .eq('estadoa', true);
-    
+
     if (error1) throw error1;
-    
+
     // Productos con bajo stock (menos que stock_minimo)
     const productosBajoStock = productos.filter(p => p.stock_actual < p.stock_minimo);
-    
+
     return {
       total: productos.length,
       bajoStock: productosBajoStock.length
@@ -357,9 +357,9 @@ const fetchEmpleadosActivos = async () => {
       .select('*')
       .eq('estado', 'ACTIVO')
       .eq('estadoa', true);
-    
+
     if (error) throw error;
-    
+
     return data.length;
   } catch (error) {
     console.error('Error fetching empleados:', error);
@@ -373,16 +373,16 @@ const fetchVentasMensuales = async () => {
     const fecha = new Date();
     const primerDiaMes = new Date(fecha.getFullYear(), fecha.getMonth(), 1);
     const ultimoDiaMes = new Date(fecha.getFullYear(), fecha.getMonth() + 1, 0);
-    
+
     const { data, error } = await supabase
       .from('ventas')
       .select('total')
       .gte('fecha_hora', primerDiaMes.toISOString())
       .lte('fecha_hora', ultimoDiaMes.toISOString())
       .eq('estadoa', true);
-    
+
     if (error) throw error;
-    
+
     return data.reduce((sum, venta) => sum + (venta.total || 0), 0);
   } catch (error) {
     console.error('Error fetching ventas mensuales:', error);
@@ -395,29 +395,29 @@ const fetchVentasUltimosMeses = async (meses = 6) => {
   try {
     const fecha = new Date();
     const resultados = [];
-    
+
     for (let i = meses - 1; i >= 0; i--) {
       const fechaMes = new Date(fecha.getFullYear(), fecha.getMonth() - i, 1);
       const primerDia = new Date(fechaMes.getFullYear(), fechaMes.getMonth(), 1);
       const ultimoDia = new Date(fechaMes.getFullYear(), fechaMes.getMonth() + 1, 0);
-      
+
       const { data, error } = await supabase
         .from('ventas')
         .select('total')
         .gte('fecha_hora', primerDia.toISOString())
         .lte('fecha_hora', ultimoDia.toISOString())
         .eq('estadoa', true);
-      
+
       if (error) throw error;
-      
+
       const totalMes = data.reduce((sum, venta) => sum + (venta.total || 0), 0);
-      
+
       resultados.push({
         label: fechaMes.toLocaleDateString('es-ES', { month: 'short' }),
         value: totalMes
       });
     }
-    
+
     return resultados;
   } catch (error) {
     console.error('Error fetching ventas últimos meses:', error);
@@ -440,34 +440,34 @@ const fetchDistribucionVentas = async () => {
     const fecha = new Date();
     const primerDiaMes = new Date(fecha.getFullYear(), fecha.getMonth(), 1);
     const ultimoDiaMes = new Date(fecha.getFullYear(), fecha.getMonth() + 1, 0);
-    
+
     const { data: ventas, error: errorVentas } = await supabase
       .from('ventas')
       .select('id')
       .gte('fecha_hora', primerDiaMes.toISOString())
       .lte('fecha_hora', ultimoDiaMes.toISOString())
       .eq('estadoa', true);
-    
+
     if (errorVentas) throw errorVentas;
-    
+
     if (ventas.length === 0) {
       return [];
     }
-    
+
     const ventasIds = ventas.map(v => v.id);
-    
+
     // Obtener detalles de ventas y productos
     const { data: detalles, error: errorDetalles } = await supabase
       .from('detalle_ventas')
       .select('producto_id, subtotal')
       .in('venta_id', ventasIds)
       .eq('estadoa', true);
-    
+
     if (errorDetalles) throw errorDetalles;
-    
+
     // Agrupar por categoría
     const distribucion = {};
-    
+
     for (const detalle of detalles) {
       // Obtener categoría del producto
       const { data: producto, error: errorProducto } = await supabase
@@ -475,27 +475,27 @@ const fetchDistribucionVentas = async () => {
         .select('categoria_id')
         .eq('id', detalle.producto_id)
         .single();
-      
+
       if (!errorProducto && producto) {
         const { data: categoria, error: errorCategoria } = await supabase
           .from('categorias')
           .select('nombre')
           .eq('id', producto.categoria_id)
           .single();
-        
+
         if (!errorCategoria && categoria) {
           const catNombre = categoria.nombre || 'Sin categoría';
           distribucion[catNombre] = (distribucion[catNombre] || 0) + detalle.subtotal;
         }
       }
     }
-    
+
     // Convertir a formato de gráfico
     const resultado = Object.entries(distribucion).map(([categoria, total]) => ({
       label: categoria,
       value: total
     }));
-    
+
     return resultado.length > 0 ? resultado : [
       { label: 'Alimentos', value: 15600 },
       { label: 'Bebidas', value: 8400 },
@@ -520,12 +520,12 @@ const fetchProductosPorCategoria = async () => {
       .from('productos')
       .select('categoria_id')
       .eq('estadoa', true);
-    
+
     if (error) throw error;
-    
+
     // Contar productos por categoría
     const conteoPorCategoria = {};
-    
+
     for (const producto of productos) {
       if (producto.categoria_id) {
         const { data: categoria, error: errorCat } = await supabase
@@ -533,14 +533,14 @@ const fetchProductosPorCategoria = async () => {
           .select('nombre')
           .eq('id', producto.categoria_id)
           .single();
-        
+
         if (!errorCat && categoria) {
           const catNombre = categoria.nombre || 'Sin categoría';
           conteoPorCategoria[catNombre] = (conteoPorCategoria[catNombre] || 0) + 1;
         }
       }
     }
-    
+
     return conteoPorCategoria;
   } catch (error) {
     console.error('Error fetching productos por categoría:', error);
@@ -559,7 +559,7 @@ const fetchProximosVencimientos = async () => {
     const hoy = new Date();
     const limite = new Date();
     limite.setDate(hoy.getDate() + 30); // Próximos 30 días
-    
+
     const { data, error } = await supabase
       .from('lotes')
       .select('*')
@@ -567,9 +567,9 @@ const fetchProximosVencimientos = async () => {
       .lte('fecha_vencimiento', limite.toISOString().split('T')[0])
       .eq('estado', 'ACTIVO')
       .gt('cantidad', 0);
-    
+
     if (error) throw error;
-    
+
     return data.length;
   } catch (error) {
     console.error('Error fetching próximos vencimientos:', error);
@@ -582,9 +582,9 @@ const fetchAlertasStockBajo = async () => {
   try {
     const { data, error } = await supabase
       .rpc('fn_alerta_stock_bajo');
-    
+
     if (error) throw error;
-    
+
     return data.length;
   } catch (error) {
     console.error('Error fetching alertas stock:', error);
@@ -599,7 +599,7 @@ function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [lastUpdate, setLastUpdate] = useState(null);
   const [error, setError] = useState(null);
-  
+
   // Datos del dashboard
   const [dashboardData, setDashboardData] = useState({
     // Estadísticas principales
@@ -609,14 +609,14 @@ function Dashboard() {
       productosStock: { value: "0", label: "0 bajo stock", trend: "neutral" },
       empleadosActivos: { value: "0", label: "personal activo", trend: "neutral" },
     },
-    
+
     // Gráficas
     charts: {
       ventasMensuales: [],
       distribucionVentas: [],
       productosCategoria: {},
     },
-    
+
     // Información adicional
     summary: {
       ventasMes: 0,
@@ -684,34 +684,34 @@ function Dashboard() {
       // Configurar datos REALES
       setDashboardData({
         stats: {
-          ventasHoy: { 
+          ventasHoy: {
             value: formatCurrency(ventasHoy.total),
             label: `${ventasHoy.cantidad} ventas hoy`,
             trend: calcularTrend(ventasHoy.total, 0)
           },
-          pedidosActivos: { 
+          pedidosActivos: {
             value: pedidosActivos.toString(),
             label: "ordenes pendientes",
             trend: pedidosActivos > 0 ? "up" : "neutral"
           },
-          productosStock: { 
+          productosStock: {
             value: inventarioStats.total.toString(),
             label: `${inventarioStats.bajoStock} bajo stock`,
             trend: inventarioStats.bajoStock > 0 ? "warning" : "neutral"
           },
-          empleadosActivos: { 
+          empleadosActivos: {
             value: empleadosActivos.toString(),
             label: "personal activo",
             trend: "neutral"
           },
         },
-        
+
         charts: {
           ventasMensuales: ventasUltimosMeses,
           distribucionVentas: distribucionVentas,
           productosCategoria: productosCategoria,
         },
-        
+
         summary: {
           ventasMes: ventasMes,
           promedioDiario: ventasMes / new Date().getDate(),
@@ -722,11 +722,11 @@ function Dashboard() {
 
       setLastUpdate(new Date());
       setError(null);
-      
+
     } catch (error) {
       console.error('Error cargando datos:', error);
       setError('No se pudieron cargar las estadísticas. Verifica tu conexión a internet o la configuración de la base de datos.');
-      
+
       // Cargar datos de ejemplo como fallback
       loadExampleData();
     } finally {
@@ -737,7 +737,7 @@ function Dashboard() {
   // Datos de ejemplo para fallback
   const loadExampleData = useCallback(() => {
     console.log('Cargando datos de ejemplo...');
-    
+
     const ventasMensualesEjemplo = [
       { label: 'Ene', value: 45000 },
       { label: 'Feb', value: 52000 },
@@ -763,34 +763,34 @@ function Dashboard() {
 
     setDashboardData({
       stats: {
-        ventasHoy: { 
+        ventasHoy: {
           value: formatCurrency(12560.75),
           label: "23 ventas hoy",
           trend: "up"
         },
-        pedidosActivos: { 
+        pedidosActivos: {
           value: "8",
           label: "ordenes pendientes",
           trend: "up"
         },
-        productosStock: { 
+        productosStock: {
           value: "107",
           label: "5 bajo stock",
           trend: "neutral"
         },
-        empleadosActivos: { 
+        empleadosActivos: {
           value: "12",
           label: "personal activo",
           trend: "neutral"
         },
       },
-      
+
       charts: {
         ventasMensuales: ventasMensualesEjemplo,
         distribucionVentas: distribucionVentasEjemplo,
         productosCategoria: productosCategoriaEjemplo,
       },
-      
+
       summary: {
         ventasMes: 156800.50,
         promedioDiario: 5226.68,
@@ -820,7 +820,7 @@ function Dashboard() {
       clientes: '/clientes',
       reportes: '/reportes',
     };
-    
+
     if (routes[action]) {
       navigate(routes[action]);
     } else {
@@ -835,11 +835,11 @@ function Dashboard() {
   return (
     <div style={styles.dashboardContainer}>
       {/* Header */}
-      <SimpleDashboardHeader 
+      <SimpleDashboardHeader
         lastUpdate={lastUpdate}
         onRefresh={handleRefresh}
         loading={loading}
-        title="Supermercado - Panel de Control"
+        title="Don Baraton - Panel de Control"
         subtitle="Gestión integral de inventario y ventas"
       />
 
@@ -860,7 +860,7 @@ function Dashboard() {
           <BarChart3 size={20} />
           Resumen General
         </h2>
-        
+
         <div style={styles.statsGrid}>
           <DashboardCard
             title="Ventas del Día"
@@ -871,7 +871,7 @@ function Dashboard() {
             trend={dashboardData.stats.ventasHoy.trend}
             onClick={() => handleQuickAction('ventas')}
           />
-          
+
           <DashboardCard
             title="Pedidos Activos"
             value={dashboardData.stats.pedidosActivos.value}
@@ -881,7 +881,7 @@ function Dashboard() {
             trend={dashboardData.stats.pedidosActivos.trend}
             onClick={() => handleQuickAction('compras')}
           />
-          
+
           <DashboardCard
             title="Inventario"
             value={dashboardData.stats.productosStock.value}
@@ -891,7 +891,7 @@ function Dashboard() {
             trend={dashboardData.stats.productosStock.trend}
             onClick={() => handleQuickAction('inventario')}
           />
-          
+
           <DashboardCard
             title="Personal"
             value={dashboardData.stats.empleadosActivos.value}
@@ -910,15 +910,15 @@ function Dashboard() {
           <BarChart3 size={20} />
           Métricas del Negocio
         </h2>
-        
+
         <div style={styles.chartsGrid}>
-          <SimpleBarChart 
-            title="Ventas Mensuales (Bs)" 
+          <SimpleBarChart
+            title="Ventas Mensuales (Bs)"
             data={dashboardData.charts.ventasMensuales}
             color={COLORS.primary.dark}
           />
-          
-          <SimpleDonutChart 
+
+          <SimpleDonutChart
             title="Distribución de Ventas"
             data={dashboardData.charts.distribucionVentas}
             colors={[
@@ -951,7 +951,7 @@ function Dashboard() {
               ))}
             </div>
           </div>
-          
+
           <div style={styles.infoCard}>
             <div style={styles.infoHeader}>
               <Calendar size={20} />
@@ -998,7 +998,7 @@ const styles = {
     backgroundColor: "#f8f9fa",
     minHeight: "100vh",
   },
-  
+
   // Header
   header: {
     marginBottom: "30px",
@@ -1008,7 +1008,7 @@ const styles = {
     border: "1px solid #e9ecef",
     boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
   },
-  
+
   headerContent: {
     display: "flex",
     justifyContent: "space-between",
@@ -1016,18 +1016,18 @@ const styles = {
     flexWrap: "wrap",
     gap: "20px",
   },
-  
+
   headerTitle: {
     flex: 1,
   },
-  
+
   title: {
     fontSize: "28px",
     color: "#1a5d1a",
     margin: "0 0 8px 0",
     fontWeight: "700",
   },
-  
+
   subtitle: {
     color: "#6c757d",
     fontSize: "14px",
@@ -1036,7 +1036,7 @@ const styles = {
     alignItems: "center",
     gap: "8px",
   },
-  
+
   statusDot: {
     width: "8px",
     height: "8px",
@@ -1044,14 +1044,14 @@ const styles = {
     borderRadius: "50%",
     display: "inline-block",
   },
-  
+
   headerActions: {
     display: "flex",
     gap: "12px",
     alignItems: "center",
     flexShrink: 0,
   },
-  
+
   restaurantBadge: {
     padding: "8px 16px",
     background: "white",
@@ -1064,7 +1064,7 @@ const styles = {
     alignItems: "center",
     gap: "8px",
   },
-  
+
   refreshButton: {
     padding: "8px 16px",
     background: "#1a5d1a",
@@ -1078,12 +1078,12 @@ const styles = {
     fontSize: "14px",
     transition: "all 0.3s ease",
   },
-  
+
   refreshButtonLoading: {
     opacity: 0.6,
     cursor: "not-allowed",
   },
-  
+
   // Error Banner
   errorBanner: {
     backgroundColor: "rgba(220, 53, 69, 0.1)",
@@ -1097,7 +1097,7 @@ const styles = {
     marginBottom: "20px",
     fontSize: "14px",
   },
-  
+
   retryButton: {
     backgroundColor: "#dc3545",
     color: "white",
@@ -1110,20 +1110,20 @@ const styles = {
     marginLeft: "auto",
     transition: "all 0.2s ease",
   },
-  
+
   // Secciones
   statsSection: {
     marginBottom: "30px",
   },
-  
+
   chartsSection: {
     marginBottom: "30px",
   },
-  
+
   infoSection: {
     marginBottom: "30px",
   },
-  
+
   sectionTitle: {
     fontSize: "20px",
     color: "#1a5d1a",
@@ -1133,7 +1133,7 @@ const styles = {
     alignItems: "center",
     gap: "10px",
   },
-  
+
   // Card
   card: {
     backgroundColor: "white",
@@ -1144,18 +1144,18 @@ const styles = {
     transition: "all 0.3s ease",
     cursor: "pointer",
   },
-  
+
   cardHeader: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "flex-start",
     marginBottom: "16px",
   },
-  
+
   cardContent: {
     flex: 1,
   },
-  
+
   cardTitle: {
     color: "#6c757d",
     fontSize: "14px",
@@ -1164,7 +1164,7 @@ const styles = {
     textTransform: "uppercase",
     letterSpacing: "0.5px",
   },
-  
+
   cardValue: {
     color: "#1a5d1a",
     fontSize: "28px",
@@ -1172,7 +1172,7 @@ const styles = {
     margin: "0 0 4px 0",
     lineHeight: "1.2",
   },
-  
+
   cardSubtitle: {
     color: "#6c757d",
     fontSize: "12px",
@@ -1181,7 +1181,7 @@ const styles = {
     alignItems: "center",
     gap: "6px",
   },
-  
+
   cardIcon: {
     width: "56px",
     height: "56px",
@@ -1193,7 +1193,7 @@ const styles = {
     flexShrink: 0,
     marginLeft: "12px",
   },
-  
+
   cardTrend: {
     display: "flex",
     alignItems: "center",
@@ -1204,14 +1204,14 @@ const styles = {
     paddingTop: "12px",
     borderTop: "1px solid #f8f9fa",
   },
-  
+
   // Grids
   statsGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))",
     gap: "20px",
   },
-  
+
   // Charts
   chartCard: {
     backgroundColor: "white",
@@ -1220,47 +1220,47 @@ const styles = {
     border: "1px solid #e9ecef",
     boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
   },
-  
+
   chartTitle: {
     color: "#1a5d1a",
     fontSize: "16px",
     fontWeight: "600",
     marginBottom: "15px",
   },
-  
+
   chartContainer: {
     display: "flex",
     flexDirection: "column",
     gap: "10px",
   },
-  
+
   barContainer: {
     display: "flex",
     alignItems: "center",
     gap: "10px",
   },
-  
+
   barLabel: {
     width: "40px",
     fontSize: "12px",
     color: "#6c757d",
     fontWeight: "500",
   },
-  
+
   barWrapper: {
     flex: 1,
     display: "flex",
     alignItems: "center",
     gap: "8px",
   },
-  
+
   bar: {
     height: "20px",
     borderRadius: "4px",
     transition: "width 0.3s ease",
     minWidth: "4px",
   },
-  
+
   barValue: {
     fontSize: "12px",
     color: "#6c757d",
@@ -1268,21 +1268,21 @@ const styles = {
     minWidth: "50px",
     textAlign: "right",
   },
-  
+
   // Donut Chart
   donutContainer: {
     display: "flex",
     gap: "24px",
     alignItems: "center",
   },
-  
+
   donutChart: {
     flexShrink: 0,
     position: "relative",
     width: "200px",
     height: "200px",
   },
-  
+
   donutVisual: {
     width: "100%",
     height: "100%",
@@ -1292,7 +1292,7 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
   },
-  
+
   donutCenter: {
     width: "120px",
     height: "120px",
@@ -1303,63 +1303,63 @@ const styles = {
     alignItems: "center",
     justifyContent: "center",
   },
-  
+
   donutTotal: {
     fontSize: "16px",
     fontWeight: "bold",
     color: "#1a5d1a",
   },
-  
+
   donutLabel: {
     fontSize: "12px",
     color: "#6c757d",
     marginTop: "4px",
   },
-  
+
   donutLegend: {
     flex: 1,
     display: "flex",
     flexDirection: "column",
     gap: "8px",
   },
-  
+
   legendItem: {
     display: "flex",
     alignItems: "center",
     gap: "8px",
   },
-  
+
   legendColor: {
     width: "12px",
     height: "12px",
     borderRadius: "2px",
   },
-  
+
   legendLabel: {
     fontSize: "12px",
     color: "#6c757d",
     flex: 1,
   },
-  
+
   legendValue: {
     fontSize: "11px",
     fontWeight: "600",
     color: "#1a5d1a",
   },
-  
+
   chartsGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(400px, 1fr))",
     gap: "20px",
   },
-  
+
   // Info Cards
   infoGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))",
     gap: "20px",
   },
-  
+
   infoCard: {
     backgroundColor: "white",
     padding: "20px",
@@ -1367,7 +1367,7 @@ const styles = {
     border: "1px solid #e9ecef",
     boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
   },
-  
+
   infoHeader: {
     display: "flex",
     alignItems: "center",
@@ -1375,21 +1375,21 @@ const styles = {
     marginBottom: "20px",
     color: "#1a5d1a",
   },
-  
+
   infoTitle: {
     fontSize: "16px",
     fontWeight: "600",
     margin: 0,
     color: "#1a5d1a",
   },
-  
+
   // Listas
   categoryList: {
     display: "flex",
     flexDirection: "column",
     gap: "12px",
   },
-  
+
   categoryItem: {
     display: "flex",
     justifyContent: "space-between",
@@ -1397,12 +1397,12 @@ const styles = {
     padding: "10px 0",
     borderBottom: "1px solid #f8f9fa",
   },
-  
+
   categoryName: {
     color: "#6c757d",
     fontSize: "14px",
   },
-  
+
   categoryCount: {
     color: "#1a5d1a",
     fontWeight: "600",
@@ -1411,20 +1411,20 @@ const styles = {
     padding: "4px 12px",
     borderRadius: "20px",
   },
-  
+
   summaryList: {
     display: "flex",
     flexDirection: "column",
     gap: "12px",
   },
-  
+
   summaryItem: {
     display: "flex",
     justifyContent: "space-between",
     alignItems: "center",
     padding: "8px 0",
   },
-  
+
   // Quick Actions
   quickActions: {
     marginTop: "30px",
@@ -1434,20 +1434,20 @@ const styles = {
     border: "1px solid #e9ecef",
     boxShadow: "0 2px 8px rgba(0, 0, 0, 0.05)",
   },
-  
+
   quickActionsTitle: {
     fontSize: "20px",
     color: "#1a5d1a",
     marginBottom: "24px",
     fontWeight: "600",
   },
-  
+
   actionsGrid: {
     display: "grid",
     gridTemplateColumns: "repeat(auto-fill, minmax(200px, 1fr))",
     gap: "16px",
   },
-  
+
   actionButton: {
     padding: "20px 16px",
     background: "white",
@@ -1462,7 +1462,7 @@ const styles = {
     fontSize: "16px",
     color: "#1a5d1a",
   },
-  
+
   actionIcon: {
     width: "48px",
     height: "48px",
@@ -1473,11 +1473,11 @@ const styles = {
     justifyContent: "center",
     color: "#1a5d1a",
   },
-  
+
   actionLabel: {
     fontWeight: "500",
   },
-  
+
   // Skeleton Loading
   headerSkeleton: {
     backgroundColor: "#e9ecef",
@@ -1486,7 +1486,7 @@ const styles = {
     marginBottom: "30px",
     animation: "pulse 1.5s infinite",
   },
-  
+
   cardSkeleton: {
     backgroundColor: "#e9ecef",
     height: "140px",
@@ -1498,7 +1498,7 @@ const styles = {
 // Agregar estilos de animación
 const addGlobalStyles = () => {
   if (document.getElementById('dashboard-styles')) return;
-  
+
   const styleSheet = document.createElement('style');
   styleSheet.id = 'dashboard-styles';
   styleSheet.textContent = `

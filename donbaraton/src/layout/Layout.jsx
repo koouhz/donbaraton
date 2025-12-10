@@ -188,7 +188,7 @@ export default function Layout({ onLogout, user }) {
               color: "#6c757d",
             }}
           >
-            © 2025 Supermercado • Sistema de Gestión v1.0
+            © 2025 Don Baraton • Sistema de Gestión v1.0
           </div>
         )}
       </main>

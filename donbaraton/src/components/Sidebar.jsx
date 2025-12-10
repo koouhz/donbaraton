@@ -1,15 +1,16 @@
 // src/components/Sidebar.jsx (actualizado con navegación corregida)
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useState, useEffect } from "react";
-import { 
-  Home, Shield, Users, Package, 
-  ShoppingCart, Receipt, Truck, Wallet, 
+import {
+  Home, Shield, Users, Package,
+  ShoppingCart, Receipt, Truck, Wallet,
   LogOut, Eye, EyeOff,
   UserCheck, AlertCircle, Settings,
   Building, Calculator, Warehouse, ShoppingBag, CreditCard,
   BarChart3, Calendar, Bell, FileText, ClipboardList,
   Store, ChevronRight, CheckCircle
 } from "lucide-react";
+import logoEmpresa from "../logo/images.jpg";
 
 // ==================== CONSTANTES Y CONFIGURACIÓN ====================
 
@@ -84,115 +85,115 @@ const ROLE_PERMISSIONS = {
 // Configuración del menú - IMPORTANTE: Rutas actualizadas
 const MENU_CONFIG = [
   // SECCIÓN: PANEL PRINCIPAL
-  { 
-    label: "Panel Principal", 
-    icon: Home, 
+  {
+    label: "Panel Principal",
+    icon: Home,
     path: "/dashboard",  // Cambiado de "/" a "/dashboard"
     exact: true,
     roles: Object.values(ROLES),
     description: "Dashboard y estadísticas"
   },
-  
+
   // SECCIÓN: ADMINISTRACIÓN
-  { 
-    label: "Roles y Permisos", 
-    icon: Shield, 
+  {
+    label: "Roles y Permisos",
+    icon: Shield,
     path: "/roles-cargos",  // Cambiado de "/roles" a "/roles-cargos"
     roles: [ROLES.ADMINISTRADOR],
     description: "Gestión de roles y permisos"
   },
-  { 
-    label: "Personal", 
-    icon: Users, 
+  {
+    label: "Personal",
+    icon: Users,
     path: "/personal",
     roles: [ROLES.ADMINISTRADOR, ROLES.GERENTE],
     description: "Gestión de empleados"
   },
-  { 
-    label: "Clientes", 
-    icon: Building, 
+  {
+    label: "Clientes",
+    icon: Building,
     path: "/clientes",
     roles: [ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.SUPERVISOR_CAJA, ROLES.GERENTE],
     description: "Gestión de clientes"
   },
-  
+
   // SECCIÓN: PRODUCTOS
-  { 
-    label: "Productos", 
-    icon: Package, 
+  {
+    label: "Productos",
+    icon: Package,
     path: "/productos",
     roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_ALMACEN, ROLES.GERENTE],
     description: "Gestión de productos"
   },
-  { 
-    label: "Categorías", 
-    icon: ClipboardList, 
+  {
+    label: "Categorías",
+    icon: ClipboardList,
     path: "/categorias",
     roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_ALMACEN],
     description: "Categorías de productos"
   },
-  
+
   // SECCIÓN: PROVEEDORES Y COMPRAS
-  { 
-    label: "Proveedores", 
-    icon: Truck, 
+  {
+    label: "Proveedores",
+    icon: Truck,
     path: "/proveedores",
     roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_COMPRAS, ROLES.GERENTE],
     description: "Gestión de proveedores"
   },
-  { 
-    label: "Compras", 
-    icon: ShoppingBag, 
+  {
+    label: "Compras",
+    icon: ShoppingBag,
     path: "/compras",
     roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_COMPRAS],
     description: "Órdenes de compra"
   },
-  
+
   // SECCIÓN: INVENTARIO
-  { 
-    label: "Inventario", 
-    icon: Warehouse, 
+  {
+    label: "Inventario",
+    icon: Warehouse,
     path: "/inventario",
     roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_ALMACEN, ROLES.GERENTE],
     description: "Control de stock"
   },
-  
+
   // SECCIÓN: VENTAS
-  { 
-    label: "Ventas", 
-    icon: ShoppingCart, 
+  {
+    label: "Ventas",
+    icon: ShoppingCart,
     path: "/ventas",
     roles: [ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.SUPERVISOR_CAJA, ROLES.GERENTE, ROLES.CONTADOR],
     description: "Registro de ventas"
   },
-  { 
-    label: "Caja", 
-    icon: Receipt, 
+  {
+    label: "Caja",
+    icon: Receipt,
     path: "/caja",
     roles: [ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.SUPERVISOR_CAJA],
     description: "Operaciones de caja"
   },
-  { 
-    label: "Cierre de Caja", 
-    icon: Calculator, 
+  {
+    label: "Cierre de Caja",
+    icon: Calculator,
     path: "/cierre-caja",
     roles: [ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.SUPERVISOR_CAJA, ROLES.CONTADOR],
     description: "Cierre diario de caja"
   },
-  
+
   // SECCIÓN: REPORTES
-  { 
-    label: "Reportes", 
-    icon: BarChart3, 
+  {
+    label: "Reportes",
+    icon: BarChart3,
     path: "/reportes",
     roles: [ROLES.ADMINISTRADOR, ROLES.GERENTE, ROLES.CONTADOR],
     description: "Reportes del sistema"
   },
-  
+
   // SECCIÓN: SISTEMA
-  { 
-    label: "Configuración", 
-    icon: Settings, 
+  {
+    label: "Configuración",
+    icon: Settings,
     path: "/configuracion",
     roles: [ROLES.ADMINISTRADOR],
     description: "Configuración general"
@@ -238,7 +239,7 @@ export default function Sidebar({ onLogout, empleado }) {
     const checkScreenSize = () => {
       setIsMobile(window.innerWidth < 768);
     };
-    
+
     checkScreenSize();
     window.addEventListener("resize", checkScreenSize);
     return () => window.removeEventListener("resize", checkScreenSize);
@@ -249,27 +250,27 @@ export default function Sidebar({ onLogout, empleado }) {
     // Obtener la página actual basada en la ruta
     const currentPath = location.pathname;
     const currentMenuItem = MENU_CONFIG.find(item => item.path === currentPath);
-    
+
     if (currentMenuItem) {
       setCurrentPage(currentMenuItem.label);
-      
+
       // Crear breadcrumbs
       const crumbs = [
         { label: "Inicio", path: "/dashboard" }
       ];
-      
+
       if (currentPath !== "/dashboard") {
-        crumbs.push({ 
-          label: currentMenuItem.label, 
-          path: currentPath 
+        crumbs.push({
+          label: currentMenuItem.label,
+          path: currentPath
         });
       }
-      
+
       setBreadcrumbs(crumbs);
     } else {
       // Si no encuentra la ruta, usar la ruta actual
       setCurrentPage(getPageTitleFromPath(currentPath));
-      
+
       const crumbs = [
         { label: "Inicio", path: "/dashboard" },
         { label: getPageTitleFromPath(currentPath), path: currentPath }
@@ -292,29 +293,29 @@ export default function Sidebar({ onLogout, empleado }) {
 
   const getEmpleadoRol = () => {
     if (!empleado) return ROLES.USUARIO;
-    
+
     if (empleado.roles?.nombre) {
       return empleado.roles.nombre.toLowerCase();
     }
-    
+
     if (empleado.rol) {
       return empleado.rol.toLowerCase();
     }
-    
+
     if (empleado.id_rol) {
       return ROLE_MAP[empleado.id_rol] || ROLES.USUARIO;
     }
-    
+
     if (empleado.cargo) {
       return CARGO_MAP[empleado.cargo] || ROLES.USUARIO;
     }
-    
+
     return ROLES.USUARIO;
   };
 
   const getEmpleadoNombre = () => {
     if (!empleado) return "Usuario";
-    
+
     if (empleado.nombres) {
       const nombre = empleado.nombres.split(' ')[0];
       if (empleado.apellido_paterno) {
@@ -322,7 +323,7 @@ export default function Sidebar({ onLogout, empleado }) {
       }
       return nombre;
     }
-    
+
     return "Usuario";
   };
 
@@ -337,7 +338,7 @@ export default function Sidebar({ onLogout, empleado }) {
   // ==================== LÓGICA DEL COMPONENTE ====================
 
   const empleadoRol = getEmpleadoRol();
-  const filteredItems = MENU_CONFIG.filter(item => 
+  const filteredItems = MENU_CONFIG.filter(item =>
     item.roles.includes(empleadoRol)
   );
   const unavailablePermissions = getUnavailablePermissions(empleadoRol);
@@ -347,8 +348,8 @@ export default function Sidebar({ onLogout, empleado }) {
     if (exact) {
       return location.pathname === itemPath;
     }
-    return location.pathname.startsWith(itemPath) || 
-           location.pathname === itemPath;
+    return location.pathname.startsWith(itemPath) ||
+      location.pathname === itemPath;
   };
 
   const handleLogout = () => {
@@ -756,8 +757,8 @@ export default function Sidebar({ onLogout, empleado }) {
         <div style={sidebarStyles.logoContainer}>
           {!logoError ? (
             <img
-              src="../logo/images.jpg"
-              alt="Logo Supermercado"
+              src={logoEmpresa}
+              alt="Logo Don Baraton"
               style={sidebarStyles.logoImage}
               onError={() => setLogoError(true)}
               onLoad={() => setLogoError(false)}
@@ -768,12 +769,12 @@ export default function Sidebar({ onLogout, empleado }) {
             </div>
           )}
         </div>
-        
+
         <div style={sidebarStyles.brandSection}>
-          <h2 style={sidebarStyles.brandTitle}>Supermercado</h2>
-          <span style={sidebarStyles.brandSubtitle}>Gestión Comercial Inteligente</span>
+          <h2 style={sidebarStyles.brandTitle}>Don Baraton</h2>
+          <span style={sidebarStyles.brandSubtitle}>Sistema de Gestión Comercial</span>
         </div>
-        
+
         {/* Información del usuario */}
         <div style={sidebarStyles.userInfo}>
           <div style={sidebarStyles.userAvatar}>
@@ -784,7 +785,7 @@ export default function Sidebar({ onLogout, empleado }) {
               {getEmpleadoNombre()}
             </p>
             <div style={sidebarStyles.userRoleSection}>
-              <span 
+              <span
                 style={{
                   ...sidebarStyles.userRoleBadge,
                   background: `linear-gradient(135deg, ${getRoleColor(empleadoRol)}, ${ROLE_COLORS[empleadoRol]}99)`
@@ -793,7 +794,7 @@ export default function Sidebar({ onLogout, empleado }) {
               >
                 {getRoleBadge(empleadoRol)}
               </span>
-              <button 
+              <button
                 style={{
                   ...sidebarStyles.roleInfoButton,
                   background: showRoleInfo ? "rgba(26, 93, 26, 0.2)" : "rgba(26, 93, 26, 0.1)"
@@ -804,7 +805,7 @@ export default function Sidebar({ onLogout, empleado }) {
                 {showRoleInfo ? <EyeOff size={12} /> : <Eye size={12} />}
               </button>
             </div>
-            
+
             {/* Indicador de página actual */}
             {currentPage && (
               <div style={sidebarStyles.currentPageBadge}>
@@ -833,7 +834,7 @@ export default function Sidebar({ onLogout, empleado }) {
                 ))}
                 {(ROLE_PERMISSIONS[empleadoRol] || []).length > 6 && (
                   <li style={sidebarStyles.permissionItem}>
-                    <span style={{fontSize: '11px', color: '#1a5d1a', opacity: 0.7}}>
+                    <span style={{ fontSize: '11px', color: '#1a5d1a', opacity: 0.7 }}>
                       + {ROLE_PERMISSIONS[empleadoRol].length - 6} más...
                     </span>
                   </li>
@@ -857,7 +858,7 @@ export default function Sidebar({ onLogout, empleado }) {
                   ))}
                   {unavailablePermissions.length > 4 && (
                     <li style={sidebarStyles.permissionItem}>
-                      <span style={{fontSize: '11px', color: '#1a5d1a', opacity: 0.7}}>
+                      <span style={{ fontSize: '11px', color: '#1a5d1a', opacity: 0.7 }}>
                         + {unavailablePermissions.length - 4} más...
                       </span>
                     </li>
@@ -884,7 +885,7 @@ export default function Sidebar({ onLogout, empleado }) {
             {filteredItems.map((item, index) => {
               const active = isItemActive(item.path, item.exact);
               const IconComponent = item.icon;
-              
+
               return (
                 <li
                   key={index}
@@ -968,8 +969,7 @@ export default function Sidebar({ onLogout, empleado }) {
 
         {/* Footer */}
         <div style={sidebarStyles.sidebarCopyright}>
-          <div>© 2025 Sistema de Gestión</div>
-          <span style={sidebarStyles.version}>v2.0 • Diseñado con React</span>
+          <div>© 2025 Don Baraton</div>
         </div>
       </div>
 
