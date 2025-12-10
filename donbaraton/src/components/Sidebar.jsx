@@ -104,7 +104,7 @@ const MENU_CONFIG = [
   { 
     label: "Personal", 
     icon: Users, 
-    path: "/empleados",
+    path: "/personal",
     roles: [ROLES.ADMINISTRADOR, ROLES.GERENTE],
     description: "Gestión de empleados"
   },
