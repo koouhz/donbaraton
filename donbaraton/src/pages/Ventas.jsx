@@ -6,6 +6,7 @@ import {
   Loader2, User, Package, CheckCircle, AlertCircle
 } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
+import { QRCodeSVG } from 'qrcode.react';
 import { supabase } from '../lib/supabaseClient';
 
 export default function Ventas() {
@@ -21,6 +22,7 @@ export default function Ventas() {
   const [montoRecibido, setMontoRecibido] = useState('');
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showClienteModal, setShowClienteModal] = useState(false);
+  const [qrCountdown, setQrCountdown] = useState(0);
   const searchRef = useRef(null);
 
   const getUser = () => {
@@ -28,7 +30,7 @@ export default function Ventas() {
     if (user) {
       try { 
         const parsed = JSON.parse(user);
-        return { id: parsed.id || 1, username: parsed.username || 'admin' }; 
+        return { id: parsed.usuario_id || 1, username: parsed.username || 'admin' }; 
       } catch { return { id: 1, username: 'admin' }; }
     }
     return { id: 1, username: 'admin' };
@@ -37,6 +39,33 @@ export default function Ventas() {
   useEffect(() => {
     cargarDatos();
   }, []);
+
+  // Temporizador automático para pago QR
+  useEffect(() => {
+    let timer;
+    let processed = false;
+    if (showPaymentModal && medioPago === 'QR' && clienteSeleccionado && carrito.length > 0 && !processing) {
+      setQrCountdown(20);
+      timer = setInterval(() => {
+        setQrCountdown(prev => {
+          if (prev <= 1 && !processed) {
+            clearInterval(timer);
+            processed = true;
+            // Confirmar venta automáticamente
+            procesarVenta();
+            return 0;
+          }
+          return prev - 1;
+        });
+      }, 1000);
+    } else {
+      setQrCountdown(0);
+    }
+    return () => {
+      clearInterval(timer);
+      processed = true;
+    };
+  }, [showPaymentModal, medioPago, clienteSeleccionado]);
 
   const cargarDatos = async () => {
     setLoading(true);
@@ -70,7 +99,7 @@ export default function Ventas() {
   const clientesFiltrados = clientes.filter(c =>
     c.nombre_completo?.toLowerCase().includes(clienteSearch.toLowerCase()) ||
     c.ci_nit?.includes(clienteSearch)
-  ).slice(0, 5);
+  ).slice(0, 20);
 
   // Agregar producto al carrito
   const agregarAlCarrito = (producto) => {
@@ -161,7 +190,7 @@ export default function Ventas() {
 
       const { data, error } = await supabase.rpc('fn_registrar_venta', {
         p_cliente_id: clienteSeleccionado.id,
-        p_tipo_comprobante: 'RECIBO',
+        p_tipo_comprobante: 'TICKET',
         p_detalles_json: detallesJson,
         p_medio_pago: medioPago,
         p_monto_total: total,
@@ -476,9 +505,9 @@ export default function Ventas() {
                 <button 
                   style={{
                     ...styles.paymentMethod,
-                    ...(medioPago === 'TARJETA' ? styles.paymentMethodActive : {})
+                    ...(medioPago === 'DEBITO' ? styles.paymentMethodActive : {})
                   }}
-                  onClick={() => setMedioPago('TARJETA')}
+                  onClick={() => setMedioPago('DEBITO')}
                 >
                   <CreditCard size={24} />
                   Tarjeta
@@ -502,6 +531,34 @@ export default function Ventas() {
                       <span>Vuelto:</span>
                       <span style={styles.vueltoValue}>{formatCurrency(vuelto)}</span>
                     </div>
+                  )}
+                </div>
+              )}
+
+              {medioPago === 'QR' && (
+                <div style={styles.qrSection}>
+                  <p style={{ textAlign: 'center', color: '#6c757d', marginBottom: '15px' }}>
+                    Escanea el código QR para pagar
+                  </p>
+                  <div style={styles.qrContainer}>
+                    <QRCodeSVG 
+                      value={`DON BARATON - PAGO SIMULADO\nMonto: Bs ${total.toFixed(2)}\nCliente: ${clienteSeleccionado?.nombre_completo || 'N/A'}\nFecha: ${new Date().toLocaleDateString('es-BO')}`}
+                      size={180}
+                      level="H"
+                      includeMargin={true}
+                      bgColor="#ffffff"
+                      fgColor="#1a5d1a"
+                    />
+                  </div>
+                  {qrCountdown > 0 ? (
+                    <div style={styles.qrCountdown}>
+                      <Loader2 size={20} style={{ animation: 'spin 1s linear infinite' }} />
+                      <span>Confirmando pago en {qrCountdown} segundos...</span>
+                    </div>
+                  ) : (
+                    <p style={{ textAlign: 'center', fontSize: '12px', color: '#999', marginTop: '10px' }}>
+                      Código QR simulado para demostración
+                    </p>
                   )}
                 </div>
               )}
@@ -597,4 +654,7 @@ const styles = {
   vueltoValue: { fontSize: '20px', fontWeight: '700', color: '#1a5d1a' },
   confirmPayBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', width: '100%', padding: '18px', background: 'linear-gradient(135deg, #1a5d1a, #2e8b57)', color: 'white', border: 'none', borderRadius: '12px', fontSize: '18px', fontWeight: '600', cursor: 'pointer' },
   warningText: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '15px', color: '#e65100', fontSize: '14px' },
+  qrSection: { marginBottom: '20px', padding: '20px', background: '#f8f9fa', borderRadius: '12px' },
+  qrContainer: { display: 'flex', justifyContent: 'center', padding: '15px', background: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' },
+  qrCountdown: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '15px', padding: '12px', background: '#e8f5e9', borderRadius: '8px', color: '#1a5d1a', fontWeight: '600' },
 };

@@ -104,10 +104,19 @@ export default function Clientes() {
   };
 
   const handleUpdate = async () => {
+    if (!formData.nombres.trim() || !formData.ci_nit.trim()) {
+      toast.error('Nombre y CI/NIT son obligatorios');
+      return;
+    }
+
     setSaving(true);
     try {
       const { error } = await supabase.rpc('fn_actualizar_cliente', {
         p_id: editingItem.id,
+        p_nombres: formData.nombres.trim(),
+        p_apellido_paterno: formData.apellido_paterno.trim() || null,
+        p_apellido_materno: formData.apellido_materno.trim() || null,
+        p_ci_nit: formData.ci_nit.trim(),
         p_telefono: formData.telefono.trim() || null,
         p_email: formData.email.trim() || null,
         p_direccion: formData.direccion.trim() || null,
@@ -115,7 +124,11 @@ export default function Clientes() {
       });
 
       if (error) {
-        toast.error(error.message || 'Error al actualizar');
+        if (error.message.includes('ya está registrado')) {
+          toast.error('El CI/NIT ya está registrado para otro cliente');
+        } else {
+          toast.error(error.message || 'Error al actualizar');
+        }
       } else {
         toast.success('Cliente actualizado exitosamente');
         setShowModal(false);
@@ -270,10 +283,10 @@ export default function Clientes() {
                   </td>
                   <td style={{...styles.td, textAlign: 'center'}}>
                     <div style={styles.actionButtons}>
-                      <button style={styles.editButton} onClick={() => openEditModal(cliente)}>
+                      <button type="button" style={styles.editButton} onClick={() => openEditModal(cliente)}>
                         <Edit size={16} />
                       </button>
-                      <button style={styles.deleteButton} onClick={() => handleDelete(cliente.id, cliente.nombre_completo)}>
+                      <button type="button" style={styles.deleteButton} onClick={() => handleDelete(cliente.id, cliente.nombre_completo)}>
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -308,7 +321,6 @@ export default function Clientes() {
                     onChange={(e) => setFormData({...formData, nombres: e.target.value})}
                     style={styles.input}
                     placeholder="Nombres"
-                    disabled={!!editingItem}
                   />
                 </div>
                 <div style={styles.formGroup}>
@@ -319,7 +331,6 @@ export default function Clientes() {
                     onChange={(e) => setFormData({...formData, apellido_paterno: e.target.value})}
                     style={styles.input}
                     placeholder="Apellido Paterno"
-                    disabled={!!editingItem}
                   />
                 </div>
               </div>
@@ -333,7 +344,6 @@ export default function Clientes() {
                     onChange={(e) => setFormData({...formData, apellido_materno: e.target.value})}
                     style={styles.input}
                     placeholder="Apellido Materno"
-                    disabled={!!editingItem}
                   />
                 </div>
                 <div style={styles.formGroup}>
@@ -344,7 +354,6 @@ export default function Clientes() {
                     onChange={(e) => setFormData({...formData, ci_nit: e.target.value})}
                     style={styles.input}
                     placeholder="Carnet o NIT"
-                    disabled={!!editingItem}
                   />
                 </div>
               </div>
