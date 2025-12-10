@@ -283,10 +283,10 @@ export default function Clientes() {
                   </td>
                   <td style={{...styles.td, textAlign: 'center'}}>
                     <div style={styles.actionButtons}>
-                      <button style={styles.editButton} onClick={() => openEditModal(cliente)}>
+                      <button type="button" style={styles.editButton} onClick={() => openEditModal(cliente)}>
                         <Edit size={16} />
                       </button>
-                      <button style={styles.deleteButton} onClick={() => handleDelete(cliente.id, cliente.nombre_completo)}>
+                      <button type="button" style={styles.deleteButton} onClick={() => handleDelete(cliente.id, cliente.nombre_completo)}>
                         <Trash2 size={16} />
                       </button>
                     </div>

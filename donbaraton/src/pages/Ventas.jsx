@@ -70,7 +70,7 @@ export default function Ventas() {
   const clientesFiltrados = clientes.filter(c =>
     c.nombre_completo?.toLowerCase().includes(clienteSearch.toLowerCase()) ||
     c.ci_nit?.includes(clienteSearch)
-  ).slice(0, 5);
+  ).slice(0, 20);
 
   // Agregar producto al carrito
   const agregarAlCarrito = (producto) => {
