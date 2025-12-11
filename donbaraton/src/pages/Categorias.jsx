@@ -20,17 +20,18 @@ export default function Categorias() {
     descripcion: ''
   });
 
-  // Obtener usuario actual del localStorage
+  // Obtener ID de usuario actual del localStorage (para auditoría)
   const getUsername = () => {
     const user = localStorage.getItem('user');
     if (user) {
       try {
-        return JSON.parse(user).username || 'admin';
+        // Retornar usuario_id (USR-001) para auditoría correcta
+        return JSON.parse(user).usuario_id || 'USR-001';
       } catch {
-        return 'admin';
+        return 'USR-001';
       }
     }
-    return 'admin';
+    return 'USR-001';
   };
 
   // Cargar categorías al montar el componente
@@ -42,7 +43,7 @@ export default function Categorias() {
   const cargarCategorias = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc('fn_leer_categorias');
+      const { data, error } = await supabase.rpc('fn_listar_categorias');
       
       if (error) {
         console.error('Error al cargar categorías:', error);
@@ -99,8 +100,8 @@ export default function Categorias() {
 
     setSaving(true);
     try {
-      const { data, error } = await supabase.rpc('fn_actualizar_categoria', {
-        p_id: editingItem.id,
+      const { data, error } = await supabase.rpc('fn_editar_categoria', {
+        p_id_categoria: editingItem.id_categoria || editingItem.id, 
         p_nombre: formData.nombre.trim(),
         p_descripcion: formData.descripcion.trim() || null,
         p_usuario_auditoria: getUsername()
@@ -130,14 +131,13 @@ export default function Categorias() {
     }
 
     try {
-      const { data, error } = await supabase.rpc('fn_eliminar_categoria', {
-        p_id: id,
+      const { data, error } = await supabase.rpc('fn_desactivar_categoria', {
+        p_id_categoria: id,
         p_usuario_auditoria: getUsername()
       });
 
       if (error) {
         console.error('Error al eliminar:', error);
-        // El SP puede lanzar excepción si tiene productos asociados
         if (error.message.includes('productos asociados')) {
           toast.error('No se puede eliminar: tiene productos asociados');
         } else {
@@ -266,8 +266,8 @@ export default function Categorias() {
             </thead>
             <tbody>
               {categoriasFiltradas.map((cat) => (
-                <tr key={cat.id} style={styles.tr}>
-                  <td style={styles.td}>{cat.id}</td>
+                <tr key={cat.id_categoria} style={styles.tr}>
+                  <td style={styles.td}>{cat.id_categoria}</td>
                   <td style={styles.td}>
                     <strong>{cat.nombre}</strong>
                   </td>
@@ -285,7 +285,7 @@ export default function Categorias() {
                       </button>
                       <button
                         style={styles.deleteButton}
-                        onClick={() => handleDelete(cat.id, cat.nombre)}
+                        onClick={() => handleDelete(cat.id_categoria, cat.nombre)}
                         title="Eliminar"
                       >
                         <Trash2 size={16} />

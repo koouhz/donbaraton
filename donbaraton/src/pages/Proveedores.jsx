@@ -28,10 +28,10 @@ export default function Proveedores() {
   const getUsername = () => {
     const user = localStorage.getItem('user');
     if (user) {
-      try { return JSON.parse(user).username || 'admin'; } 
-      catch { return 'admin'; }
+      try { return JSON.parse(user).usuario_id || 'USR-001'; } 
+      catch { return 'USR-001'; }
     }
-    return 'admin';
+    return 'USR-001';
   };
 
   useEffect(() => {
@@ -79,7 +79,7 @@ export default function Proveedores() {
         p_razon_social: formData.razon_social.trim(),
         p_nit_ci: formData.nit_ci.trim(),
         p_telefono: formData.telefono.trim() || null,
-        p_celular: formData.celular.trim() || null,
+        p_celular_contacto: formData.celular.trim() || null,
         p_email: formData.email.trim() || null,
         p_direccion: formData.direccion.trim() || null,
         p_nombre_contacto: formData.nombre_contacto.trim() || null,
@@ -115,9 +115,11 @@ export default function Proveedores() {
     setSaving(true);
     try {
       const { error } = await supabase.rpc('fn_actualizar_proveedor', {
-        p_id: editingItem.id,
+        p_id_proveedor: editingItem.id,
+        p_razon_social: formData.razon_social.trim(),
+        p_nit_ci: formData.nit_ci.trim(),
         p_telefono: formData.telefono.trim() || null,
-        p_celular: formData.celular.trim() || null,
+        p_celular_contacto: formData.celular.trim() || null,
         p_email: formData.email.trim() || null,
         p_direccion: formData.direccion.trim() || null,
         p_nombre_contacto: formData.nombre_contacto.trim() || null,
@@ -145,7 +147,7 @@ export default function Proveedores() {
 
     try {
       const { error } = await supabase.rpc('fn_eliminar_proveedor', {
-        p_id: id,
+        p_id_proveedor: id,
         p_usuario_auditoria: getUsername()
       });
 
@@ -169,7 +171,7 @@ export default function Proveedores() {
       celular: '',
       email: proveedor.email || '',
       direccion: '',
-      nombre_contacto: proveedor.contacto || '',
+      nombre_contacto: proveedor.nombre_contacto || '',
       plazo_credito: 30
     });
     setShowModal(true);
@@ -258,7 +260,7 @@ export default function Proveedores() {
                     <strong>{prov.razon_social}</strong>
                   </td>
                   <td style={styles.td}>{prov.nit_ci}</td>
-                  <td style={styles.td}>{prov.contacto || '-'}</td>
+                  <td style={styles.td}>{prov.nombre_contacto || '-'}</td>
                   <td style={styles.td}>
                     {prov.telefono ? (
                       <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>

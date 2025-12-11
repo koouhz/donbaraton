@@ -37,10 +37,10 @@ export default function Productos() {
   const getUsername = () => {
     const user = localStorage.getItem('user');
     if (user) {
-      try { return JSON.parse(user).username || 'admin'; } 
-      catch { return 'admin'; }
+      try { return JSON.parse(user).usuario_id || 'USR-001'; } 
+      catch { return 'USR-001'; }
     }
-    return 'admin';
+    return 'USR-001';
   };
 
   useEffect(() => {

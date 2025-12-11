@@ -1,27 +1,30 @@
-UNIVERSIDAD PRIVADA DOMINGO SAVIO
+              UNIVERSIDAD PRIVADA DOMINGO SAVIO
 
 
 
 
- APLICACIÓN DE LA ARQUITECTURA
+                 APLICACIÓN DE LA ARQUITECTURA
 
-              Versión: 1.0
+                                 Versión: 2.0
 
-            Modificaciones:
+                               Modificaciones:
 
-      Fecha: 3 de diciembre de 2025
+Corrección de Actores, Eliminacion de fragmentos en casos de uso(Firma Digital,
+                             registro biometrico)
 
-                Autores:
+                        Fecha: 3 de diciembre de 2025
 
-       Apaza Soria Daniela Yeslen
+                                   Autores:
 
-        Bocangel La Torre Ignacio
+                          Apaza Soria Daniela Yeslen
 
-       Cruz Aguilar Gregory Ivan
+                          Bocangel La Torre Ignacio
 
-      Limachi Bonilla Jhoel Marvin
+                          Cruz Aguilar Gregory Ivan
 
-      Torrez Valeriano Victor Edwin
+                        Limachi Bonilla Jhoel Marvin
+
+                        Torrez Valeriano Victor Edwin
 1. ANTECEDENTES DE LA EMPRESA
 
          El Supermercado “Don Baraton” es un comercio minorista de productos de
@@ -103,15 +106,16 @@ UNIVERSIDAD PRIVADA DOMINGO SAVIO
        •   Incorporar métricas e indicadores de negocio para la buena toma de decisiones
            (prevención de agotamiento de inventario).
        •   Preparar la infraestructura tecnológica para fases futuras (balanzas digitales,
-           lector biométrico, etc.).
+           etc.).
 2. REQUERIMIENTOS FUNCIONALES Y NO FUNCIONALES
 
 
 -   Requerimientos Funcionales
+
                                                                  Agregar productos con
-                                                                 nombre, categoría,
+                                                                 nombre, categoría o
     1. Gestión de                          Registro de
-                         PROD-01                                 precio, código del
+                         PROD-01                                 tipo, precio, código del
     Productos                              productos
                                                                  producto, unidad de
                                                                  medida, presentación
@@ -172,12 +176,11 @@ Proveedores              proveedores
                          compras        proveedor, fecha o
                                         producto
 
-
-3. Ventas /                             Venta rápida con lector
-                         Caja
-Punto de       VENT-01                  de código de barras o
-                         registradora
-Venta                                   filtrado manual
+3. Ventas /
+                         Caja           Venta rápida con
+Punto de       VENT-01
+                         registradora   filtrado manual
+Venta
 
                                         Emisión de factura
 
@@ -254,11 +257,10 @@ Venta                                   filtrado manual
 Humanos                  empleados
                                          teléfono, foto
 
-                                         Registro de
-                         Control de
-                RH-02                    entrada/salida (por
-                         asistencia
-                                         lector de huella)
+
+                         Control de      Registro de
+                RH-02
+                         asistencia      entrada/salida
 
                                          Control de accesos
                                          dentro del sistema
@@ -266,7 +268,7 @@ Humanos                  empleados
                 RH-03                    (administrador, cajero,
                          permisos
                                          encargado de almacén,
-                                         supervisor, etc.)
+                                         etc.)
 
 
                          Edición de      Modificar datos del
@@ -286,11 +288,10 @@ Humanos                  empleados
                          sistema         usuario y contraseña
 
                                          Administrador, cajero,
-
-                         Perfiles por    supervisor, compras,
-                SEG-02
-                         rol             encargado de almacén,
-                                         etc.
+                         Perfiles por
+                SEG-02                   encargado de almacén,
+                         rol
+                                         gerente, etc.
 
                                          Registro inalterable de
 
@@ -326,6 +327,7 @@ Estadísticas
 
 
 -   Requerimientos No Funcionales
+
                                                             Funciona en PC,
                                      Interfaz
                                                             tablets y móviles
@@ -418,9 +420,9 @@ Seguridad       NF-08   (bcrypt o
 
                         Transacciones
                         atómicas en
-Integridad de                               Nunca debe quedar
+Integridad de                               No debe quedar stock
                 NF-12   todos los
-datos                                       stock inconsistente
+datos                                       inconsistente
                         movimientos de
                         inventario
 
@@ -446,70 +448,72 @@ recuperación                                día dentro de los
                         respaldo en un      nube externa
 
                         clic
-                           Aplicación 100
-                                              Funciona en Chrome,
-                           % web (sin
-                                              Edge, Firefox
-Portabilidad       NF-16   instalación de
-                                              (versión actual y 2
-                           software en las
-                                              anteriores)
-                           cajas)
+                               Aplicación 100
+                                                  Funciona en Chrome,
+                               % web (sin
+                                                  Edge, Firefox
+  Portabilidad       NF-16     instalación de
+                                                  (versión actual y 2
+                               software en las
+                                                  anteriores)
+                               cajas)
 
-                           Compatibilidad
-                           con impresoras     Tickets de venta y
-Impresión          NF-17
-                           térmicas 80 mm     reportes
+                               Compatibilidad
+                               con impresoras     Tickets de venta y
+  Impresión          NF-17
+                               térmicas 80 mm     reportes
 
-                           y A4
+                               y A4
 
-                           Modo offline
-                                              Permite seguir
-                           parcial para
-Sincronización                                vendiendo y
-                   NF-18   cajas (máximo 2
-offline                                       sincroniza al volver a
-                           horas sin
-                                              tener internet
-                           conexión)
+                               Modo offline
+                                                  Permite seguir
+                               parcial para
+  Sincronización                                  vendiendo y
+                     NF-18     cajas (máximo 2
+  offline                                         sincroniza al volver a
+                               horas sin
+                                                  tener internet
+                               conexión)
 
-                                              Facilita futuras
-                           Arquitectura
-                                              integraciones
-                           modular con
-Mantenibilidad     NF-19                      (balanzas, lectores de
-                           API REST
-                                              código de barras,
-                           documentada
-                                              etc.)
+                               Arquitectura
+                                                  Facilita futuras
+                               modular con
+  Mantenibilidad     NF-19                        integraciones
+                               API REST
+                                                  (balanzas, etc.)
+                               documentada
 
-                           Código fuente
-                           documentado y
-                   NF-20   con pruebas
-                           unitarias ≥ 70
-                           % de cobertura
+                               Código fuente
+                               documentado y
+                     NF-20     con pruebas
+                               unitarias ≥ 70
+                               % de cobertura
 
-                           Soporte multi-
-                           idioma (español
-Internacionaliza           por defecto,       Fácil traducción de
-                   NF-21
-ción                       inglés y           etiquetas y mensajes
+                               Soporte multi-
+                               idioma (español
+  Internacionaliza             por defecto,       Fácil traducción de
+                     NF-21
+  ción                         inglés y           etiquetas y mensajes
 
-                           portugués
-                           opcional)
+                               portugués
+                               opcional)
 
-                           Funciona en
-                           equipos con 4      Para no obligar a
+                               Funciona en
+                               equipos con 4      Para no obligar a
 
-Hardware                   GB RAM y           renovar todo el
-                   NF-22
-mínimo                     procesador i3 o    hardware del
+  Hardware                     GB RAM y           renovar todo el
+                     NF-22
+  mínimo                       procesador i3 o    hardware del
 
-                           equivalente (año   supermercado
+                               equivalente (año   supermercado
 
-                           2018+)
-3. DIAGRAMAS DE CASOS DE USO
--   Módulo de Gestión de Productos
+                               2018+)
+
+
+
+
+3. DIAGRAMAS DE CASOS DE USO
+-   Módulo de Gestión de Productos
 -   Módulo de Compras
 -   Módulo de Ventas
 -   Módulo de Clientes
@@ -528,7 +532,7 @@ mínimo                     procesador i3 o    hardware del
     Nombre del caso de uso        Registrar producto
 
 
-    Actores                       Administrador, Jefe de compras
+    Actores                       Administrador, Encargado de Almacen
 
                                   Crear un nuevo producto en el catálogo del
     Propósito
@@ -591,7 +595,7 @@ ID                       PROD-02
 
 Nombre del caso de uso   Edición de productos
 
-Actores                  Administrador, jefe de compras
+Actores                  Administrador, Encargado de Almacen
 
 Propósito                Modificar cualquier dato de un producto existente
 
@@ -630,7 +634,7 @@ Rendimiento esperado     ≤ 5 segundos
 
 Nombre del caso de uso      Eliminación lógica
 
-Actores                     Administrador
+Actores                     Administrador, Encargado de Almacen
 
 Propósito                   Desactivar un producto sin perder histórico
 
@@ -678,7 +682,7 @@ ID                         PROD-04
 
 Nombre del caso de uso     Control de inventario
 
-Actores                    Encargado de depósito
+Actores                    Encargado de Almacen
 
 Propósito                  Registrar ingresos, egresos y ajustes de stock
 Resumen                    Mantener el stock real actualizado
@@ -731,7 +735,7 @@ ID                       PROD-05
 
 Nombre del caso de uso   Control de caducidad
 
-Actores                  Encargado de depósito
+Actores                  Encargado de Almacen
 
 Propósito                Registrar fechas de vencimiento y recibir alertas
     Resumen                    Evitar venta de productos vencidos
@@ -746,7 +750,7 @@ Propósito                Registrar fechas de vencimiento y recibir alertas
 
                                Se activa dentro de PROD-04 → obliga ingreso de lote
     Flujo principal
-                               y fecha → guarda por lote → programa alertas
+                               y fecha → guarda por lote → programar alertas
 
                                • PK varchar (25) – Debe ser autogenerado, incluyendo
                                números y letras
@@ -775,7 +779,7 @@ Propósito                Registrar fechas de vencimiento y recibir alertas
                            Registro de Proveedores
     uso
 
-    Actores                Administrador, Encargado de compras
+    Actores                Administrador, Encargado de Almacen
 
                            Crear un nuevo registro de proveedor para generar órdenes
     Propósito
@@ -838,7 +842,7 @@ Nombre del caso de
                      Órdenes de compra
 uso
 
-Actores              Encargado de compras, Gerente
+Actores              Gerente
 
 Propósito            Generar una orden de compra para solicitar mercadería
                       Se selecciona proveedor y productos, se definen cantidades
@@ -900,7 +904,7 @@ Nombre del caso de
                      Ingreso de mercadería
 uso
 
-Actores              Almacenero, Encargado de compras, Administrador
+Actores              Administrador, Encargado de Almacén
 
                      Registrar la llegada física de productos y actualizar
 Propósito
@@ -960,7 +964,7 @@ Nombre del caso de
                          Devolución a proveedor
 uso
 
-Actores                  Almacenero, Encargado de compras, Gerente
+Actores                  Gerente, Administrador, Encargado de Almacen
 
 Propósito                Registrar devolución de productos defectuosos o vencidos
 
@@ -1019,7 +1023,7 @@ Nombre del caso de
                        Historial de compras
 uso
 
-Actores                Gerente, Contador, Encargado de compras
+Actores                Gerente, Administrador, Encargado de Almacén
 
 Propósito              Visualizar y analizar todas las compras realizadas
 
@@ -1068,7 +1072,7 @@ Nombre del caso de
                      Cuentas por pagar
 uso
 
-Actores              Contador, Gerente
+Actores              Gerente
 
 Propósito            Controlar deudas pendientes y vencimientos
 
@@ -1285,7 +1289,7 @@ ID                       VENT-04
 
 Nombre del caso de uso   Cierre de caja / Corte por turno
 
-Actores                  Cajero, Supervisor de caja
+Actores                  Cajero, Administrador
 Propósito                Conciliar ventas con efectivo y cerrar turno
 
 Precondiciones           Ninguna
@@ -1307,14 +1311,13 @@ Flujo principal          3. Arqueo manual
                          • PK varchar (25) – Debe ser autogenerado, incluyendo
                             números y letras
 
-                         • Importe declarado por denominación (1000, 500,
-Campos clave / Datos     200… monedas) → decimal(12,4) cada una
-principales
+Campos clave / Datos     • Importe declarado por denominación (1000, 500,
+
+principales              200… monedas) → decimal(12,4) cada una
+
                          • Diferencia total → decimal(12,4)
 
                          • Observaciones → varchar(300)
-
-                         • Firma digital supervisor → varchar(100)
 
 Importancia              4/5
 
@@ -1329,7 +1332,7 @@ ID                          VENT-05
 
 Nombre del caso de uso      Devoluciones
 
-Actores                     Cajero, Supervisor (casos especiales)
+Actores                     Cajero
 
 Propósito                   Procesar cambios y reembolsos
 
@@ -1340,9 +1343,9 @@ Precondiciones              Módulo de Reportes
                             Módulo de Reportes
 Postcondiciones
                             Módulo de Inventario
-    Incluye                          Ninguno
 
-                                     1. Ingresa nº ticket
+Incluye                     Ninguno
+                                     1. Ingresa nº ticket
 
                                      2. Carga venta original
 
@@ -1397,10 +1400,10 @@ Postcondiciones
 
 
     Precondiciones          Módulo Seguridad
+
+
+    Postcondiciones         Módulo Ventas
 ID                       CLI-01
-
-
-Postcondiciones          Módulo Ventas
 
 
 Incluye                  Ninguno
@@ -1455,10 +1458,10 @@ Nombre del caso
 de uso
 
 Actores                  Cajero, Administrador
+
+
+Propósito                Actualizar los datos personales de un cliente ya registrado
 ID                 CLI-02
-
-
-Propósito          Actualizar los datos personales de un cliente ya registrado
 
                    El actor busca un cliente existente, modifica uno o más
 Resumen
@@ -1510,15 +1513,11 @@ Comentarios        historial de compras para preservar integridad de la
 
 
 Frecuencia         3/5
-ID                     CLI-02
 
-                       ≤ 5 segundos desde pulsar “Guardar cambios” hasta la
+                   ≤ 5 segundos desde pulsar “Guardar cambios” hasta la
 Rendimiento
-                       confirmación en pantalla
-
-
-
-3. CLI-03 – Consultar Historial de Compras del Cliente
+                   confirmación en pantalla
+3. CLI-03 – Consultar Historial de Compras del Cliente
 
 ID                      CLI-03
 
@@ -1566,15 +1565,14 @@ Flujo                   • Nº Factura
                         no tiene compras registradas”
 
                        • PK varchar (25) – Debe ser autogenerado, incluyendo
-Campos mostrados
                            números y letras
+                       • Fecha
+Campos mostrados       • Nº Factura
+                       • Detalle Compra
+                       • Total
+                       • Forma de pago
     ID                      CLI-03
 
-                           • Fecha
-                           • Nº Factura
-                           • Detalle Compra
-                           • Total
-                           • Forma de pago
                            • Cajero
 
 
@@ -1604,7 +1602,7 @@ Campos mostrados
                            Registrar entradas/salidas
     de uso
 
-    Actores                Sistema de Ventas, Sistema de Compras (actores automáticos)
+    Actores                Gerente
 
                            Mantener el stock actualizado en tiempo real con cada venta
     Propósito
@@ -1623,17 +1621,17 @@ Campos mostrados
     Excluye                Ninguno
 
                            1. Se confirma una venta (Módulo Ventas) → el sistema resta
-    Flujo
                            la cantidad vendida del stock
-    ID                     INV-01
 
                            2. Se confirma una compra/recepción (Módulo Compras) →
-                           el sistema suma la cantidad recibida al stock
+
+    Flujo                  el sistema suma la cantidad recibida al stock
 
                            3. En ambos casos el sistema registra automáticamente el
                            movimiento con:
 
                            • Fecha y hora
+    ID                     INV-01
 
                            • Tipo (entrada/salida)
 
@@ -1677,17 +1675,17 @@ Campos mostrados
     de uso
 
     Actores                Administrador de Inventario, Gerente
+
+                           Corregir diferencias entre el stock físico real y el registrado en
+    Propósito              el sistema por causas no automáticas (merma, daño, robo,
+                           conteo físico, etc.)
+
+                           El usuario autorizado ingresa un ajuste positivo o negativo con
+    Resumen
+                           motivo obligatorio y queda registro auditable
+
+    Precondiciones         Módulo Seguridad, Módulo Productos
 ID                  INV-02
-
-                    Corregir diferencias entre el stock físico real y el registrado en
-Propósito           el sistema por causas no automáticas (merma, daño, robo,
-                    conteo físico, etc.)
-
-                    El usuario autorizado ingresa un ajuste positivo o negativo con
-Resumen
-                    motivo obligatorio y queda registro auditable
-
-Precondiciones      Módulo Seguridad, Módulo Productos
 
                     Stock actualizado y movimiento registrado en kardex de
 Postcondiciones
@@ -1732,22 +1730,17 @@ Campos del ajuste
                     Usuario → varchar(10)
 
                     Fecha/hora → datetime automático
-    ID                     INV-02
 
-    Importancia            5/5
+Importancia         5/5
 
-                           Todo ajuste queda 100 % auditado (usuario, fecha, motivo).
-    Comentarios            Prohibido realizar ajustes sin motivo. Ideal para inventarios
-                           físicos mensuales
+                    Todo ajuste queda 100 % auditado (usuario, fecha, motivo).
+Comentarios         Prohibido realizar ajustes sin motivo. Ideal para inventarios
+                    físicos mensuales
 
-    Frecuencia             3/5
+Frecuencia          3/5
 
-    Rendimiento            ≤ 2 segundos desde confirmar hasta mensaje de éxito
-
-
-
-
--   INV-03 – Alertas de stock
+Rendimiento         ≤ 2 segundos desde confirmar hasta mensaje de éxito
+-   INV-03 – Alertas de stock
 
 
     ID                     INV-03
@@ -1756,7 +1749,7 @@ Campos del ajuste
                            Alertas de Stock
     de uso
 
-    Actores                Sistema (automático), Encargado de Compras, Gerente
+    Actores                Gerente, Encargado de Almacen
 
                            Prevenir quiebres de stock de productos críticos avisando
     Propósito
@@ -1779,26 +1772,26 @@ Campos del ajuste
 
                            2. Compara stock actual de cada producto con su stock
                            mínimo registrado
-    Flujo
+
                            3. Si stock actual ≤ stock mínimo → el producto se marca en
                            rojo en todas las listas y dashboard
-
+    Flujo
                            4. El producto aparece destacado en la sección “Alertas de
                            stock bajo”
-    ID                    INV-03
 
-                          5. Se envia una notificación al Encargado de Compras y
-                          Gerente
+                           5. Se envia una notificación al Encargado de Compras y
+                           Gerente
 
-                          6. La alerta permanece hasta que el stock supere nuevamente
-                          el mínimo
+                           6. La alerta permanece hasta que el stock supere nuevamente
+                           el mínimo
 
-                         PK varchar (25) – Debe ser autogenerado, incluyendo
-                         números y letras
-
-                          Stock actual → decimal(10,3)
+                          PK varchar (25) – Debe ser autogenerado, incluyendo
+                          números y letras
     Campos usados
-                          Stock mínimo → decimal(10,3)
+                           Stock actual → decimal(10,3)
+
+                           Stock mínimo → decimal(10,3)
+    ID                    INV-03
 
                           Nombre producto → varchar(100)
 
@@ -1825,7 +1818,7 @@ Campos del ajuste
                           Productos por vencer
     de uso
 
-    Actores               Administrador de Inventario, Gerente, Administrador
+    Actores               Gerente, Administrador, Encargado de Almacen
 
                           Identificar rápidamente los productos perecederos que están
     Propósito             próximos a vencer para tomar acciones (liquidación,
@@ -1838,130 +1831,133 @@ Campos del ajuste
     Precondiciones        Módulo Productos
 
     Postcondiciones       Ninguno
-ID             INV-04
 
-Incluye        Ninguno
+    Incluye               Ninguno
 
-Excluye        Ninguno
+    Excluye               Ninguno
 
-               1. El actor selecciona “Inventario → Productos por vencer”
+                          1. El actor selecciona “Inventario → Productos por vencer”
 
-               2. El sistema muestra automáticamente tres pestañas/filtros:
+                          2. El sistema muestra automáticamente tres pestañas/filtros:
 
-               • Próximos 30 días:
+    Flujo                 • Próximos 30 días:
 
-               • Próximos 20 días
+                          • Próximos 20 días
 
-               • Próximos 15 días
+                          • Próximos 15 días
+    ID                    INV-04
 
-               3. La lista se ordena por fecha de vencimiento ascendente
+                          3. La lista se ordena por fecha de vencimiento ascendente
 
-               4. Colores de alerta:
-Flujo
-               • Rojo → ≤ 15 días
+                          4. Colores de alerta:
 
-               • Amarillo → 20 días
+                          • Rojo → ≤ 15 días
 
-               • Verde → > 30 días
+                          • Amarillo → 20 días
 
-               5. Columnas mostradas: Código, Nombre, Lote, Fecha
-               vencimiento, Días restantes, Stock actual, Ubicación
+                          • Verde → > 30 días
 
-               6. El actor puede exportar a Excel/PDF con un clic
+                          5. Columnas mostradas: Código, Nombre, Lote, Fecha
+                          vencimiento, Días restantes, Stock actual, Ubicación
 
-               7. Marcar productos para “Liquidación automática”
+                          6. El actor puede exportar a Excel/PDF con un clic
 
-               PK varchar (25) – Debe ser autogenerado, incluyendo números
-               y letras
+                          7. Marcar productos para “Liquidación automática”
 
-               Fecha de vencimiento → date
-Campos clave
-               Días restantes → calculado
+                          PK varchar (25) – Debe ser autogenerado, incluyendo números
+                          y letras
 
-               Lote → varchar (30)
+                          Fecha de vencimiento → date
+    Campos clave
+                          Días restantes → calculado
 
-               Stock actual → decimal (10,3)
+                          Lote → varchar (30)
 
-Importancia    5/5
+                          Stock actual → decimal (10,3)
 
-               Función clave en supermercados con perecederos (lácteos,
-Comentarios    carnes, embutidos, panadería). Reduce mermas y pérdidas por
-               caducidad
+    Importancia           5/5
 
-Frecuencia     5/5
+                          Función clave en supermercados con perecederos (lácteos,
+    Comentarios           carnes, embutidos, panadería). Reduce mermas y pérdidas por
+                          caducidad
 
-Rendimiento    Carga completa del reporte ≤ 4 segundos
--   Módulo de Recursos Humanos
+    Frecuencia            5/5
+
+    Rendimiento           Carga completa del reporte ≤ 4 segundos
+
+
+
+-   Módulo de Recursos Humanos
     1. RH-01 – Registro de empleados
-     ID:                        RH-01
+     ID:                         RH-01
 
-     Nombre del caso de         Registrar empleado
+     Nombre del caso de          Registrar empleado
      uso:
-     Actores:                   Administrador de RRHH, Sistema
+     Actores:                    Administrador
 
-     Propósito:                 Crear un nuevo registro de empleado con datos
-                                personales, contractuales y laborales para habilitar su
-                                participación en las operaciones del sistema.
+     Propósito:                  Crear un nuevo registro de empleado con datos
+                                 personales, contractuales y laborales para habilitar su
+                                 participación en las operaciones del sistema.
+Resumen:               El actor ingresa los datos personales y laborales del
+                       empleado y el sistema la almacena, generando un
+                       registro activo.
 
-     Resumen:                   El actor ingresa los datos personales y laborales del
-                                empleado y el sistema la almacena, generando un
-                                registro activo.
+Precondiciones:        Modulo Seguridad
 
-     Precondiciones:            Modulo Seguridad
+Postcondiciones:       Modulo Productos
 
-     Postcondiciones:           Modulo Productos
+Incluye:               Ninguno
 
-     Incluye:                   Ninguno
+Excluye:               Ninguno
 
-     Excluye:                   Ninguno
+Flujo:             •   Selecciona “RRHH → Nuevo empleado”.
+                   •   Formulario vacío.
+                   •   Ingresa datos personales y laborales.
+                   •   Guarda registro.
+                   •   Mensaje de confirmación.
 
-     Flujo:                 •   Selecciona “RRHH → Nuevo empleado”.
-                            •   Formulario vacío.
-                            •   Ingresa datos personales y laborales.
-                            •   Guarda registro.
-                            •   Mensaje de confirmación.
+Campos del             • PK VARCHAR (25) Autogenerado
+Formulario:
+                       • CI VARCHAR (15) Único
 
-     Campos del                 • PK VARCHAR (25) Autogenerado
-     Formulario:
-                                • CI VARCHAR (15) Único
+                       • Expedido CHAR (3) Ej: LP, CBB, SC
 
-                                • Expedido CHAR (3) Ej: LP, CBB, SC
+                       • Nombres VARCHAR (80)
 
-                                • Nombres VARCHAR (80)
+                       • Apellido Paterno VARCHAR (80)
 
-                                • Apellido Paterno VARCHAR (80)
+                       • Apellido Materno VARCHAR (80)
 
-                                • Apellido Materno VARCHAR (80)
+                       • Fecha de Nacimiento DATE
 
-                                • Fecha de Nacimiento DATE
+                       • Sexo CHAR (1) M/F
 
-                                • Sexo CHAR (1) M/F
+                       • Teléfono VARCHAR (15) Opcional
 
-                                • Teléfono VARCHAR (15) Opcional
+                       • Celular VARCHAR (13)
 
-                                • Celular VARCHAR (13)
+                       • Correo VARCHAR (50) UNIQUE
 
-                                • Correo VARCHAR (50) UNIQUE
+                       • Dirección VARCHAR (150)
 
-                                • Dirección VARCHAR (150)
+                       • Cargo INT FK a tabla cargos
 
-                                • Cargo INT FK a tabla cargos
-                              • Fecha de Contratación DATE
+                       • Fecha de Contratación DATE
 
-                              • Tipo de Contrato VARCHAR (50)
+                       • Tipo de Contrato VARCHAR (50)
 
-                              • Horario Asignado INT FK
+                       • Horario Asignado INT FK
 
-                              • Salario DECIMAL (10,2)
+                       • Salario DECIMAL (10,2)
 
-                              • Estado BOOLEAN Ej: Activo (1), Inactivo (0)
+                       • Estado BOOLEAN Ej: Activo (1), Inactivo (0)
 
-                              • Usuario Asignado INT FK
+                       • Usuario Asignado INT FK
 
-                              • Fecha Registro DATETIME
+                       • Fecha Registro DATETIME
 
-                              • Fecha DATETIME
- Importancia:                 5/5
+                       • Fecha DATETIME
+ Importancia:                 5/5
 
  Comentarios:                 CI debe ser unico.
 
@@ -1976,7 +1972,7 @@ Rendimiento    Carga completa del reporte ≤ 4 segundos
 
  Nombre del caso de           Control de asistencia
  uso:
- Actores:                     Empleado, Sistema, Administrador
+ Actores:                     Administrador
 
  Propósito:                   Registrar las asistencia de los empleados, y llevar su
                               historial.
@@ -2001,18 +1997,17 @@ Rendimiento    Carga completa del reporte ≤ 4 segundos
  Campos del                   • PK VARCHAR (25)        Autogenerado
  Formulario:                  • Asistencia VARCHAR (20)        Ej: Entrada, Salida,
                                    Retraso
-                              • Empleado VARCHAR (25)         FK → PK de
-                                 empleados
-                              • Fecha     DATE Registro biométrico
+                              • Empleado VARCHAR (25)          FK → PK de
+                                   empleados
+                              • Fecha       DATE
                               • Hora de Entrada TIME - Opcional si solo marca
-                                 salida
+                                   salida
                               • Hora de Salida TIME - Opcional si solo marca
-                                 entrada
+                                   entrada
  Importancia:                 4/5
 
- Comentarios:                 Compatible con biométrico.
-
- Frecuencia:                  5/5.
+ Comentarios:
+ Frecuencia:                  5/5.
 
  Rendimiento:                 ≤ 2 segundos.
 
@@ -2023,7 +2018,7 @@ Rendimiento    Carga completa del reporte ≤ 4 segundos
 
  Nombre del caso de           Gestión de roles y permisos
  uso:
- Actores:                     Administrador del sistema
+ Actores:                     Administrador
 
  Propósito:                   Controlar acceso asignando permisos según rol.
 
@@ -2050,24 +2045,24 @@ Rendimiento    Carga completa del reporte ≤ 4 segundos
                                  Empleado
                               • Permiso VARCHAR (80)          Ver, Editar, Registrar,
                                  etc.
-                           • ID Empleado      VARCHAR (25)          FK empleado
-                           • Estado Permiso BIT     1=permitido, 0=no
- Importancia:              5/5.
+                              • ID Empleado      VARCHAR (25)        FK empleado
+                              • Estado Permiso BIT     1=permitido, 0=no
+ Importancia:                 5/5.
 
- Comentarios:              Mantener registro para auditorias.
+ Comentarios:                 Mantener registro para auditorias.
 
- Frecuencia:               2/5.
+ Frecuencia:                  2/5.
 
- Rendimiento:              ≤ 3 segundos.
+ Rendimiento:                 ≤ 3 segundos.
 
 
 
 4. RH-NEW1 – Edición de empleados
- ID:                       RH-NEW1
+ ID:                       RH-NEW1
 
  Nombre del caso de        Editar datos de empleados
  uso:
- Actores:                  Administrador RRHH
+ Actores:                  Administrador
 
  Propósito:                Modificar información del empleado.
 
@@ -2102,21 +2097,21 @@ Rendimiento    Carga completa del reporte ≤ 4 segundos
 
 5. RH-NEW2 – Eliminación lógica de empleados
  ID:                       RH-NEW2
-     Nombre del caso de         Desactivar empleado
-     uso:
-     Actores:                   Administrador RRHH, Gerente
 
-     Propósito:                 Desactivar sin eliminar información histórica.
+ Nombre del caso de        Desactivar empleado
+ uso:
+ Actores:                  Administrador
 
-     Resumen:                   Estado del empleado cambia a “Inactivo”.
+ Propósito:                Desactivar sin eliminar información histórica.
 
-     Precondiciones:            Modulo Seguridad
+ Resumen:                  Estado del empleado cambia a “Inactivo”.
 
-     Postcondiciones:           Ninguno
+ Precondiciones:           Modulo Seguridad
 
-     Incluye:                   Ninguno
+ Postcondiciones:          Ninguno
 
-     Excluye:                   Ninguno
+ Incluye:                  Ninguno
+     Excluye:                   Ninguno
 
      Flujo:                 •   Seleccionar eliminar
                             •   Buscar empleado
@@ -2144,7 +2139,7 @@ Rendimiento    Carga completa del reporte ≤ 4 segundos
                             Creación de cuentas de usuario
     uso
 
-    Actores                 Administrador del sistema
+    Actores                 Administrador
 
                             Registrar nuevos usuarios con credenciales y roles para
     Propósito
@@ -2159,21 +2154,22 @@ Rendimiento    Carga completa del reporte ≤ 4 segundos
 
 
     Postcondiciones         Todo módulo que dependa de una distinción por rol
+
+
+    Incluye                 Ninguno
+
+
+    Excluye                 Ninguno
+
+                            1. Administrador selecciona "Crear usuario"
+                            2. Sistema muestra formulario con campos: datos
+                            personales, nombre de usuario, contraseña, rol
+    Flujo
+                            3. Administrador llena el formulario y confirma
+                            4. Sistema valida información
+                            5. Sistema encripta la contraseña
 ID                       SEG-01
 
-
-Incluye                  Ninguno
-
-
-Excluye                  Ninguno
-
-                         1. Administrador selecciona "Crear usuario"
-                         2. Sistema muestra formulario con campos: datos
-                         personales, nombre de usuario, contraseña, rol
-                         3. Administrador llena el formulario y confirma
-Flujo
-                         4. Sistema valida información
-                         5. Sistema encripta la contraseña
                          6. Sistema registra usuario en base de datos
                          7. Sistema muestra mensaje de confirmación
 
@@ -2214,25 +2210,25 @@ Nombre del caso de
                         Administración de perfiles por rol
 uso
 
-Actores                 Administrador del sistema
-ID                       SEG-02
+Actores                 Administrador
 
-                         Configurar y gestionar perfiles de acceso según roles
+                        Configurar y gestionar perfiles de acceso según roles
 Propósito
-                         asignados
+                        asignados
 
-                         El administrador define roles y asigna permisos específicos
+                        El administrador define roles y asigna permisos específicos
 Resumen
-                         para cada uno
+                        para cada uno
 
 
-Precondiciones           Módulo Seguridad
+Precondiciones          Módulo Seguridad
 
 
-Postcondiciones          Todo módulo que dependa de una distinción por rol
+Postcondiciones         Todo módulo que dependa de una distinción por rol
 
 
-Incluye                  Ninguno
+Incluye                 Ninguno
+ID                       SEG-02
 
 
 Excluye                  Ninguno
@@ -2272,134 +2268,134 @@ Rendimiento
 
 
 3. SEG – 03 Registro de auditoría en el sistema
-ID                   SEG-03
+
+
+
+ID                       SEG-03
 
 Nombre del caso de
-                     Registro de Auditoría del sistema
+                         Registro de Auditoría del sistema
 uso
 
-Actores              Sistema (automático), administrador (consulta)
+Actores                  Administrador
 
-                     Registrar todas las acciones relevantes de usuarios para
+                         Registrar todas las acciones relevantes de usuarios para
 Propósito
-                     trazabilidad, control y seguridad
+                         trazabilidad, control y seguridad
 
-                     El sistema registra automáticamente acciones relevantes de
+                         El sistema registra automáticamente acciones relevantes de
 Resumen
-                     los usuarios
+                         los usuarios
+    ID                        SEG-03
 
 
-Precondiciones       Módulos de seguridad
+    Precondiciones            Módulos de seguridad
 
 
-Postcondiciones      Todo módulo que dependa de una distinción por rol
+    Postcondiciones           Todo módulo que dependa de una distinción por rol
 
+
+    Incluye                   Ninguno
+
+
+    Excluye                   Ninguno
+
+                              1. Usuario realiza acción en el sistema
+                              2. Sistema intercepta acción y genera evento
+                              3. Sistema registra: usuario, fecha, hora, acción, módulo,
+                              estado del proceso
+    Flujo
+                              4. Sistema almacena registro en tabla de auditoría
+                              5. Administrador ingresa a módulo de auditoría y consulta
+                              con filtros (usuario, fecha, acción)
+                              6. Sistema muestra registros encontrados
+
+                             PK varchar (25) – Debe ser autogenerado, incluyendo
+                             números y letras
+
+                              Usuario → varchar(255)
+    Campos del                Fecha/Hora → datetime
+    formulario                Acción → varchar(100) (ej: "CREAR", "MODIFICAR")
+                              Módulo → varchar(50)
+                              Detalles → text (opcional)
+                              Estado → varchar(20) (ej: "EXITOSO", "FALLIDO")
+
+
+    Importancia               4/5
+
+                              No debe impactar rendimiento; registros deben ser
+    Comentarios
+                              inalterables
+
+
+    Frecuencia                5/5
+
+                              ≤ 5 segundos desde pulsar “Guardar” hasta la confirmación
+    Rendimiento
+                              en pantalla
+
+
+
+
+-   Módulo de Reportes y Estadísticas
+
+1. REP – 01 Reporte de ventas por periodo de tiempo
+ID                   REP-01
+
+Nombre del caso de
+                     Reporte de Ventas por periodo de tiempo
+uso
+
+Actores              Administrador
+
+                     Generar un resumen general de las ventas realizadas en un periodo de
+Propósito
+                     tiempo especifico para analizar el rendimiento
+
+                     El usuario selecciona un intervalo de tiempo y el sistema genera un
+Resumen
+                     reporte con totales y estadísticas.
+
+                     Módulo de Ventas
+
+Precondiciones       Módulo Clientes
+
+                     Módulo de Gestión de productos
+
+Postcondiciones      Ninguno
 
 Incluye              Ninguno
 
-
 Excluye              Ninguno
 
-                     1. Usuario realiza acción en el sistema
-                     2. Sistema intercepta acción y genera evento
-                     3. Sistema registra: usuario, fecha, hora, acción, módulo,
-                     estado del proceso
-Flujo
-                     4. Sistema almacena registro en tabla de auditoría
-                     5. Administrador ingresa a módulo de auditoría y consulta
-                     con filtros (usuario, fecha, acción)
-                     6. Sistema muestra registros encontrados
+                        1. Usuario accede a "Reportes y Estadísticas".
 
-                     PK varchar (25) – Debe ser autogenerado, incluyendo
-                     números y letras
+                        2. Selecciona "Ventas por periodo de tiempo".
 
-                     Usuario → varchar(255)
-Campos del           Fecha/Hora → datetime
-formulario           Acción → varchar(100) (ej: "CREAR", "MODIFICAR")
-                     Módulo → varchar(50)
-                     Detalles → text (opcional)
-                     Estado → varchar(20) (ej: "EXITOSO", "FALLIDO")
+                        3. Sistema muestra formulario con opciones: día, mes o rango
+                            personalizado.
 
+                        4. Usuario selecciona periodo y confirma.
 
-Importancia          4/5
+Flujo                   5. Sistema valida el rango.
 
-                     No debe impactar rendimiento; registros deben ser
-Comentarios
-                     inalterables
+                        6. Sistema consulta BD y obtiene ventas del periodo.
 
+                        7. Sistema calcula: monto total, cantidad de ventas, promedio
+                            por venta, comparaciones.
 
-Frecuencia           5/5
-      ID                        SEG-03
+                        8. Sistema genera resumen visual y lo muestra.
 
-                                ≤ 5 segundos desde pulsar “Guardar” hasta la confirmación
-      Rendimiento
-                                en pantalla
+                        9. (Opcional) Usuario puede exportar el reporte.
 
-
-
-
--     Módulo de Reportes y Estadísticas
-
-1. REP – 01 Reporte de ventas por periodo de tiempo
-
-ID                    REP-01
-
-Nombre del caso de
-                      Reporte de Ventas por periodo de tiempo
-uso
-
-Actores               Administrador, Usuario con permisos correctos
-
-                      Generar un resumen general de las ventas realizadas en un periodo de
-Propósito
-                      tiempo especifico para analizar el rendimiento
-
-                      El usuario selecciona un intervalo de tiempo y el sistema genera un
-Resumen
-                      reporte con totales y estadísticas.
-
-                      Módulo de Ventas
-
-Precondiciones        Módulo Clientes
-
-                      Módulo de Gestión de productos
-
-Postcondiciones       Ninguno
-
-Incluye               Ninguno
-
-Excluye               Ninguno
-
-                         1. Usuario accede a "Reportes y Estadísticas".
-
-                         2. Selecciona "Ventas por periodo de tiempo".
-
-                         3. Sistema muestra formulario con opciones: día, mes o rango
-
-Flujo                        personalizado.
-
-                         4. Usuario selecciona periodo y confirma.
-
-                         5. Sistema valida el rango.
-
-                         6. Sistema consulta BD y obtiene ventas del periodo.
+                        •   PK varchar (25) – Debe ser autogenerado, incluyendo
+                            números y letras
+Campos del              •   Periodo seleccionado (fecha inicio – fecha fin).
+formulario              •   Total, vendido (moneda).
+                        •   Cantidad de transacciones. (int)
+                        •   Promedio por venta. (float o decimal)
 ID                   REP-01
 
-                           7. Sistema calcula: monto total, cantidad de ventas, promedio
-                               por venta, comparaciones.
-
-                           8. Sistema genera resumen visual y lo muestra.
-
-                           9. (Opcional) Usuario puede exportar el reporte.
-
-                           •   PK varchar (25) – Debe ser autogenerado, incluyendo
-                               números y letras
-                           •   Periodo seleccionado (fecha inicio – fecha fin).
-Campos del
-                           •   Total, vendido (moneda).
-formulario
-                           •   Cantidad de transacciones. (int)
-                           •   Promedio por venta. (float o decimal)
                            •   (Opcional) Gráfico de tendencia.
 
 Importancia          3/5
@@ -2427,7 +2423,7 @@ Nombre del caso de
                      Reporte de Productos más vendidos
 uso
 
-Actores              Administrador, Usuario con permisos correctos
+Actores              Administrador
 
                      Generar un resumen general de las ventas realizadas en un periodo de
 Propósito
@@ -2440,7 +2436,6 @@ Resumen
                      Módulo de Ventas
 Precondiciones
                      Módulo de Gestión de Productos
-ID                   REP-01
 
 Postcondiciones      Ninguno
 
@@ -2452,12 +2447,13 @@ Excluye              Ninguno
 
                            2. Selecciona "Productos más vendidos".
 
-                           3. Sistema muestra formulario para elegir periodo.
+Flujo                      3. Sistema muestra formulario para elegir periodo.
 
                            4. Usuario selecciona día, mes o rango y confirma.
 
                            5. Sistema valida periodo.
-Flujo
+ID                   REP-01
+
                            6. Sistema consulta ventas y agrupa cantidades por producto.
 
                            7. Sistema calcula total vendido por producto y ordena
@@ -2492,33 +2488,37 @@ Rendimiento
 
 
 3. REP – 03 Reporte de rentabilidad por producto
-ID                   REP-03
+
+
+
+ID                    REP-03
 
 Nombre del caso de
-                     Reporte de Rentabilidad por producto
+                      Reporte de Rentabilidad por producto
 uso
 
-Actores              Administrador, Usuario con permisos correctos.
+Actores               Administrador
 
-                     Calcular margen de ganancia por producto para identificar los más
+                      Calcular margen de ganancia por producto para identificar los más
 Propósito
-                     rentables.
+                      rentables.
 
-                     Sistema calcula margen entre precio de compra y venta, y muestra
+                      Sistema calcula margen entre precio de compra y venta, y muestra
 Resumen
-                     ganancia total por producto.
+                      ganancia total por producto.
 
-                     Módulo de Ventas
+Precondiciones        Módulo de Ventas
+ID                REP-03
 
-Precondiciones       Módulos Clientes
+                  Módulos Clientes
 
-                     Módulo de Gestión de productos
+                  Módulo de Gestión de productos
 
-Postcondiciones      Ninguno
+Postcondiciones   Ninguno
 
-Incluye              Ninguno
+Incluye           Ninguno
 
-Excluye              Ninguno
+Excluye           Ninguno
 
                         1. Usuario ingresa a "Reportes y Estadísticas".
 
@@ -2545,25 +2545,24 @@ Flujo
 
                         •   PK varchar (25) – Debe ser autogenerado, incluyendo
                             números y letras
-Campos del
                         •   Nombre del producto.
-formulario
                         •   Precio de compra. Decimal o float
+Campos del
                         •   Precio de venta. Decimal o float
-ID                    REP-03
+formulario
+                        •   Margen unitario. Decimal o float
+                        •   Cantidad vendida. Int
+                        •   Ganancia total. Decimal o float
+                        •   (Opcional) Porcentaje de rentabilidad.
 
-                            •   Margen unitario. Decimal o float
-                            •   Cantidad vendida. Int
-                            •   Ganancia total. Decimal o float
-                            •   (Opcional) Porcentaje de rentabilidad.
+Importancia       3/5
 
-Importancia           3/5
-
-                      Clave para decisiones de compra, estrategias de precios y depuración
+                  Clave para decisiones de compra, estrategias de precios y depuración
 Comentarios
-                      de productos poco rentables.
+                  de productos poco rentables.
 
-Frecuencia            3/5
+Frecuencia        3/5
+ID                    REP-03
 
                       ≤ 5 segundos desde pulsar “Guardar” hasta la confirmación en
 Rendimiento
@@ -2582,7 +2581,7 @@ Nombre del caso de
                      Reporte de inventario Valorado y Rotación
 uso
 
-Actores              Administrador, Usuario con permisos correctos.
+Actores              Administrador
 
                      Obtener valor total del inventario y calcular rotación de productos
 Propósito
@@ -2604,24 +2603,24 @@ Excluye              Ninguno
 
                          1. Usuario accede a "Reportes y Estadísticas".
 
-Flujo                    2. Selecciona "Reporte de inventario (valorado y rotación)".
+                         2. Selecciona "Reporte de inventario (valorado y rotación)".
 
                          3. Sistema solicita seleccionar periodo para calcular rotación.
+
+                         4. Usuario define periodo y confirma.
+
+                         5. Sistema consulta stock actual y historial de movimientos.
+Flujo
+                         6. Sistema calcula: valor del inventario (stock × precio de costo),
+                            rotación por producto.
+
+                         7. Sistema clasifica productos por rotación (alta, media, baja) y
+                            muestra indicadores.
+
+                         8. Sistema genera reporte y lo muestra al usuario.
+
+                         9. (Opcional) Usuario puede imprimir o exportar el reporte.
 ID            REP-03
-
-                    4. Usuario define periodo y confirma.
-
-                    5. Sistema consulta stock actual y historial de movimientos.
-
-                    6. Sistema calcula: valor del inventario (stock × precio de costo),
-                        rotación por producto.
-
-                    7. Sistema clasifica productos por rotación (alta, media, baja) y
-                        muestra indicadores.
-
-                    8. Sistema genera reporte y lo muestra al usuario.
-
-                    9. (Opcional) Usuario puede imprimir o exportar el reporte.
 
                     •   PK varchar (25) – Debe ser autogenerado, incluyendo
                         números y letras

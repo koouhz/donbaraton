@@ -23,6 +23,8 @@ export default function Ventas() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [showClienteModal, setShowClienteModal] = useState(false);
   const [qrCountdown, setQrCountdown] = useState(0);
+  const [tipoComprobante, setTipoComprobante] = useState('TICKET');
+  const [facturaDatos, setFacturaDatos] = useState({ nit: '', razon_social: '', direccion: '' });
   const searchRef = useRef(null);
 
   const getUser = () => {
@@ -67,12 +69,23 @@ export default function Ventas() {
     };
   }, [showPaymentModal, medioPago, clienteSeleccionado]);
 
+  // Pre-llenar datos de factura al seleccionar cliente
+  useEffect(() => {
+    if (clienteSeleccionado) {
+      setFacturaDatos({
+        nit: clienteSeleccionado.ci_nit !== '0' ? clienteSeleccionado.ci_nit : '',
+        razon_social: clienteSeleccionado.nombres + (clienteSeleccionado.apellido_paterno ? ' ' + clienteSeleccionado.apellido_paterno : ''),
+        direccion: clienteSeleccionado.direccion || ''
+      });
+    }
+  }, [clienteSeleccionado]);
+
   const cargarDatos = async () => {
     setLoading(true);
     try {
       const [prodRes, cliRes] = await Promise.all([
-        supabase.rpc('fn_leer_productos', { p_buscar: null, p_categoria_id: null }),
-        supabase.rpc('fn_leer_clientes', { p_buscar: null })
+        supabase.rpc('fn_listar_productos', { p_buscar: null }),
+        supabase.rpc('fn_listar_clientes', { p_busqueda: null })
       ]);
 
       if (prodRes.error) throw prodRes.error;
@@ -88,12 +101,14 @@ export default function Ventas() {
     }
   };
 
-  // Filtrar productos para búsqueda
-  const productosFiltrados = productos.filter(p => 
-    p.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.codigo_interno?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.codigo_barras?.includes(searchTerm)
-  ).slice(0, 10);
+  // Filtrar productos para búsqueda (muestra todos si no hay término de búsqueda)
+  const productosFiltrados = searchTerm 
+    ? productos.filter(p => 
+        p.nombre?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.codigo_interno?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        p.codigo_barras?.includes(searchTerm)
+      )
+    : productos.filter(p => p.estado === 'ACTIVO');
 
   // Filtrar clientes
   const clientesFiltrados = clientes.filter(c =>
@@ -108,7 +123,7 @@ export default function Ventas() {
       return;
     }
 
-    const existente = carrito.find(item => item.producto_id === producto.id);
+    const existente = carrito.find(item => item.producto_id === producto.id_producto);
     
     if (existente) {
       if (existente.cantidad >= producto.stock_actual) {
@@ -116,13 +131,13 @@ export default function Ventas() {
         return;
       }
       setCarrito(carrito.map(item => 
-        item.producto_id === producto.id 
+        item.producto_id === producto.id_producto 
           ? { ...item, cantidad: item.cantidad + 1 }
           : item
       ));
     } else {
       setCarrito([...carrito, {
-        producto_id: producto.id,
+        producto_id: producto.id_producto,
         nombre: producto.nombre,
         precio: parseFloat(producto.precio_venta),
         cantidad: 1,
@@ -179,24 +194,32 @@ export default function Ventas() {
       return;
     }
 
+    if (tipoComprobante === 'FACTURA' && (!facturaDatos.nit || !facturaDatos.razon_social)) {
+      toast.error('NIT y Razón Social son obligatorios para Factura');
+      return;
+    }
+
     setProcessing(true);
     try {
       const user = getUser();
       const detallesJson = carrito.map(item => ({
-        producto_id: item.producto_id,
+        id_producto: item.producto_id,
         cantidad: item.cantidad,
-        precio: item.precio
+        precio_unitario: item.precio,
+        descuento: 0
       }));
 
       const { data, error } = await supabase.rpc('fn_registrar_venta', {
-        p_cliente_id: clienteSeleccionado.id,
-        p_tipo_comprobante: 'TICKET',
-        p_detalles_json: detallesJson,
+        p_id_cliente: clienteSeleccionado.id_cliente,
+        p_tipo_comprobante: tipoComprobante,
+        p_detalles: detallesJson,
         p_medio_pago: medioPago,
         p_monto_total: total,
         p_monto_recibido: medioPago === 'EFECTIVO' ? parseFloat(montoRecibido) : total,
-        p_usuario_id: user.id,
-        p_usuario_nombre: user.username
+        p_username: user.id,  // Usar ID de usuario (USR-001) para auditoría
+        p_nit_cliente: tipoComprobante === 'FACTURA' ? facturaDatos.nit : null,
+        p_razon_social: tipoComprobante === 'FACTURA' ? facturaDatos.razon_social : null,
+        p_direccion_factura: tipoComprobante === 'FACTURA' ? facturaDatos.direccion : null
       });
 
       if (error) {
@@ -269,41 +292,41 @@ export default function Ventas() {
               )}
             </div>
 
-            {/* Resultados de búsqueda */}
-            {searchTerm && (
-              <div style={styles.searchResults}>
-                {loading ? (
-                  <div style={styles.searchLoading}>Buscando...</div>
-                ) : productosFiltrados.length === 0 ? (
-                  <div style={styles.noResults}>No se encontraron productos</div>
-                ) : (
-                  productosFiltrados.map(prod => (
-                    <div
-                      key={prod.id}
-                      style={{
-                        ...styles.productResult,
-                        opacity: prod.stock_actual <= 0 ? 0.5 : 1
-                      }}
-                      onClick={() => agregarAlCarrito(prod)}
-                    >
-                      <div style={styles.productInfo}>
-                        <span style={styles.productName}>{prod.nombre}</span>
-                        <span style={styles.productCode}>{prod.codigo_interno}</span>
-                      </div>
-                      <div style={styles.productMeta}>
-                        <span style={styles.productPrice}>{formatCurrency(prod.precio_venta)}</span>
-                        <span style={{
-                          ...styles.productStock,
-                          color: prod.stock_actual <= 0 ? '#c62828' : '#2e7d32'
-                        }}>
-                          Stock: {prod.stock_actual}
-                        </span>
-                      </div>
+            {/* Lista de productos (siempre visible, con scroll) */}
+            <div style={styles.productsList}>
+              {loading ? (
+                <div style={styles.searchLoading}>Cargando productos...</div>
+              ) : productosFiltrados.length === 0 ? (
+                <div style={styles.noResults}>
+                  {searchTerm ? 'No se encontraron productos' : 'No hay productos disponibles'}
+                </div>
+              ) : (
+                productosFiltrados.map(prod => (
+                  <div
+                    key={prod.id_producto}
+                    style={{
+                      ...styles.productResult,
+                      opacity: prod.stock_actual <= 0 ? 0.5 : 1
+                    }}
+                    onClick={() => agregarAlCarrito(prod)}
+                  >
+                    <div style={styles.productInfo}>
+                      <span style={styles.productName}>{prod.nombre}</span>
+                      <span style={styles.productCode}>{prod.codigo_interno}</span>
                     </div>
-                  ))
-                )}
-              </div>
-            )}
+                    <div style={styles.productMeta}>
+                      <span style={styles.productPrice}>{formatCurrency(prod.precio_venta)}</span>
+                      <span style={{
+                        ...styles.productStock,
+                        color: prod.stock_actual <= 0 ? '#c62828' : '#2e7d32'
+                      }}>
+                        Stock: {prod.stock_actual}
+                      </span>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
           </div>
 
           {/* Cliente seleccionado */}
@@ -444,7 +467,7 @@ export default function Ventas() {
               <div style={styles.clienteList}>
                 {clientesFiltrados.map(cliente => (
                   <div 
-                    key={cliente.id}
+                    key={cliente.id_cliente}
                     style={styles.clienteOption}
                     onClick={() => {
                       setClienteSeleccionado(cliente);
@@ -476,6 +499,64 @@ export default function Ventas() {
               </button>
             </div>
             <div style={styles.paymentBody}>
+              
+              {/* Selector Tipo Comprobante */}
+              <div style={styles.comprobanteSelector}>
+                <button 
+                  style={{
+                    ...styles.comprobanteBtn,
+                    ...(tipoComprobante === 'TICKET' ? styles.comprobanteBtnActive : {})
+                  }}
+                  onClick={() => setTipoComprobante('TICKET')}
+                >
+                  <Receipt size={18} /> Ticket
+                </button>
+                <button 
+                  style={{
+                    ...styles.comprobanteBtn,
+                    ...(tipoComprobante === 'FACTURA' ? styles.comprobanteBtnActive : {})
+                  }}
+                  onClick={() => setTipoComprobante('FACTURA')}
+                >
+                  <Receipt size={18} /> Factura
+                </button>
+              </div>
+
+              {tipoComprobante === 'FACTURA' && (
+                <div style={styles.facturaForm}>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>NIT / CI *</label>
+                    <input 
+                      type="text" 
+                      value={facturaDatos.nit}
+                      onChange={(e) => setFacturaDatos({...facturaDatos, nit: e.target.value})}
+                      style={styles.input}
+                      placeholder="NIT del cliente"
+                    />
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Razón Social *</label>
+                    <input 
+                      type="text" 
+                      value={facturaDatos.razon_social}
+                      onChange={(e) => setFacturaDatos({...facturaDatos, razon_social: e.target.value})}
+                      style={styles.input}
+                      placeholder="Nombre o Razón Social"
+                    />
+                  </div>
+                  <div style={styles.formGroup}>
+                    <label style={styles.label}>Dirección (Opcional)</label>
+                    <input 
+                      type="text" 
+                      value={facturaDatos.direccion}
+                      onChange={(e) => setFacturaDatos({...facturaDatos, direccion: e.target.value})}
+                      style={styles.input}
+                      placeholder="Dirección fiscal"
+                    />
+                  </div>
+                </div>
+              )}
+
               <div style={styles.paymentTotal}>
                 <span>Total a Pagar</span>
                 <span style={styles.paymentTotalValue}>{formatCurrency(total)}</span>
@@ -596,11 +677,12 @@ const styles = {
   leftPanel: { flex: 1, display: 'flex', flexDirection: 'column', gap: '20px', minWidth: 0 },
   rightPanel: { width: '400px', background: 'white', borderRadius: '16px', display: 'flex', flexDirection: 'column', boxShadow: '0 4px 20px rgba(0,0,0,0.08)' },
   panelTitle: { display: 'flex', alignItems: 'center', gap: '10px', margin: 0, fontSize: '18px', fontWeight: '600', color: '#1a5d1a' },
-  searchSection: { background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' },
+  searchSection: { background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 2px 12px rgba(0,0,0,0.05)', display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0 },
   searchBox: { display: 'flex', alignItems: 'center', gap: '10px', padding: '12px 16px', background: '#f8f9fa', border: '2px solid #e9ecef', borderRadius: '12px', marginTop: '15px' },
   searchInput: { border: 'none', outline: 'none', fontSize: '16px', width: '100%', background: 'transparent' },
   clearButton: { background: 'none', border: 'none', cursor: 'pointer', color: '#999', padding: '2px' },
   searchResults: { marginTop: '15px', maxHeight: '300px', overflowY: 'auto' },
+  productsList: { marginTop: '15px', flex: 1, overflowY: 'auto', maxHeight: '400px', paddingRight: '5px' },
   searchLoading: { padding: '20px', textAlign: 'center', color: '#6c757d' },
   noResults: { padding: '20px', textAlign: 'center', color: '#6c757d' },
   productResult: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px', background: '#f8f9fa', borderRadius: '10px', marginBottom: '10px', cursor: 'pointer', transition: 'all 0.2s' },
@@ -647,7 +729,7 @@ const styles = {
   paymentTotalValue: { display: 'block', fontSize: '36px', fontWeight: '700', color: '#1a5d1a' },
   paymentMethods: { display: 'flex', gap: '10px', marginBottom: '25px' },
   paymentMethod: { flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '20px', background: '#f8f9fa', border: '2px solid #e9ecef', borderRadius: '12px', cursor: 'pointer', color: '#6c757d' },
-  paymentMethodActive: { background: '#e8f5e9', borderColor: '#1a5d1a', color: '#1a5d1a' },
+  paymentMethodActive: { background: '#e8f5e9', border: '2px solid #1a5d1a', color: '#1a5d1a' },
   efectivoSection: { marginBottom: '20px' },
   montoInput: { width: '100%', padding: '15px', fontSize: '24px', textAlign: 'center', border: '2px solid #e9ecef', borderRadius: '12px', marginTop: '10px', boxSizing: 'border-box' },
   vueltoBox: { display: 'flex', justifyContent: 'space-between', padding: '15px', background: '#e8f5e9', borderRadius: '10px', marginTop: '15px' },
@@ -657,4 +739,11 @@ const styles = {
   qrSection: { marginBottom: '20px', padding: '20px', background: '#f8f9fa', borderRadius: '12px' },
   qrContainer: { display: 'flex', justifyContent: 'center', padding: '15px', background: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' },
   qrCountdown: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', marginTop: '15px', padding: '12px', background: '#e8f5e9', borderRadius: '8px', color: '#1a5d1a', fontWeight: '600' },
+  comprobanteSelector: { display: 'flex', gap: '10px', marginBottom: '20px', background: '#f8f9fa', padding: '5px', borderRadius: '10px' },
+  comprobanteBtn: { flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '10px', border: 'none', borderRadius: '8px', background: 'transparent', cursor: 'pointer', color: '#6c757d', fontWeight: '600' },
+  comprobanteBtnActive: { background: 'white', color: '#1a5d1a', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' },
+  facturaForm: { marginBottom: '20px', padding: '15px', background: '#f8f9fa', borderRadius: '10px', border: '1px solid #e9ecef' },
+  formGroup: { marginBottom: '10px' },
+  label: { display: 'block', marginBottom: '5px', fontSize: '13px', fontWeight: '600', color: '#1a5d1a' },
+  input: { width: '100%', padding: '10px', border: '1px solid #e9ecef', borderRadius: '8px', fontSize: '14px' },
 };

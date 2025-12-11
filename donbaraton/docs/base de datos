@@ -1,0 +1,595 @@
+-- WARNING: This schema is for context only and is not meant to be run.
+-- Table order and constraints may not be valid for execution.
+
+CREATE TABLE public.alertas_stock (
+  id_alerta character varying NOT NULL,
+  id_producto character varying,
+  id_lote character varying,
+  tipo character varying CHECK (tipo::text = ANY (ARRAY['STOCK_MINIMO'::character varying, 'VENCIMIENTO'::character varying, 'STOCK_CRITICO'::character varying]::text[])),
+  mensaje text,
+  fecha_generada timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  fecha_resuelta timestamp without time zone,
+  estado character varying DEFAULT 'PENDIENTE'::character varying CHECK (estado::text = ANY (ARRAY['PENDIENTE'::character varying, 'RESUELTA'::character varying, 'DESCARTADA'::character varying]::text[])),
+  CONSTRAINT alertas_stock_pkey PRIMARY KEY (id_alerta),
+  CONSTRAINT alertas_stock_id_producto_fkey FOREIGN KEY (id_producto) REFERENCES public.productos(id_producto),
+  CONSTRAINT alertas_stock_id_lote_fkey FOREIGN KEY (id_lote) REFERENCES public.lotes(id_lote)
+);
+CREATE TABLE public.asistencias (
+  id_asistencia character varying NOT NULL,
+  id_empleado character varying,
+  fecha date NOT NULL,
+  hora_entrada time without time zone,
+  hora_salida time without time zone,
+  tipo character varying CHECK (tipo::text = ANY (ARRAY['ENTRADA'::character varying, 'SALIDA'::character varying, 'RETRASO'::character varying]::text[])),
+  metodo character varying DEFAULT 'MANUAL'::character varying CHECK (metodo::text = ANY (ARRAY['MANUAL'::character varying, 'TARJETA'::character varying]::text[])),
+  observaciones character varying,
+  CONSTRAINT asistencias_pkey PRIMARY KEY (id_asistencia),
+  CONSTRAINT asistencias_id_empleado_fkey FOREIGN KEY (id_empleado) REFERENCES public.empleados(id_empleado)
+);
+CREATE TABLE public.auditoria (
+  id_auditoria character varying NOT NULL,
+  fecha_hora timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  usuario character varying NOT NULL,
+  modulo character varying,
+  accion character varying,
+  tabla_afectada character varying,
+  id_registro_afectado character varying,
+  valores_anteriores jsonb,
+  valores_nuevos jsonb,
+  detalles text,
+  ip_origen character varying,
+  estado character varying DEFAULT 'EXITOSO'::character varying CHECK (estado::text = ANY (ARRAY['EXITOSO'::character varying, 'FALLIDO'::character varying]::text[])),
+  CONSTRAINT auditoria_pkey PRIMARY KEY (id_auditoria)
+);
+CREATE TABLE public.cargos (
+  id_cargo character varying NOT NULL,
+  nombre character varying NOT NULL,
+  descripcion text,
+  fecha_registro timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT cargos_pkey PRIMARY KEY (id_cargo)
+);
+CREATE TABLE public.categorias (
+  id_categoria character varying NOT NULL,
+  nombre character varying NOT NULL,
+  descripcion text,
+  estado character varying DEFAULT 'ACTIVO'::character varying CHECK (estado::text = ANY (ARRAY['ACTIVO'::character varying, 'INACTIVO'::character varying]::text[])),
+  fecha_registro timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT categorias_pkey PRIMARY KEY (id_categoria)
+);
+CREATE TABLE public.cierre_caja (
+  id_cierre character varying NOT NULL,
+  id_usuario character varying,
+  fecha date NOT NULL,
+  hora_cierre time without time zone,
+  total_efectivo numeric,
+  diferencia numeric,
+  observaciones character varying,
+  firma_supervisor character varying,
+  CONSTRAINT cierre_caja_pkey PRIMARY KEY (id_cierre),
+  CONSTRAINT cierre_caja_id_usuario_fkey FOREIGN KEY (id_usuario) REFERENCES public.usuarios(id_usuario)
+);
+CREATE TABLE public.cierre_caja_detalle (
+  id_detalle character varying NOT NULL,
+  id_cierre character varying,
+  denominacion numeric,
+  cantidad integer,
+  CONSTRAINT cierre_caja_detalle_pkey PRIMARY KEY (id_detalle),
+  CONSTRAINT cierre_caja_detalle_id_cierre_fkey FOREIGN KEY (id_cierre) REFERENCES public.cierre_caja(id_cierre)
+);
+CREATE TABLE public.clientes (
+  id_cliente character varying NOT NULL,
+  nombres character varying NOT NULL,
+  apellido_paterno character varying,
+  apellido_materno character varying,
+  ci_nit character varying NOT NULL UNIQUE,
+  telefono character varying,
+  email character varying,
+  direccion text,
+  estado character varying DEFAULT 'ACTIVO'::character varying CHECK (estado::text = ANY (ARRAY['ACTIVO'::character varying, 'INACTIVO'::character varying]::text[])),
+  fecha_registro timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT clientes_pkey PRIMARY KEY (id_cliente)
+);
+CREATE TABLE public.cuentas_por_pagar (
+  id_cuenta character varying NOT NULL,
+  id_proveedor character varying,
+  numero_factura character varying,
+  fecha_emision date,
+  fecha_vencimiento date,
+  monto_total numeric,
+  saldo_pendiente numeric,
+  estado character varying DEFAULT 'PENDIENTE'::character varying CHECK (estado::text = ANY (ARRAY['PENDIENTE'::character varying, 'PAGADO'::character varying, 'VENCIDO'::character varying]::text[])),
+  observaciones text,
+  fecha_registro timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT cuentas_por_pagar_pkey PRIMARY KEY (id_cuenta),
+  CONSTRAINT cuentas_por_pagar_id_proveedor_fkey FOREIGN KEY (id_proveedor) REFERENCES public.proveedores(id_proveedor)
+);
+CREATE TABLE public.detalle_orden_compra (
+  id_detalle_orden character varying NOT NULL,
+  id_orden character varying,
+  id_producto character varying,
+  cantidad integer NOT NULL CHECK (cantidad > 0),
+  precio_unitario numeric,
+  descuento numeric DEFAULT 0,
+  subtotal numeric,
+  CONSTRAINT detalle_orden_compra_pkey PRIMARY KEY (id_detalle_orden),
+  CONSTRAINT detalle_orden_compra_id_orden_fkey FOREIGN KEY (id_orden) REFERENCES public.ordenes_compra(id_orden),
+  CONSTRAINT detalle_orden_compra_id_producto_fkey FOREIGN KEY (id_producto) REFERENCES public.productos(id_producto)
+);
+CREATE TABLE public.detalle_ventas (
+  id_detalle_venta character varying NOT NULL,
+  id_venta character varying,
+  id_producto character varying,
+  cantidad integer NOT NULL CHECK (cantidad > 0),
+  precio_unitario numeric,
+  descuento numeric DEFAULT 0,
+  subtotal numeric,
+  CONSTRAINT detalle_ventas_pkey PRIMARY KEY (id_detalle_venta),
+  CONSTRAINT detalle_ventas_id_venta_fkey FOREIGN KEY (id_venta) REFERENCES public.ventas(id_venta),
+  CONSTRAINT detalle_ventas_id_producto_fkey FOREIGN KEY (id_producto) REFERENCES public.productos(id_producto)
+);
+CREATE TABLE public.devoluciones_proveedor (
+  id_devolucion character varying NOT NULL,
+  id_recepcion character varying,
+  motivo character varying CHECK (motivo::text = ANY (ARRAY['DAÑO'::character varying, 'VENCIDO'::character varying, 'SOBRANTE'::character varying, 'OTRO'::character varying]::text[])),
+  cantidad integer NOT NULL CHECK (cantidad > 0),
+  observaciones text,
+  fecha timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT devoluciones_proveedor_pkey PRIMARY KEY (id_devolucion),
+  CONSTRAINT devoluciones_proveedor_id_recepcion_fkey FOREIGN KEY (id_recepcion) REFERENCES public.recepciones(id_recepcion)
+);
+CREATE TABLE public.devoluciones_ventas (
+  id_devolucion_venta character varying NOT NULL,
+  id_venta character varying,
+  motivo character varying,
+  forma_reembolso character varying CHECK (forma_reembolso::text = ANY (ARRAY['EFECTIVO'::character varying, 'NOTA_CREDITO'::character varying, 'TARJETA'::character varying]::text[])),
+  fecha timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  id_usuario character varying,
+  CONSTRAINT devoluciones_ventas_pkey PRIMARY KEY (id_devolucion_venta),
+  CONSTRAINT devoluciones_ventas_id_venta_fkey FOREIGN KEY (id_venta) REFERENCES public.ventas(id_venta),
+  CONSTRAINT devoluciones_ventas_id_usuario_fkey FOREIGN KEY (id_usuario) REFERENCES public.usuarios(id_usuario)
+);
+CREATE TABLE public.empleados (
+  id_empleado character varying NOT NULL,
+  ci character varying NOT NULL UNIQUE,
+  expedido character varying,
+  nombres character varying NOT NULL,
+  apellido_paterno character varying,
+  apellido_materno character varying,
+  fecha_nacimiento date,
+  sexo character varying CHECK (sexo::text = ANY (ARRAY['M'::character varying, 'F'::character varying]::text[])),
+  telefono character varying,
+  celular character varying,
+  email character varying,
+  direccion text,
+  id_cargo character varying,
+  fecha_contratacion date,
+  tipo_contrato character varying,
+  id_horario character varying,
+  salario numeric,
+  estado character varying DEFAULT 'ACTIVO'::character varying CHECK (estado::text = ANY (ARRAY['ACTIVO'::character varying, 'INACTIVO'::character varying]::text[])),
+  foto_url text,
+  fecha_registro timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  id_usuario character varying,
+  CONSTRAINT empleados_pkey PRIMARY KEY (id_empleado),
+  CONSTRAINT empleados_id_cargo_fkey FOREIGN KEY (id_cargo) REFERENCES public.cargos(id_cargo),
+  CONSTRAINT empleados_id_horario_fkey FOREIGN KEY (id_horario) REFERENCES public.horarios(id_horario),
+  CONSTRAINT empleados_id_usuario_fkey FOREIGN KEY (id_usuario) REFERENCES public.usuarios(id_usuario)
+);
+CREATE TABLE public.horarios (
+  id_horario character varying NOT NULL,
+  nombre character varying,
+  hora_entrada time without time zone,
+  hora_salida time without time zone,
+  fecha_registro timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT horarios_pkey PRIMARY KEY (id_horario)
+);
+CREATE TABLE public.lotes (
+  id_lote character varying NOT NULL,
+  id_producto character varying,
+  lote character varying NOT NULL,
+  fecha_vencimiento date NOT NULL,
+  cantidad integer NOT NULL CHECK (cantidad >= 0),
+  estado character varying DEFAULT 'ACTIVO'::character varying CHECK (estado::text = ANY (ARRAY['ACTIVO'::character varying, 'VENCIDO'::character varying, 'AGOTADO'::character varying]::text[])),
+  CONSTRAINT lotes_pkey PRIMARY KEY (id_lote),
+  CONSTRAINT lotes_id_producto_fkey FOREIGN KEY (id_producto) REFERENCES public.productos(id_producto)
+);
+CREATE TABLE public.movimientos_inventario (
+  id_movimiento character varying NOT NULL,
+  id_producto character varying,
+  tipo character varying CHECK (tipo::text = ANY (ARRAY['ENTRADA'::character varying, 'SALIDA'::character varying, 'AJUSTE+'::character varying, 'AJUSTE-'::character varying, 'MERMA'::character varying, 'DAÑO'::character varying, 'ROBO'::character varying]::text[])),
+  cantidad numeric NOT NULL CHECK (cantidad >= 0::numeric),
+  lote character varying,
+  fecha_vencimiento date,
+  documento character varying,
+  motivo character varying,
+  observaciones text,
+  id_usuario character varying,
+  fecha_hora timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT movimientos_inventario_pkey PRIMARY KEY (id_movimiento),
+  CONSTRAINT movimientos_inventario_id_producto_fkey FOREIGN KEY (id_producto) REFERENCES public.productos(id_producto),
+  CONSTRAINT movimientos_inventario_id_usuario_fkey FOREIGN KEY (id_usuario) REFERENCES public.usuarios(id_usuario)
+);
+CREATE TABLE public.ordenes_compra (
+  id_orden character varying NOT NULL,
+  id_proveedor character varying,
+  fecha_emision date NOT NULL,
+  fecha_entrega date,
+  total numeric,
+  estado character varying DEFAULT 'PENDIENTE'::character varying CHECK (estado::text = ANY (ARRAY['PENDIENTE'::character varying, 'RECIBIDA'::character varying, 'CANCELADA'::character varying]::text[])),
+  id_usuario character varying,
+  fecha_registro timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT ordenes_compra_pkey PRIMARY KEY (id_orden),
+  CONSTRAINT ordenes_compra_id_proveedor_fkey FOREIGN KEY (id_proveedor) REFERENCES public.proveedores(id_proveedor),
+  CONSTRAINT ordenes_compra_id_usuario_fkey FOREIGN KEY (id_usuario) REFERENCES public.usuarios(id_usuario)
+);
+CREATE TABLE public.pagos (
+  id_pago character varying NOT NULL,
+  id_venta character varying,
+  medio character varying CHECK (medio::text = ANY (ARRAY['EFECTIVO'::character varying, 'DEBITO'::character varying, 'CREDITO'::character varying, 'QR'::character varying, 'TRANSFERENCIA'::character varying]::text[])),
+  importe numeric NOT NULL,
+  vuelto numeric DEFAULT 0,
+  CONSTRAINT pagos_pkey PRIMARY KEY (id_pago),
+  CONSTRAINT pagos_id_venta_fkey FOREIGN KEY (id_venta) REFERENCES public.ventas(id_venta)
+);
+CREATE TABLE public.producto_proveedor (
+  id_producto character varying NOT NULL,
+  id_proveedor character varying NOT NULL,
+  precio_compra numeric,
+  CONSTRAINT producto_proveedor_pkey PRIMARY KEY (id_producto, id_proveedor),
+  CONSTRAINT producto_proveedor_id_producto_fkey FOREIGN KEY (id_producto) REFERENCES public.productos(id_producto),
+  CONSTRAINT producto_proveedor_id_proveedor_fkey FOREIGN KEY (id_proveedor) REFERENCES public.proveedores(id_proveedor)
+);
+CREATE TABLE public.productos (
+  id_producto character varying NOT NULL,
+  codigo_interno character varying NOT NULL UNIQUE,
+  codigo_barras character varying,
+  nombre character varying NOT NULL,
+  id_categoria character varying,
+  marca character varying,
+  precio_costo numeric,
+  precio_venta numeric NOT NULL,
+  stock_minimo integer DEFAULT 0,
+  stock_maximo integer DEFAULT 0,
+  stock_actual integer DEFAULT 0 CHECK (stock_actual >= 0),
+  unidad_medida character varying,
+  controla_vencimiento boolean DEFAULT false,
+  foto_url text,
+  motivo_desactivacion character varying,
+  estado character varying DEFAULT 'ACTIVO'::character varying CHECK (estado::text = ANY (ARRAY['ACTIVO'::character varying, 'INACTIVO'::character varying]::text[])),
+  fecha_registro timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT productos_pkey PRIMARY KEY (id_producto),
+  CONSTRAINT productos_id_categoria_fkey FOREIGN KEY (id_categoria) REFERENCES public.categorias(id_categoria)
+);
+CREATE TABLE public.proveedores (
+  id_proveedor character varying NOT NULL,
+  razon_social character varying NOT NULL,
+  nit_ci character varying NOT NULL UNIQUE,
+  telefono character varying,
+  celular_contacto character varying,
+  email character varying,
+  direccion text,
+  nombre_contacto character varying,
+  plazo_credito integer DEFAULT 0,
+  estado character varying DEFAULT 'ACTIVO'::character varying CHECK (estado::text = ANY (ARRAY['ACTIVO'::character varying, 'INACTIVO'::character varying]::text[])),
+  fecha_registro timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT proveedores_pkey PRIMARY KEY (id_proveedor)
+);
+CREATE TABLE public.recepciones (
+  id_recepcion character varying NOT NULL,
+  id_orden character varying,
+  fecha_ingreso date NOT NULL,
+  cantidad_recibida integer,
+  lote character varying,
+  fecha_vencimiento date,
+  id_usuario character varying,
+  fecha_registro timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT recepciones_pkey PRIMARY KEY (id_recepcion),
+  CONSTRAINT recepciones_id_orden_fkey FOREIGN KEY (id_orden) REFERENCES public.ordenes_compra(id_orden),
+  CONSTRAINT recepciones_id_usuario_fkey FOREIGN KEY (id_usuario) REFERENCES public.usuarios(id_usuario)
+);
+CREATE TABLE public.roles (
+  id_rol character varying NOT NULL,
+  nombre character varying NOT NULL,
+  descripcion text,
+  estado character varying DEFAULT 'ACTIVO'::character varying CHECK (estado::text = ANY (ARRAY['ACTIVO'::character varying, 'INACTIVO'::character varying]::text[])),
+  fecha_registro timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT roles_pkey PRIMARY KEY (id_rol)
+);
+CREATE TABLE public.usuarios (
+  id_usuario character varying NOT NULL,
+  id_empleado character varying,
+  username character varying NOT NULL UNIQUE,
+  password_hash character varying NOT NULL,
+  id_rol character varying,
+  estado character varying DEFAULT 'ACTIVO'::character varying CHECK (estado::text = ANY (ARRAY['ACTIVO'::character varying, 'INACTIVO'::character varying]::text[])),
+  fecha_registro timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  CONSTRAINT usuarios_pkey PRIMARY KEY (id_usuario),
+  CONSTRAINT usuarios_id_empleado_fkey FOREIGN KEY (id_empleado) REFERENCES public.empleados(id_empleado),
+  CONSTRAINT usuarios_id_rol_fkey FOREIGN KEY (id_rol) REFERENCES public.roles(id_rol)
+);
+CREATE TABLE public.ventas (
+  id_venta character varying NOT NULL,
+  id_cliente character varying,
+  fecha_hora timestamp without time zone DEFAULT CURRENT_TIMESTAMP,
+  total numeric NOT NULL,
+  tipo_comprobante character varying CHECK (tipo_comprobante::text = ANY (ARRAY['TICKET'::character varying, 'FACTURA'::character varying, 'NOTA_CREDITO'::character varying]::text[])),
+  nit_cliente character varying,
+  razon_social character varying,
+  direccion_factura text,
+  numero_factura character varying,
+  id_usuario character varying,
+  estado character varying DEFAULT 'ACTIVO'::character varying CHECK (estado::text = ANY (ARRAY['ACTIVO'::character varying, 'ANULADO'::character varying]::text[])),
+  CONSTRAINT ventas_pkey PRIMARY KEY (id_venta),
+  CONSTRAINT ventas_id_cliente_fkey FOREIGN KEY (id_cliente) REFERENCES public.clientes(id_cliente),
+  CONSTRAINT ventas_id_usuario_fkey FOREIGN KEY (id_usuario) REFERENCES public.usuarios(id_usuario)
+);
+
+
+
+
+
+-- 1. CATEGORIAS
+INSERT INTO categorias (id_categoria, nombre, descripcion, estado, fecha_registro) VALUES
+('CAT-001', 'Abarrotes', 'Productos básicos de despensa', 'ACTIVO', '2024-01-15 08:30:00'),
+('CAT-002', 'Lácteos y Huevos', 'Leche, yogurt, queso y huevos', 'ACTIVO', '2024-01-15 08:30:00'),
+('CAT-003', 'Carnes y Embutidos', 'Carnes frescas y procesadas', 'ACTIVO', '2024-01-15 08:30:00'),
+('CAT-004', 'Frutas y Verduras', 'Productos frescos de temporada', 'ACTIVO', '2024-01-15 08:30:00'),
+('CAT-005', 'Bebidas', 'Refrescos, jugos y agua', 'ACTIVO', '2024-01-15 08:30:00'),
+('CAT-006', 'Limpieza del Hogar', 'Productos de limpieza', 'ACTIVO', '2024-01-15 08:30:00'),
+('CAT-007', 'Cuidado Personal', 'Artículos de higiene personal', 'ACTIVO', '2024-01-15 08:30:00'),
+('CAT-008', 'Panadería y Pastelería', 'Pan y productos de repostería', 'ACTIVO', '2024-01-15 08:30:00'),
+('CAT-009', 'Congelados', 'Productos congelados', 'ACTIVO', '2024-01-15 08:30:00'),
+('CAT-010', 'Snacks y Dulces', 'Golosinas y snacks', 'ACTIVO', '2024-01-15 08:30:00');
+
+-- 2. ROLES
+INSERT INTO roles (id_rol, nombre, descripcion, estado, fecha_registro) VALUES
+('ROL-001', 'Administrador', 'Acceso total al sistema', 'ACTIVO', '2024-01-01 09:00:00'),
+('ROL-002', 'Gerente', 'Gestión operativa del supermercado', 'ACTIVO', '2024-01-01 09:00:00'),
+('ROL-003', 'Encargado de almacén', 'Control de inventario y bodega', 'ACTIVO', '2024-01-01 09:00:00'),
+('ROL-004', 'Cajero', 'Atención en caja y ventas', 'ACTIVO', '2024-01-01 09:00:00');
+
+-- 3. CARGOS
+INSERT INTO cargos (id_cargo, nombre, descripcion, fecha_registro) VALUES
+('CAR-001', 'Gerente General', 'Responsable de toda la operación', '2024-01-01 09:00:00'),
+('CAR-002', 'Subgerente', 'Apoyo en gestión operativa', '2024-01-01 09:00:00'),
+('CAR-003', 'Jefe de Almacén', 'Encargado de inventario y bodega', '2024-01-01 09:00:00'),
+('CAR-004', 'Cajero Principal', 'Responsable de caja principal', '2024-01-01 09:00:00'),
+('CAR-005', 'Cajero', 'Atención al cliente en caja', '2024-01-01 09:00:00'),
+('CAR-006', 'Reponedor', 'Reposición de productos en góndolas', '2024-01-01 09:00:00'),
+('CAR-007', 'Auxiliar de Limpieza', 'Mantenimiento y limpieza', '2024-01-01 09:00:00');
+
+-- 4. HORARIOS
+INSERT INTO horarios (id_horario, nombre, hora_entrada, hora_salida, fecha_registro) VALUES
+('HOR-001', 'Turno Mañana', '08:00:00', '16:00:00', '2024-01-01 09:00:00'),
+('HOR-002', 'Turno Tarde', '14:00:00', '22:00:00', '2024-01-01 09:00:00'),
+('HOR-003', 'Turno Completo', '08:00:00', '20:00:00', '2024-01-01 09:00:00'),
+('HOR-004', 'Medio Turno Mañana', '08:00:00', '12:00:00', '2024-01-01 09:00:00'),
+('HOR-005', 'Medio Turno Tarde', '16:00:00', '20:00:00', '2024-01-01 09:00:00');
+
+-- 5. PROVEEDORES
+INSERT INTO proveedores (id_proveedor, razon_social, nit_ci, telefono, celular_contacto, email, direccion, nombre_contacto, plazo_credito, estado, fecha_registro) VALUES
+('PROV-001', 'Alimentos Nacionales S.A.', '123456789', '2221111', '76123456', 'ventas@alimentosna.com.bo', 'Av. Blanco Galindo Km 5, Cochabamba', 'Carlos Méndez', 30, 'ACTIVO', '2024-01-02 10:00:00'),
+('PROV-002', 'Lácteos Del Valle SRL', '987654321', '2244555', '71234567', 'pedidos@lacteosvalle.com.bo', 'Calle Potosí 456, La Paz', 'María Fernández', 15, 'ACTIVO', '2024-01-02 10:00:00'),
+('PROV-003', 'Carnicería El Paisano', '456789123', '2277889', '77345678', 'info@carnesbolivia.bo', 'Zona Villa Fatima, La Paz', 'Juan Pérez', 7, 'ACTIVO', '2024-01-02 10:00:00'),
+('PROV-004', 'Distribuidora Coca-Cola', '321654987', '2288997', '77456789', 'distribucion@cocacola.bo', 'Av. América 789, Santa Cruz', 'Roberto Silva', 30, 'ACTIVO', '2024-01-02 10:00:00'),
+('PROV-005', 'Productos de Limpieza CLEAN', '789123456', '2255664', '77567890', 'ventas@cleanbolivia.bo', 'Calle Ballivián 234, Cochabamba', 'Ana Gutiérrez', 21, 'ACTIVO', '2024-01-02 10:00:00'),
+('PROV-006', 'Panificadora La Esperanza', '654987321', '2233445', '77678901', 'produccion@panificadora.bo', 'Zona Miraflores, La Paz', 'Pedro Chávez', 14, 'ACTIVO', '2024-01-02 10:00:00');
+
+-- 6. PRODUCTOS
+INSERT INTO productos (id_producto, codigo_interno, codigo_barras, nombre, id_categoria, marca, precio_costo, precio_venta, stock_minimo, stock_maximo, stock_actual, unidad_medida, controla_vencimiento, foto_url, motivo_desactivacion, estado, fecha_registro) VALUES
+('PROD-001', 'ARROZ-1KG', '7791234567890', 'Arroz Sello Rojo 1kg', 'CAT-001', 'Sello Rojo', 6.50, 8.90, 50, 200, 120, 'Bolsa', false, NULL, NULL, 'ACTIVO', '2024-01-03 09:00:00'),
+('PROD-002', 'AZUCAR-1KG', '7791234567891', 'Azúcar Blanca 1kg', 'CAT-001', 'Guabirá', 5.20, 7.50, 40, 180, 85, 'Bolsa', false, NULL, NULL, 'ACTIVO', '2024-01-03 09:00:00'),
+('PROD-003', 'LECHE-1LT', '7791234567892', 'Leche Entera Pil 1Lt', 'CAT-002', 'Pil', 4.80, 6.90, 30, 150, 60, 'Caja', true, NULL, NULL, 'ACTIVO', '2024-01-03 09:00:00'),
+('PROD-004', 'YOGUR-FRUT', '7791234567893', 'Yogurt Frutado 1Lt', 'CAT-002', 'La Suprema', 5.50, 8.50, 20, 100, 45, 'Envase', true, NULL, NULL, 'ACTIVO', '2024-01-03 09:00:00'),
+('PROD-005', 'POLLO-KG', '7791234567894', 'Pollo Entero Fresco', 'CAT-003', 'Del Valle', 15.00, 22.50, 10, 50, 25, 'Kg', true, NULL, NULL, 'ACTIVO', '2024-01-03 09:00:00'),
+('PROD-006', 'CARNE-KG', '7791234567895', 'Carne de Res Molida', 'CAT-003', 'Del País', 28.00, 39.90, 8, 40, 18, 'Kg', true, NULL, NULL, 'ACTIVO', '2024-01-03 09:00:00'),
+('PROD-007', 'TOMATE-KG', '7791234567896', 'Tomate de Ensalada', 'CAT-004', 'Productor Local', 4.00, 7.50, 15, 80, 35, 'Kg', true, NULL, NULL, 'ACTIVO', '2024-01-03 09:00:00'),
+('PROD-008', 'BANANO-UN', '7791234567897', 'Banano Nacional', 'CAT-004', 'Productor Local', 0.80, 1.50, 30, 200, 120, 'Unidad', true, NULL, NULL, 'ACTIVO', '2024-01-03 09:00:00'),
+('PROD-009', 'COCA-2LT', '7791234567898', 'Coca-Cola 2 Litros', 'CAT-005', 'Coca-Cola', 8.00, 12.50, 20, 120, 65, 'Botella', false, NULL, NULL, 'ACTIVO', '2024-01-03 09:00:00'),
+('PROD-010', 'DETER-500G', '7791234567899', 'Detergente en Polvo', 'CAT-006', 'Bolívar', 6.20, 9.80, 25, 100, 48, 'Bolsa', false, NULL, NULL, 'ACTIVO', '2024-01-03 09:00:00'),
+('PROD-011', 'JABON-BAR', '7791234567800', 'Jabón de Tocador', 'CAT-007', 'Dove', 2.80, 5.50, 40, 200, 95, 'Unidad', false, NULL, NULL, 'ACTIVO', '2024-01-03 09:00:00'),
+('PROD-012', 'PAN-BLANCO', '7791234567801', 'Pan Blanco Baguette', 'CAT-008', 'La Esperanza', 1.20, 2.50, 30, 150, 75, 'Unidad', true, NULL, NULL, 'ACTIVO', '2024-01-03 09:00:00'),
+('PROD-013', 'PAPA-KG', '7791234567802', 'Papa Imilla Kg', 'CAT-004', 'Productor Local', 3.50, 6.00, 25, 100, 42, 'Kg', true, NULL, NULL, 'ACTIVO', '2024-01-03 09:00:00'),
+('PROD-014', 'HUEVO-30UN', '7791234567803', 'Huevos Blancos 30un', 'CAT-002', 'Granja Modelo', 18.00, 25.00, 10, 60, 22, 'Cartón', true, NULL, NULL, 'ACTIVO', '2024-01-03 09:00:00'),
+('PROD-015', 'ACEITE-1LT', '7791234567804', 'Aceite Vegetal 1Lt', 'CAT-001', 'Girasol', 12.50, 18.90, 15, 80, 32, 'Botella', false, NULL, NULL, 'ACTIVO', '2024-01-03 09:00:00');
+
+-- 7. PRODUCTO_PROVEEDOR
+INSERT INTO producto_proveedor (id_producto, id_proveedor, precio_compra) VALUES
+('PROD-001', 'PROV-001', 6.20),
+('PROD-002', 'PROV-001', 5.00),
+('PROD-003', 'PROV-002', 4.60),
+('PROD-004', 'PROV-002', 5.30),
+('PROD-005', 'PROV-003', 14.50),
+('PROD-006', 'PROV-003', 27.00),
+('PROD-007', 'PROV-001', 3.80),
+('PROD-008', 'PROV-001', 0.75),
+('PROD-009', 'PROV-004', 7.80),
+('PROD-010', 'PROV-005', 6.00),
+('PROD-011', 'PROV-005', 2.70),
+('PROD-012', 'PROV-006', 1.10),
+('PROD-013', 'PROV-001', 3.30),
+('PROD-014', 'PROV-002', 17.50),
+('PROD-015', 'PROV-001', 12.00);
+
+-- 8. CLIENTES
+INSERT INTO clientes (id_cliente, nombres, apellido_paterno, apellido_materno, ci_nit, telefono, email, direccion, estado, fecha_registro) VALUES
+('CLI-001', 'Juan', 'García', 'López', '1234567LP', '2223333', 'juan.garcia@gmail.com', 'Calle Junín 123, La Paz', 'ACTIVO', '2024-01-04 10:00:00'),
+('CLI-002', 'María', 'Fernández', 'Ríos', '7654321SC', '4445555', 'mariaf@gmail.com', 'Av. Cristo Redentor 456, Santa Cruz', 'ACTIVO', '2024-01-04 10:00:00'),
+('CLI-003', 'Carlos', 'Mendoza', 'Vargas', '9876543CB', '6667777', 'carlos.mendoza@hotmail.com', 'Zona Villa Tunari, Cochabamba', 'ACTIVO', '2024-01-04 10:00:00'),
+('CLI-004', 'Ana', 'Torres', 'Guzmán', '4567890OR', '8889999', 'anatorres@gmail.com', 'Calle Sucre 789, Oruro', 'ACTIVO', '2024-01-04 10:00:00'),
+('CLI-005', 'Roberto', 'Pérez', 'Soto', '3210987TJ', '1112222', 'roberto.ps@yahoo.com', 'Av. Libertador 234, Tarija', 'ACTIVO', '2024-01-04 10:00:00'),
+('CLI-006', 'Consumidor Final', NULL, NULL, '0', NULL, NULL, 'La Paz', 'ACTIVO', '2024-01-04 10:00:00'),
+('CLI-007', 'Restaurante El Sabor', NULL, NULL, '1234567891', '2277884', 'pedidos@elsabor.com.bo', 'Zona Sopocachi, La Paz', 'ACTIVO', '2024-01-04 10:00:00'),
+('CLI-008', 'Comedor Popular Luz', NULL, NULL, '9876543212', '2244668', 'comedorluz@gmail.com', 'Villa Victoria, La Paz', 'ACTIVO', '2024-01-04 10:00:00');
+
+-- 9. EMPLEADOS (primero sin id_usuario, lo actualizaremos después)
+INSERT INTO empleados (id_empleado, ci, expedido, nombres, apellido_paterno, apellido_materno, fecha_nacimiento, sexo, telefono, celular, email, direccion, id_cargo, fecha_contratacion, tipo_contrato, id_horario, salario, estado, foto_url, fecha_registro) VALUES
+('EMP-001', '1234568LP', 'LP', 'Luis', 'Gómez', 'Rodríguez', '1980-05-15', 'M', '2221112', '76123457', 'luis.gomez@donbaraton.com.bo', 'Calle Ballivián 345, La Paz', 'CAR-001', '2023-01-15', 'Indefinido', 'HOR-003', 8500.00, 'ACTIVO', NULL, '2024-01-05 08:00:00'),
+('EMP-002', '8765432LP', 'LP', 'Ana', 'Martínez', 'Salazar', '1985-08-22', 'F', '2244556', '71234568', 'ana.martinez@donbaraton.com.bo', 'Av. Arce 789, La Paz', 'CAR-002', '2023-03-10', 'Indefinido', 'HOR-003', 6500.00, 'ACTIVO', NULL, '2024-01-05 08:00:00'),
+('EMP-003', '2345678LP', 'LP', 'Pedro', 'Vargas', 'Quispe', '1990-11-30', 'M', '2277880', '77345679', 'pedro.vargas@donbaraton.com.bo', 'Zona San Pedro, La Paz', 'CAR-003', '2023-06-20', 'Indefinido', 'HOR-001', 5200.00, 'ACTIVO', NULL, '2024-01-05 08:00:00'),
+('EMP-004', '3456789LP', 'LP', 'Carmen', 'Rojas', 'Mamani', '1995-02-14', 'F', '2288998', '77456780', 'carmen.rojas@donbaraton.com.bo', 'Calle Rosendo Gutiérrez 123, La Paz', 'CAR-004', '2024-01-02', 'Indefinido', 'HOR-001', 4200.00, 'ACTIVO', NULL, '2024-01-05 08:00:00'),
+('EMP-005', '4567890LP', 'LP', 'José', 'Fernández', 'Castro', '1998-07-08', 'M', '2255665', '77567891', 'jose.fernandez@donbaraton.com.bo', 'Villa Copacabana, La Paz', 'CAR-005', '2024-01-02', 'Temporal', 'HOR-002', 3200.00, 'ACTIVO', NULL, '2024-01-05 08:00:00'),
+('EMP-006', '5678901LP', 'LP', 'Lucía', 'Paredes', 'Yujra', '1993-04-25', 'F', '2233446', '77678902', 'lucia.paredes@donbaraton.com.bo', 'Zona Miraflores, La Paz', 'CAR-005', '2024-01-02', 'Temporal', 'HOR-002', 3200.00, 'ACTIVO', NULL, '2024-01-05 08:00:00'),
+('EMP-007', '6789012LP', 'LP', 'Miguel', 'Huanca', 'Choque', '1988-12-03', 'M', '2299887', '77789013', 'miguel.huanca@donbaraton.com.bo', 'El Alto, Distrito 1', 'CAR-006', '2024-01-02', 'Indefinido', 'HOR-004', 2800.00, 'ACTIVO', NULL, '2024-01-05 08:00:00'),
+('EMP-008', '7890123LP', 'LP', 'Rosa', 'Aguilar', 'Mollo', '1975-09-18', 'F', '2211334', '77890124', 'rosa.aguilar@donbaraton.com.bo', 'Villa Fátima, La Paz', 'CAR-007', '2024-01-02', 'Indefinido', 'HOR-005', 2500.00, 'ACTIVO', NULL, '2024-01-05 08:00:00');
+
+-- 10. USUARIOS
+INSERT INTO usuarios (id_usuario, id_empleado, username, password_hash, id_rol, estado, fecha_registro) VALUES
+('USR-001', 'EMP-001', 'admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'ROL-001', 'ACTIVO', '2024-01-01 09:00:00'),
+('USR-002', 'EMP-001', 'lgomez', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'ROL-002', 'ACTIVO', '2024-01-05 08:30:00'),
+('USR-003', 'EMP-003', 'pvargas', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'ROL-003', 'ACTIVO', '2024-01-05 08:30:00'),
+('USR-004', 'EMP-004', 'crojas', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'ROL-004', 'ACTIVO', '2024-01-05 08:30:00'),
+('USR-005', 'EMP-005', 'jfernandez', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'ROL-004', 'ACTIVO', '2024-01-05 08:30:00'),
+('USR-006', 'EMP-006', 'lparedes', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'ROL-004', 'ACTIVO', '2024-01-05 08:30:00');
+
+-- Actualizar empleados con usuarios
+UPDATE empleados SET id_usuario = 'USR-001' WHERE id_empleado = 'EMP-001';
+UPDATE empleados SET id_usuario = 'USR-003' WHERE id_empleado = 'EMP-003';
+UPDATE empleados SET id_usuario = 'USR-004' WHERE id_empleado = 'EMP-004';
+UPDATE empleados SET id_usuario = 'USR-005' WHERE id_empleado = 'EMP-005';
+UPDATE empleados SET id_usuario = 'USR-006' WHERE id_empleado = 'EMP-006';
+
+
+-- 11. VENTAS
+INSERT INTO ventas (id_venta, id_cliente, fecha_hora, total, tipo_comprobante, nit_cliente, razon_social, direccion_factura, numero_factura, id_usuario, estado) VALUES
+('VENT-001', 'CLI-006', '2024-01-10 09:15:00', 156.40, 'TICKET', NULL, NULL, NULL, NULL, 'USR-004', 'ACTIVO'),
+('VENT-002', 'CLI-001', '2024-01-10 11:30:00', 245.80, 'FACTURA', '1234567LP', 'Juan García López', 'Calle Junín 123, La Paz', 'FAC-001-2024', 'USR-005', 'ACTIVO'),
+('VENT-003', 'CLI-007', '2024-01-10 14:45:00', 589.20, 'FACTURA', '1234567891', 'Restaurante El Sabor', 'Zona Sopocachi, La Paz', 'FAC-002-2024', 'USR-004', 'ACTIVO'),
+('VENT-004', 'CLI-006', '2024-01-10 16:20:00', 78.90, 'TICKET', NULL, NULL, NULL, NULL, 'USR-006', 'ACTIVO'),
+('VENT-005', 'CLI-002', '2024-01-11 10:10:00', 342.60, 'FACTURA', '7654321SC', 'María Fernández Ríos', 'Av. Cristo Redentor 456, Santa Cruz', 'FAC-003-2024', 'USR-005', 'ACTIVO'),
+('VENT-006', 'CLI-008', '2024-01-11 13:30:00', 1245.80, 'FACTURA', '9876543212', 'Comedor Popular Luz', 'Villa Victoria, La Paz', 'FAC-004-2024', 'USR-004', 'ACTIVO');
+
+-- 12. DETALLE_VENTAS
+INSERT INTO detalle_ventas (id_detalle_venta, id_venta, id_producto, cantidad, precio_unitario, descuento, subtotal) VALUES
+('DV-001', 'VENT-001', 'PROD-001', 2, 8.90, 0, 17.80),
+('DV-002', 'VENT-001', 'PROD-003', 1, 6.90, 0, 6.90),
+('DV-003', 'VENT-001', 'PROD-007', 1.5, 7.50, 0, 11.25),
+('DV-004', 'VENT-001', 'PROD-012', 3, 2.50, 0.50, 7.50),
+('DV-005', 'VENT-001', 'PROD-009', 1, 12.50, 0, 12.50),
+('DV-006', 'VENT-002', 'PROD-005', 2.5, 22.50, 0, 56.25),
+('DV-007', 'VENT-002', 'PROD-006', 1, 39.90, 0, 39.90),
+('DV-008', 'VENT-002', 'PROD-013', 3, 6.00, 0, 18.00),
+('DV-009', 'VENT-002', 'PROD-001', 3, 8.90, 0, 26.70),
+('DV-010', 'VENT-002', 'PROD-002', 2, 7.50, 0, 15.00),
+('DV-011', 'VENT-003', 'PROD-005', 5, 22.50, 1.50, 112.50),
+('DV-012', 'VENT-003', 'PROD-013', 10, 6.00, 0, 60.00),
+('DV-013', 'VENT-003', 'PROD-001', 10, 8.90, 0, 89.00),
+('DV-014', 'VENT-003', 'PROD-002', 8, 7.50, 0, 60.00),
+('DV-015', 'VENT-003', 'PROD-015', 4, 18.90, 0, 75.60),
+('DV-016', 'VENT-004', 'PROD-011', 2, 5.50, 0, 11.00),
+('DV-017', 'VENT-004', 'PROD-010', 1, 9.80, 0, 9.80),
+('DV-018', 'VENT-004', 'PROD-008', 12, 1.50, 0, 18.00),
+('DV-019', 'VENT-005', 'PROD-003', 4, 6.90, 0, 27.60),
+('DV-020', 'VENT-005', 'PROD-004', 2, 8.50, 0, 17.00),
+('DV-021', 'VENT-005', 'PROD-014', 1, 25.00, 0, 25.00),
+('DV-022', 'VENT-005', 'PROD-012', 6, 2.50, 0.30, 15.00),
+('DV-023', 'VENT-006', 'PROD-001', 20, 8.90, 1.00, 178.00),
+('DV-024', 'VENT-006', 'PROD-002', 15, 7.50, 0.80, 112.50),
+('DV-025', 'VENT-006', 'PROD-003', 12, 6.90, 0.50, 82.80),
+('DV-026', 'VENT-006', 'PROD-013', 25, 6.00, 1.00, 150.00);
+
+-- 13. PAGOS (usando CREDITO en lugar de TARJETA según restricción CHECK)
+INSERT INTO pagos (id_pago, id_venta, medio, importe, vuelto) VALUES
+('PAG-001', 'VENT-001', 'EFECTIVO', 200.00, 43.60),
+('PAG-002', 'VENT-002', 'CREDITO', 245.80, 0),
+('PAG-003', 'VENT-003', 'TRANSFERENCIA', 589.20, 0),
+('PAG-004', 'VENT-004', 'EFECTIVO', 100.00, 21.10),
+('PAG-005', 'VENT-005', 'CREDITO', 342.60, 0),
+('PAG-006', 'VENT-006', 'TRANSFERENCIA', 1245.80, 0);
+
+-- 14. DEVOLUCIONES_VENTAS (usando EFECTIVO)
+INSERT INTO devoluciones_ventas (id_devolucion_venta, id_venta, motivo, forma_reembolso, fecha, id_usuario) VALUES
+('DEV-V-001', 'VENT-001', 'Producto dañado', 'EFECTIVO', '2024-01-10 10:30:00', 'USR-003'),
+('DEV-V-002', 'VENT-005', 'Producto vencido', 'EFECTIVO', '2024-01-11 11:45:00', 'USR-003');
+
+-- 15. CIERRE_CAJA
+INSERT INTO cierre_caja (id_cierre, id_usuario, fecha, hora_cierre, total_efectivo, diferencia, observaciones, firma_supervisor) VALUES
+('CIERRE-001', 'USR-002', '2024-01-10', '22:00:00', 12580.50, -25.30, 'Faltante por error en vuelto', 'Luis Gómez'),
+('CIERRE-002', 'USR-002', '2024-01-11', '22:00:00', 18745.80, 12.50, 'Sobrante por pago extra', 'Luis Gómez');
+
+-- 16. CIERRE_CAJA_DETALLE
+INSERT INTO cierre_caja_detalle (id_detalle, id_cierre, denominacion, cantidad) VALUES
+('CCD-001', 'CIERRE-001', 200.00, 20),
+('CCD-002', 'CIERRE-001', 100.00, 35),
+('CCD-003', 'CIERRE-001', 50.00, 42),
+('CCD-004', 'CIERRE-001', 20.00, 85),
+('CCD-005', 'CIERRE-001', 10.00, 120),
+('CCD-006', 'CIERRE-002', 200.00, 30),
+('CCD-007', 'CIERRE-002', 100.00, 45),
+('CCD-008', 'CIERRE-002', 50.00, 62),
+('CCD-009', 'CIERRE-002', 20.00, 98),
+('CCD-010', 'CIERRE-002', 10.00, 155);
+
+-- 17. ORDENES_COMPRA
+INSERT INTO ordenes_compra (id_orden, id_proveedor, fecha_emision, fecha_entrega, total, estado, id_usuario, fecha_registro) VALUES
+('OC-001', 'PROV-001', '2024-01-08', '2024-01-12', 2450.00, 'RECIBIDA', 'USR-003', '2024-01-08 10:00:00'),
+('OC-002', 'PROV-002', '2024-01-09', '2024-01-13', 1560.80, 'RECIBIDA', 'USR-003', '2024-01-09 11:00:00'),
+('OC-003', 'PROV-003', '2024-01-10', '2024-01-15', 3200.50, 'PENDIENTE', 'USR-003', '2024-01-10 09:30:00'),
+('OC-004', 'PROV-004', '2024-01-11', '2024-01-16', 1890.00, 'PENDIENTE', 'USR-003', '2024-01-11 14:00:00');
+
+-- 18. DETALLE_ORDEN_COMPRA
+INSERT INTO detalle_orden_compra (id_detalle_orden, id_orden, id_producto, cantidad, precio_unitario, descuento, subtotal) VALUES
+('DOC-001', 'OC-001', 'PROD-001', 100, 6.20, 0, 620.00),
+('DOC-002', 'OC-001', 'PROD-002', 80, 5.00, 0, 400.00),
+('DOC-003', 'OC-001', 'PROD-015', 50, 12.00, 100.00, 600.00),
+('DOC-004', 'OC-001', 'PROD-007', 60, 3.80, 0, 228.00),
+('DOC-005', 'OC-001', 'PROD-013', 100, 3.30, 0, 330.00),
+('DOC-006', 'OC-002', 'PROD-003', 80, 4.60, 0, 368.00),
+('DOC-007', 'OC-002', 'PROD-004', 50, 5.30, 0, 265.00),
+('DOC-008', 'OC-002', 'PROD-014', 40, 17.50, 32.00, 700.00),
+('DOC-009', 'OC-003', 'PROD-005', 50, 14.50, 75.00, 725.00),
+('DOC-010', 'OC-003', 'PROD-006', 30, 27.00, 54.00, 810.00);
+
+-- 19. RECEPCIONES
+INSERT INTO recepciones (id_recepcion, id_orden, fecha_ingreso, cantidad_recibida, lote, fecha_vencimiento, id_usuario, fecha_registro) VALUES
+('REC-001', 'OC-001', '2024-01-12', 390, 'LOTE-2024-01-12', '2024-12-31', 'USR-003', '2024-01-12 14:30:00'),
+('REC-002', 'OC-002', '2024-01-13', 170, 'LOTE-2024-01-13', '2024-06-30', 'USR-003', '2024-01-13 11:20:00');
+
+-- 20. DEVOLUCIONES_PROVEEDOR
+INSERT INTO devoluciones_proveedor (id_devolucion, id_recepcion, motivo, cantidad, observaciones, fecha) VALUES
+('DEV-P-001', 'REC-001', 'DAÑO', 5, 'Cajas rotas durante transporte', '2024-01-12 15:00:00'),
+('DEV-P-002', 'REC-002', 'VENCIDO', 3, 'Productos con fecha próxima a vencer', '2024-01-13 12:30:00');
+
+-- 21. CUENTAS_POR_PAGAR
+INSERT INTO cuentas_por_pagar (id_cuenta, id_proveedor, numero_factura, fecha_emision, fecha_vencimiento, monto_total, saldo_pendiente, estado, observaciones, fecha_registro) VALUES
+('CTAP-001', 'PROV-001', 'FAC-PROV-001', '2024-01-12', '2024-02-11', 2450.00, 2450.00, 'PENDIENTE', 'Orden de compra OC-001', '2024-01-12 16:00:00'),
+('CTAP-002', 'PROV-002', 'FAC-PROV-002', '2024-01-13', '2024-01-28', 1560.80, 1560.80, 'PENDIENTE', 'Orden de compra OC-002', '2024-01-13 13:00:00');
+
+-- 22. LOTES
+INSERT INTO lotes (id_lote, id_producto, lote, fecha_vencimiento, cantidad, estado) VALUES
+('LOT-001', 'PROD-003', 'LOTE-PIL-0124', '2024-02-28', 80, 'ACTIVO'),
+('LOT-002', 'PROD-004', 'LOTE-SUP-0124', '2024-03-15', 50, 'ACTIVO'),
+('LOT-003', 'PROD-005', 'LOTE-POLLO-0124', '2024-01-20', 25, 'ACTIVO'),
+('LOT-004', 'PROD-007', 'LOTE-TOM-0124', '2024-01-25', 35, 'ACTIVO'),
+('LOT-005', 'PROD-014', 'LOTE-HUEV-0124', '2024-02-10', 22, 'ACTIVO');
+
+-- 23. MOVIMIENTOS_INVENTARIO
+INSERT INTO movimientos_inventario (id_movimiento, id_producto, tipo, cantidad, lote, fecha_vencimiento, documento, motivo, observaciones, id_usuario, fecha_hora) VALUES
+('MOV-001', 'PROD-001', 'ENTRADA', 100, 'LOTE-2024-01-12', '2024-12-31', 'OC-001', 'COMPRA', 'Recepción de orden OC-001', 'USR-003', '2024-01-12 14:35:00'),
+('MOV-002', 'PROD-003', 'ENTRADA', 80, 'LOTE-PIL-0124', '2024-02-28', 'OC-002', 'COMPRA', 'Recepción de orden OC-002', 'USR-003', '2024-01-13 11:25:00'),
+('MOV-003', 'PROD-001', 'SALIDA', 2, NULL, NULL, 'VENT-001', 'VENTA', 'Venta al contado', 'USR-004', '2024-01-10 09:16:00'),
+('MOV-004', 'PROD-005', 'SALIDA', 2.5, 'LOTE-POLLO-0124', '2024-01-20', 'VENT-002', 'VENTA', 'Venta con factura', 'USR-005', '2024-01-10 11:31:00'),
+('MOV-005', 'PROD-001', 'AJUSTE+', 5, NULL, NULL, 'AJUSTE-001', 'ERROR_INVENTARIO', 'Conteo físico mayor al sistema', 'USR-003', '2024-01-14 16:00:00');
+
+-- 24. ALERTAS_STOCK
+INSERT INTO alertas_stock (id_alerta, id_producto, id_lote, tipo, mensaje, fecha_generada, fecha_resuelta, estado) VALUES
+('ALERT-001', 'PROD-008', 'LOT-003', 'STOCK_MINIMO', 'Stock de Banano Nacional cerca del mínimo (30 unidades)', '2024-01-13 10:00:00', NULL, 'PENDIENTE'),
+('ALERT-002', 'PROD-005', 'LOT-003', 'VENCIMIENTO', 'Lote de Pollo Entero Fresco vence en 5 días', '2024-01-15 09:30:00', NULL, 'PENDIENTE'),
+('ALERT-003', 'PROD-002', NULL, 'STOCK_CRITICO', 'Stock de Azúcar Blanca 1kg por debajo del 20%', '2024-01-14 14:20:00', NULL, 'PENDIENTE');
+
+-- 25. ASISTENCIAS
+INSERT INTO asistencias (id_asistencia, id_empleado, fecha, hora_entrada, hora_salida, tipo, metodo, observaciones) VALUES
+('ASIS-001', 'EMP-001', '2024-01-10', '08:05:00', '20:10:00', 'ENTRADA', 'MANUAL', 'Llegada puntual'),
+('ASIS-002', 'EMP-001', '2024-01-10', '20:10:00', NULL, 'SALIDA', 'MANUAL', 'Salida normal'),
+('ASIS-003', 'EMP-004', '2024-01-10', '08:15:00', '16:05:00', 'RETRASO', 'MANUAL', '15 minutos de retraso'),
+('ASIS-004', 'EMP-005', '2024-01-10', '14:00:00', '22:00:00', 'ENTRADA', 'MANUAL', 'Entrada puntual'),
+('ASIS-005', 'EMP-003', '2024-01-11', '08:00:00', '16:00:00', 'ENTRADA', 'MANUAL', 'Entrada puntual'),
+('ASIS-006', 'EMP-006', '2024-01-11', '14:00:00', '22:00:00', 'ENTRADA', 'MANUAL', 'Entrada puntual');
+
+-- 26. AUDITORIA
+INSERT INTO auditoria (id_auditoria, fecha_hora, usuario, modulo, accion, tabla_afectada, id_registro_afectado, valores_anteriores, valores_nuevos, detalles, ip_origen, estado) VALUES
+('AUD-001', '2024-01-10 09:16:00', 'USR-004', 'VENTAS', 'CREAR_VENTA', 'ventas', 'VENT-001', NULL, '{"id_venta":"VENT-001","total":156.40}', 'Creación de nueva venta', '192.168.1.10', 'EXITOSO'),
+('AUD-002', '2024-01-10 10:30:00', 'USR-003', 'INVENTARIO', 'DEVOLUCION', 'devoluciones_ventas', 'DEV-V-001', NULL, '{"motivo":"Producto dañado"}', 'Devolución de producto dañado', '192.168.1.12', 'EXITOSO'),
+('AUD-003', '2024-01-12 14:35:00', 'USR-003', 'COMPRAS', 'RECEPCION_MERCADERIA', 'recepciones', 'REC-001', NULL, '{"id_orden":"OC-001","cantidad_recibida":390}', 'Recepción de mercadería de proveedor', '192.168.1.12', 'EXITOSO'),
+('AUD-004', '2024-01-14 16:00:00', 'USR-003', 'INVENTARIO', 'AJUSTE_INVENTARIO', 'movimientos_inventario', 'MOV-005', NULL, '{"tipo":"AJUSTE+","cantidad":5}', 'Ajuste positivo por diferencia en conteo', '192.168.1.12', 'EXITOSO'),
+('AUD-005', '2024-01-10 22:00:00', 'USR-002', 'CAJA', 'CIERRE_CAJA', 'cierre_caja', 'CIERRE-001', NULL, '{"total_efectivo":12580.50,"diferencia":-25.30}', 'Cierre de caja diario con faltante', '192.168.1.11', 'EXITOSO');

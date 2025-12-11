@@ -275,31 +275,27 @@ const SimpleLoadingSkeleton = () => {
   );
 };
 
-// ==================== FUNCIONES DE CONEXIÓN A SUPABASE ====================
+// ==================== FUNCIONES DE CONEXIÓN A SUPABASE (SOLO RPC) ====================
 
-// 1. Obtener ventas del día actual
+// 1. Obtener ventas del día actual usando fn_reporte_ventas_periodo
 const fetchVentasHoy = async () => {
   try {
     const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
-    const mañana = new Date(hoy);
-    mañana.setDate(mañana.getDate() + 1);
-
-    const { data, error } = await supabase
-      .from('ventas')
-      .select('total')
-      .gte('fecha_hora', hoy.toISOString())
-      .lt('fecha_hora', mañana.toISOString())
-      .eq('estadoa', true);
+    const fechaHoy = hoy.toISOString().split('T')[0];
+    
+    const { data, error } = await supabase.rpc('fn_reporte_ventas_periodo', {
+      p_fecha_inicio: fechaHoy,
+      p_fecha_fin: fechaHoy
+    });
 
     if (error) throw error;
 
-    const totalVentas = data.reduce((sum, venta) => sum + (venta.total || 0), 0);
-    const cantidadVentas = data.length;
-
+    // fn_reporte_ventas_periodo retorna: fecha, cantidad_ventas, total_vendido, promedio_ticket
+    const ventasHoy = data && data.length > 0 ? data[0] : null;
+    
     return {
-      total: totalVentas,
-      cantidad: cantidadVentas
+      total: ventasHoy?.total_vendido || 0,
+      cantidad: ventasHoy?.cantidad_ventas || 0
     };
   } catch (error) {
     console.error('Error fetching ventas hoy:', error);
@@ -307,41 +303,58 @@ const fetchVentasHoy = async () => {
   }
 };
 
-// 2. Obtener pedidos activos (órdenes pendientes)
+// 2. Obtener pedidos activos usando fn_historial_compras
 const fetchPedidosActivos = async () => {
   try {
-    const { data, error } = await supabase
-      .from('ordenes_compra')
-      .select('*')
-      .eq('estado', 'PENDIENTE')
-      .eq('estadoa', true);
+    const hoy = new Date();
+    const hace6Meses = new Date();
+    hace6Meses.setMonth(hace6Meses.getMonth() - 6);
+    
+    const { data, error } = await supabase.rpc('fn_historial_compras', {
+      p_fecha_inicio: hace6Meses.toISOString().split('T')[0],
+      p_fecha_fin: hoy.toISOString().split('T')[0],
+      p_id_proveedor: null
+    });
 
-    if (error) throw error;
+    console.log('fn_historial_compras resultado:', { data, error });
 
-    return data.length;
+    if (error) {
+      console.warn('Error en fn_historial_compras (tabla puede no existir):', error);
+      return 0; // Devolver 0 si la tabla no existe
+    }
+
+    // Filtrar solo órdenes pendientes
+    const pendientes = data ? data.filter(orden => orden.estado === 'PENDIENTE') : [];
+    console.log('Pedidos pendientes encontrados:', pendientes.length);
+    return pendientes.length;
   } catch (error) {
     console.error('Error fetching pedidos activos:', error);
     return 0;
   }
 };
 
-// 3. Obtener estadísticas de inventario
+// 3. Obtener estadísticas de inventario usando fn_listar_productos y fn_generar_alertas_stock_bajo
 const fetchInventarioStats = async () => {
   try {
-    // Total de productos activos
-    const { data: productos, error: error1 } = await supabase
-      .from('productos')
-      .select('id, stock_actual, stock_minimo')
-      .eq('estadoa', true);
+    // Obtener total de productos activos (fn_leer_productos acepta p_buscar)
+    const { data: productos, error: errorProd } = await supabase.rpc('fn_leer_productos', { p_buscar: null });
+    
+    if (errorProd) throw errorProd;
 
-    if (error1) throw error1;
+    // Obtener productos con stock bajo (fn_alerta_stock_bajo es el nombre correcto)
+    const { data: alertasStock, error: errorAlertas } = await supabase.rpc('fn_alerta_stock_bajo');
+    
+    if (errorAlertas) {
+      console.warn('Error en fn_generar_alertas_stock_bajo:', errorAlertas);
+    }
 
-    // Productos con bajo stock (menos que stock_minimo)
-    const productosBajoStock = productos.filter(p => p.stock_actual < p.stock_minimo);
+    // Contar productos activos
+    const productosActivos = productos ? productos.filter(p => p.estado === 'ACTIVO') : [];
+    const bajoStock = alertasStock ? alertasStock.length : 0;
 
     return {
-      total: productos.length,
-      bajoStock: productosBajoStock.length
+      total: productosActivos.length,
+      bajoStock: bajoStock
     };
   } catch (error) {
     console.error('Error fetching inventario:', error);
@@ -349,48 +362,49 @@ const fetchInventarioStats = async () => {
   }
 };
 
-// 4. Obtener empleados activos
+// 4. Obtener empleados activos usando fn_listar_empleados
 const fetchEmpleadosActivos = async () => {
   try {
-    const { data, error } = await supabase
-      .from('empleados')
-      .select('*')
-      .eq('estado', 'ACTIVO')
-      .eq('estadoa', true);
+    const { data, error } = await supabase.rpc('fn_listar_empleados');
+
+    console.log('fn_listar_empleados resultado:', { data, error });
 
     if (error) throw error;
 
-    return data.length;
+    // fn_listar_empleados ya filtra por estado ACTIVO
+    const count = data ? data.length : 0;
+    console.log('Empleados activos encontrados:', count);
+    return count;
   } catch (error) {
     console.error('Error fetching empleados:', error);
     return 0;
   }
 };
 
-// 5. Obtener ventas del mes actual
+// 5. Obtener ventas del mes actual usando fn_reporte_ventas_periodo
 const fetchVentasMensuales = async () => {
   try {
     const fecha = new Date();
     const primerDiaMes = new Date(fecha.getFullYear(), fecha.getMonth(), 1);
     const ultimoDiaMes = new Date(fecha.getFullYear(), fecha.getMonth() + 1, 0);
 
-    const { data, error } = await supabase
-      .from('ventas')
-      .select('total')
-      .gte('fecha_hora', primerDiaMes.toISOString())
-      .lte('fecha_hora', ultimoDiaMes.toISOString())
-      .eq('estadoa', true);
+    const { data, error } = await supabase.rpc('fn_reporte_ventas_periodo', {
+      p_fecha_inicio: primerDiaMes.toISOString().split('T')[0],
+      p_fecha_fin: ultimoDiaMes.toISOString().split('T')[0]
+    });
 
     if (error) throw error;
 
-    return data.reduce((sum, venta) => sum + (venta.total || 0), 0);
+    // Sumar total de todos los días del mes
+    const totalMes = data ? data.reduce((sum, dia) => sum + (parseFloat(dia.total_vendido) || 0), 0) : 0;
+    return totalMes;
   } catch (error) {
     console.error('Error fetching ventas mensuales:', error);
     return 0;
   }
 };
 
-// 6. Obtener ventas de los últimos 6 meses para gráfico
+// 6. Obtener ventas de los últimos 6 meses usando fn_reporte_ventas_periodo
 const fetchVentasUltimosMeses = async (meses = 6) => {
   try {
     const fecha = new Date();
@@ -398,19 +412,18 @@ const fetchVentasUltimosMeses = async (meses = 6) => {
 
     for (let i = meses - 1; i >= 0; i--) {
       const fechaMes = new Date(fecha.getFullYear(), fecha.getMonth() - i, 1);
-      const primerDia = new Date(fechaMes.getFullYear(), fechaMes.getMonth(), 1);
-      const ultimoDia = new Date(fechaMes.getFullYear(), fechaMes.getMonth() + 1, 0);
+      const primerDia = fechaMes.toISOString().split('T')[0];
+      const ultimoDia = new Date(fechaMes.getFullYear(), fechaMes.getMonth() + 1, 0).toISOString().split('T')[0];
 
-      const { data, error } = await supabase
-        .from('ventas')
-        .select('total')
-        .gte('fecha_hora', primerDia.toISOString())
-        .lte('fecha_hora', ultimoDia.toISOString())
-        .eq('estadoa', true);
+      const { data, error } = await supabase.rpc('fn_reporte_ventas_periodo', {
+        p_fecha_inicio: primerDia,
+        p_fecha_fin: ultimoDia
+      });
 
       if (error) throw error;
 
-      const totalMes = data.reduce((sum, venta) => sum + (venta.total || 0), 0);
+      // Sumar total del mes
+      const totalMes = data ? data.reduce((sum, dia) => sum + (parseFloat(dia.total_vendido) || 0), 0) : 0;
 
       resultados.push({
         label: fechaMes.toLocaleDateString('es-ES', { month: 'short' }),
@@ -421,73 +434,53 @@ const fetchVentasUltimosMeses = async (meses = 6) => {
     return resultados;
   } catch (error) {
     console.error('Error fetching ventas últimos meses:', error);
-    // Retornar datos de ejemplo si hay error
     return [
-      { label: 'Ene', value: 45000 },
-      { label: 'Feb', value: 52000 },
-      { label: 'Mar', value: 48000 },
-      { label: 'Abr', value: 61000 },
-      { label: 'May', value: 58000 },
-      { label: 'Jun', value: 72000 }
+      { label: 'Ene', value: 0 },
+      { label: 'Feb', value: 0 },
+      { label: 'Mar', value: 0 },
+      { label: 'Abr', value: 0 },
+      { label: 'May', value: 0 },
+      { label: 'Jun', value: 0 }
     ];
   }
 };
 
-// 7. Obtener distribución de ventas por categoría
+// 7. Obtener distribución de ventas por categoría usando fn_listar_productos y fn_reporte_productos_mas_vendidos
 const fetchDistribucionVentas = async () => {
   try {
-    // Primero, obtener ventas del mes actual
     const fecha = new Date();
     const primerDiaMes = new Date(fecha.getFullYear(), fecha.getMonth(), 1);
     const ultimoDiaMes = new Date(fecha.getFullYear(), fecha.getMonth() + 1, 0);
 
-    const { data: ventas, error: errorVentas } = await supabase
-      .from('ventas')
-      .select('id')
-      .gte('fecha_hora', primerDiaMes.toISOString())
-      .lte('fecha_hora', ultimoDiaMes.toISOString())
-      .eq('estadoa', true);
+    // Usar fn_reporte_productos_mas_vendidos para obtener las ventas por producto
+    const { data: productosVendidos, error } = await supabase.rpc('fn_reporte_productos_mas_vendidos', {
+      p_fecha_inicio: primerDiaMes.toISOString().split('T')[0],
+      p_fecha_fin: ultimoDiaMes.toISOString().split('T')[0],
+      p_limite: 100
+    });
 
-    if (errorVentas) throw errorVentas;
+    if (error) throw error;
 
-    if (ventas.length === 0) {
-      return [];
+    // Obtener productos con sus categorías
+    const { data: productos, error: errorProd } = await supabase.rpc('fn_leer_productos', { p_buscar: null });
+    
+    if (errorProd) throw errorProd;
+
+    // Crear mapa de producto a categoría
+    const productoCategoria = {};
+    if (productos) {
+      productos.forEach(p => {
+        productoCategoria[p.nombre] = p.categoria || 'Sin categoría';
+      });
     }
 
-    const ventasIds = ventas.map(v => v.id);
-
-    // Obtener detalles de ventas y productos
-    const { data: detalles, error: errorDetalles } = await supabase
-      .from('detalle_ventas')
-      .select('producto_id, subtotal')
-      .in('venta_id', ventasIds)
-      .eq('estadoa', true);
-
-    if (errorDetalles) throw errorDetalles;
-
-    // Agrupar por categoría
+    // Agrupar ventas por categoría
     const distribucion = {};
-
-    for (const detalle of detalles) {
-      // Obtener categoría del producto
-      const { data: producto, error: errorProducto } = await supabase
-        .from('productos')
-        .select('categoria_id')
-        .eq('id', detalle.producto_id)
-        .single();
-
-      if (!errorProducto && producto) {
-        const { data: categoria, error: errorCategoria } = await supabase
-          .from('categorias')
-          .select('nombre')
-          .eq('id', producto.categoria_id)
-          .single();
-
-        if (!errorCategoria && categoria) {
-          const catNombre = categoria.nombre || 'Sin categoría';
-          distribucion[catNombre] = (distribucion[catNombre] || 0) + detalle.subtotal;
-        }
-      }
+    if (productosVendidos) {
+      productosVendidos.forEach(pv => {
+        const categoria = productoCategoria[pv.producto] || 'Sin categoría';
+        distribucion[categoria] = (distribucion[categoria] || 0) + (parseFloat(pv.ingresos_generados) || 0);
+      });
     }
 
     // Convertir a formato de gráfico
@@ -497,95 +490,65 @@ const fetchDistribucionVentas = async () => {
     }));
 
     return resultado.length > 0 ? resultado : [
-      { label: 'Alimentos', value: 15600 },
-      { label: 'Bebidas', value: 8400 },
-      { label: 'Limpieza', value: 3200 },
-      { label: 'Otros', value: 2100 }
+      { label: 'Sin ventas', value: 0 }
     ];
   } catch (error) {
     console.error('Error fetching distribución ventas:', error);
     return [
-      { label: 'Alimentos', value: 15600 },
-      { label: 'Bebidas', value: 8400 },
-      { label: 'Limpieza', value: 3200 },
-      { label: 'Otros', value: 2100 }
+      { label: 'Sin datos', value: 0 }
     ];
   }
 };
 
-// 8. Obtener productos por categoría
+// 8. Obtener productos por categoría usando fn_listar_productos
 const fetchProductosPorCategoria = async () => {
   try {
-    const { data: productos, error } = await supabase
-      .from('productos')
-      .select('categoria_id')
-      .eq('estadoa', true);
+    const { data: productos, error } = await supabase.rpc('fn_leer_productos', { p_buscar: null });
 
     if (error) throw error;
 
     // Contar productos por categoría
     const conteoPorCategoria = {};
-
-    for (const producto of productos) {
-      if (producto.categoria_id) {
-        const { data: categoria, error: errorCat } = await supabase
-          .from('categorias')
-          .select('nombre')
-          .eq('id', producto.categoria_id)
-          .single();
-
-        if (!errorCat && categoria) {
-          const catNombre = categoria.nombre || 'Sin categoría';
-          conteoPorCategoria[catNombre] = (conteoPorCategoria[catNombre] || 0) + 1;
+    if (productos) {
+      productos.forEach(p => {
+        if (p.estado === 'ACTIVO') {
+          const categoria = p.categoria || 'Sin categoría';
+          conteoPorCategoria[categoria] = (conteoPorCategoria[categoria] || 0) + 1;
         }
-      }
+      });
     }
 
     return conteoPorCategoria;
   } catch (error) {
     console.error('Error fetching productos por categoría:', error);
-    return {
-      'Alimentos': 45,
-      'Bebidas': 32,
-      'Limpieza': 18,
-      'Otros': 12
-    };
+    return { 'Sin datos': 0 };
   }
 };
 
-// 9. Obtener productos próximos a vencer
+// 9. Obtener productos próximos a vencer usando fn_productos_por_vencer
 const fetchProximosVencimientos = async () => {
   try {
-    const hoy = new Date();
-    const limite = new Date();
-    limite.setDate(hoy.getDate() + 30); // Próximos 30 días
-
-    const { data, error } = await supabase
-      .from('lotes')
-      .select('*')
-      .gte('fecha_vencimiento', hoy.toISOString().split('T')[0])
-      .lte('fecha_vencimiento', limite.toISOString().split('T')[0])
-      .eq('estado', 'ACTIVO')
-      .gt('cantidad', 0);
+    const { data, error } = await supabase.rpc('fn_productos_por_vencer', {
+      p_dias_anticipacion: 30
+    });
 
     if (error) throw error;
 
-    return data.length;
+    return data ? data.length : 0;
   } catch (error) {
     console.error('Error fetching próximos vencimientos:', error);
     return 0;
   }
 };
 
-// 10. Usar procedimiento almacenado para alertas de stock bajo
+// 10. Obtener alertas de stock bajo usando fn_generar_alertas_stock_bajo
 const fetchAlertasStockBajo = async () => {
   try {
-    const { data, error } = await supabase
-      .rpc('fn_alerta_stock_bajo');
+    const { data, error } = await supabase.rpc('fn_alerta_stock_bajo');
 
     if (error) throw error;
 
-    return data.length;
+    return data ? data.length : 0;
   } catch (error) {
     console.error('Error fetching alertas stock:', error);
     return 0;

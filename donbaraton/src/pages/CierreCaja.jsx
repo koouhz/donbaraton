@@ -16,6 +16,8 @@ export default function CierreCaja() {
   const [efectivoFisico, setEfectivoFisico] = useState('');
   const [observaciones, setObservaciones] = useState('');
   const [filterFecha, setFilterFecha] = useState('');
+  const [firmaSupervisor, setFirmaSupervisor] = useState('');
+
 
   const getUser = () => {
     const user = localStorage.getItem('user');
@@ -73,7 +75,8 @@ export default function CierreCaja() {
         p_usuario_id: user.id,
         p_efectivo_fisico: parseFloat(efectivoFisico),
         p_observaciones: observaciones.trim() || null,
-        p_usuario_auditoria: user.username
+        p_usuario_auditoria: user.id,  // Usar ID de usuario (USR-001) para auditoría
+        p_firma_supervisor: firmaSupervisor.trim() || null
       });
 
       if (error) {
@@ -91,6 +94,7 @@ export default function CierreCaja() {
         setShowModal(false);
         setEfectivoFisico('');
         setObservaciones('');
+        setFirmaSupervisor('');
         cargarDatos();
       }
     } catch (err) {
@@ -270,6 +274,17 @@ export default function CierreCaja() {
                   style={styles.textarea}
                   placeholder="Notas adicionales sobre el cierre..."
                   rows={3}
+                />
+              </div>
+
+              <div style={styles.formGroup}>
+                <label style={styles.label}>Firma del Supervisor (Administrador)</label>
+                <input
+                  type="text"
+                  value={firmaSupervisor}
+                  onChange={e => setFirmaSupervisor(e.target.value)}
+                  style={{...styles.textarea, height: 'auto', padding: '12px 15px'}}
+                  placeholder="Nombre del supervisor que autoriza..."
                 />
               </div>
             </div>
