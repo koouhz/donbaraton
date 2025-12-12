@@ -480,7 +480,7 @@ export default function Login({ onLogin }) {
             fontSize: "11px",
             opacity: 0.7
           }}>
-            Sistema con procedimientos almacenados • v1.0
+            Sistema hecho por los lexus
           </p>
         </div>
       </div>

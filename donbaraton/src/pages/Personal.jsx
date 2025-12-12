@@ -1,4 +1,3 @@
-// src/pages/Personal.jsx
 import { useState, useEffect } from 'react';
 import {
   Users, Plus, Edit, Trash2, Search,
@@ -22,7 +21,7 @@ export default function Personal() {
     paterno: '',
     materno: '',
     fecha_nac: '',
-    sexo: true,
+    sexo: 'M',
     telefono: '',
     email: '',
     cargo_id: '',
@@ -97,16 +96,16 @@ export default function Personal() {
       const { data, error } = await supabase.rpc('fn_crear_empleado', {
         p_ci: formData.ci.trim(),
         p_nombres: formData.nombres.trim(),
-        p_paterno: formData.paterno.trim(),
-        p_materno: formData.materno.trim() || null,
-        p_fecha_nac: formData.fecha_nac || null,
+        p_apellido_paterno: formData.paterno.trim(),
+        p_apellido_materno: formData.materno ? formData.materno.trim() : null,
+        p_fecha_nacimiento: formData.fecha_nac || null,
         p_sexo: formData.sexo,
-        p_telefono: formData.telefono.trim() || null,
-        p_email: formData.email.trim() || null,
-        p_cargo_id: parseInt(formData.cargo_id),
+        p_telefono: formData.telefono ? formData.telefono.trim() : null,
+        p_email: formData.email ? formData.email.trim() : null,
+        p_id_cargo: formData.cargo_id, // Cambiado de p_cargo_id a p_id_cargo para coincidir con la DB si fuera necesario, o mantener consistencia con update
         p_salario: parseFloat(formData.salario) || 0,
         p_usuario_auditoria: getUsername(),
-        p_username: formData.username.trim() || null,
+        p_username: formData.username ? formData.username.trim() : null,
         p_password_hash: formData.password ? await hashPassword(formData.password) : null
       });
 
@@ -123,6 +122,7 @@ export default function Personal() {
         cargarDatos();
       }
     } catch (err) {
+      console.error(err);
       toast.error('Error al crear empleado');
     } finally {
       setSaving(false);
@@ -133,10 +133,10 @@ export default function Personal() {
     setSaving(true);
     try {
       const { error } = await supabase.rpc('fn_actualizar_empleado', {
-        p_id: editingItem.id,
-        p_telefono: formData.telefono.trim() || null,
-        p_email: formData.email.trim() || null,
-        p_cargo_id: parseInt(formData.cargo_id),
+        p_id: editingItem.id_empleado,
+        p_telefono: formData.telefono ? formData.telefono.trim() : null,
+        p_email: formData.email ? formData.email.trim() : null,
+        p_id_cargo: formData.cargo_id,
         p_salario: parseFloat(formData.salario) || 0,
         p_usuario_auditoria: getUsername()
       });
@@ -160,8 +160,8 @@ export default function Personal() {
     if (!window.confirm(`¿Dar de baja a "${nombre}"?`)) return;
 
     try {
-      const { error } = await supabase.rpc('fn_eliminar_empleado', {
-        p_id: id,
+      const { error } = await supabase.rpc('fn_desactivar_empleado', {
+        p_id_empleado: id,
         p_usuario_auditoria: getUsername()
       });
 
@@ -177,21 +177,21 @@ export default function Personal() {
   };
 
   const openEditModal = (empleado) => {
+    console.log("Editando:", empleado);
     setEditingItem(empleado);
-    const cargo = cargos.find(c => c.nombre === empleado.cargo);
+
     setFormData({
       ci: empleado.ci || '',
-      nombres: '',
-      paterno: '',
-      materno: '',
-      fecha_nac: '',
-      sexo: true,
-      telefono: '',
-      email: '',
-      cargo_id: cargo?.id || '',
-      cargo_id: cargo?.id || '',
-      salario: '',
-      username: '',
+      nombres: empleado.nombres || '',
+      paterno: empleado.apellido_paterno || '',
+      materno: empleado.apellido_materno || '',
+      fecha_nac: empleado.fecha_nacimiento || '',
+      sexo: empleado.sexo || 'M',
+      telefono: empleado.telefono || '',
+      email: empleado.email || '',
+      cargo_id: empleado.id_cargo || '',
+      salario: empleado.salario || '',
+      username: '', // No editamos usuario/pass aquí por seguridad simple
       password: ''
     });
     setShowModal(true);
@@ -206,7 +206,7 @@ export default function Personal() {
   const resetForm = () => {
     setFormData({
       ci: '', nombres: '', paterno: '', materno: '',
-      fecha_nac: '', sexo: true, telefono: '', email: '',
+      fecha_nac: '', sexo: 'M', telefono: '', email: '',
       cargo_id: '', salario: '', username: '', password: ''
     });
     setEditingItem(null);
@@ -276,6 +276,7 @@ export default function Personal() {
               <tr>
                 <th style={styles.th}>Empleado</th>
                 <th style={styles.th}>CI</th>
+                <th style={styles.th}>Contacto</th>
                 <th style={styles.th}>Cargo</th>
                 <th style={styles.th}>Estado</th>
                 <th style={{ ...styles.th, textAlign: 'center' }}>Acciones</th>
@@ -285,16 +286,26 @@ export default function Personal() {
               {empleados.map((emp) => {
                 const estadoStyle = getEstadoBadge(emp.estado);
                 return (
-                  <tr key={emp.id} style={styles.tr}>
-                    <td style={styles.td}>
+                  <tr key={emp.id_empleado} style={styles.tr}>
+                    <td style={{ ...styles.td, whiteSpace: 'normal', wordBreak: 'break-word', maxWidth: '250px' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                         <div style={styles.avatar}>
                           <User size={18} />
                         </div>
-                        <strong>{emp.nombre_completo}</strong>
+                        <div>
+                          <strong>{`${emp.nombres} ${emp.apellido_paterno || ''} ${emp.apellido_materno || ''}`.trim()}</strong>
+                          {emp.email && <div style={{ fontSize: '12px', color: '#666' }}>{emp.email}</div>}
+                        </div>
                       </div>
                     </td>
                     <td style={styles.td}>{emp.ci}</td>
+                    <td style={styles.td}>
+                      {emp.telefono && (
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                          <Phone size={12} color="#666" /> {emp.telefono}
+                        </div>
+                      )}
+                    </td>
                     <td style={styles.td}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                         <Briefcase size={14} style={{ color: '#6c757d' }} />
@@ -315,7 +326,7 @@ export default function Personal() {
                         <button style={styles.editButton} onClick={() => openEditModal(emp)}>
                           <Edit size={16} />
                         </button>
-                        <button style={styles.deleteButton} onClick={() => handleDelete(emp.id, emp.nombre_completo)}>
+                        <button style={styles.deleteButton} onClick={() => handleDelete(emp.id_empleado, emp.nombres)}>
                           <Trash2 size={16} />
                         </button>
                       </div>
@@ -432,11 +443,11 @@ export default function Personal() {
                       <label style={styles.label}>Sexo</label>
                       <select
                         value={formData.sexo}
-                        onChange={e => setFormData({ ...formData, sexo: e.target.value === 'true' })}
+                        onChange={e => setFormData({ ...formData, sexo: e.target.value })}
                         style={styles.input}
                       >
-                        <option value="true">Masculino</option>
-                        <option value="false">Femenino</option>
+                        <option value="M">Masculino</option>
+                        <option value="F">Femenino</option>
                       </select>
                     </div>
                   </div>
@@ -531,7 +542,7 @@ const styles = {
   th: { padding: '15px 20px', textAlign: 'left', background: '#f8f9fa', color: '#1a5d1a', fontWeight: '600', fontSize: '14px', borderBottom: '2px solid #e9ecef' },
   tr: { borderBottom: '1px solid #e9ecef' },
   td: { padding: '15px 20px', fontSize: '14px', color: '#495057' },
-  avatar: { width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #1a5d1a, #2e8b57)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' },
+  avatar: { width: '40px', height: '40px', borderRadius: '50%', background: 'linear-gradient(135deg, #1a5d1a, #2e8b57)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 },
   badge: { padding: '5px 12px', borderRadius: '20px', fontSize: '12px', fontWeight: '600' },
   actionButtons: { display: 'flex', gap: '8px', justifyContent: 'center' },
   editButton: { padding: '8px', background: '#e3f2fd', border: 'none', borderRadius: '8px', cursor: 'pointer', color: '#1976d2' },
