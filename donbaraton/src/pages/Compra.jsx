@@ -1,11 +1,38 @@
 // src/pages/Compra.jsx
-import { 
+import { useEffect, useState } from 'react';
+import {
   ShoppingBag, ArrowRight, FileText, Package, Truck
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { supabase } from '../lib/supabaseClient';
 
 export default function Compra() {
   const navigate = useNavigate();
+  const [stats, setStats] = useState({ ordenes: 0, proveedores: 0 });
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const fetchStats = async () => {
+    try {
+      const [ordRes, provRes] = await Promise.all([
+        supabase.rpc('fn_leer_ordenes_compra', {
+          p_estado: null,
+          p_fecha_inicio: null,
+          p_fecha_fin: null
+        }),
+        supabase.rpc('fn_leer_proveedores', { p_buscar_texto: null })
+      ]);
+
+      setStats({
+        ordenes: ordRes.data?.length || 0,
+        proveedores: provRes.data?.length || 0
+      });
+    } catch (error) {
+      console.error('Error loading stats:', error);
+    }
+  };
 
   return (
     <div style={styles.container}>
@@ -29,6 +56,9 @@ export default function Compra() {
           <div style={styles.cardContent}>
             <h3>Órdenes de Compra</h3>
             <p>Crear y gestionar pedidos a proveedores</p>
+            {stats.ordenes > 0 && (
+              <span style={styles.badge}>{stats.ordenes} Registradas</span>
+            )}
           </div>
           <ArrowRight size={20} style={{ color: '#ccc' }} />
         </button>
@@ -40,6 +70,9 @@ export default function Compra() {
           <div style={styles.cardContent}>
             <h3>Proveedores</h3>
             <p>Administrar proveedores y contactos</p>
+            {stats.proveedores > 0 && (
+              <span style={styles.badge}>{stats.proveedores} Activos</span>
+            )}
           </div>
           <ArrowRight size={20} style={{ color: '#ccc' }} />
         </button>
@@ -79,4 +112,5 @@ const styles = {
   card: { display: 'flex', alignItems: 'center', gap: '20px', padding: '25px', background: 'white', border: '1px solid #e9ecef', borderRadius: '16px', cursor: 'pointer', textAlign: 'left', transition: 'all 0.2s', width: '100%' },
   cardIcon: { width: '60px', height: '60px', borderRadius: '12px', background: '#f8f9fa', display: 'flex', alignItems: 'center', justifyContent: 'center' },
   cardContent: { flex: 1 },
+  badge: { display: 'inline-block', marginTop: '8px', padding: '4px 10px', background: '#e8f5e9', color: '#2e7d32', borderRadius: '12px', fontSize: '12px', fontWeight: '600' }
 };
