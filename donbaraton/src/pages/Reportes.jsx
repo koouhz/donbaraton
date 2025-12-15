@@ -1,6 +1,6 @@
 // src/pages/Reportes.jsx
 import { useState, useEffect } from 'react';
-import { 
+import {
   FileBarChart, TrendingUp, Package, DollarSign,
   Loader2, ArrowRight, Calendar, Warehouse
 } from 'lucide-react';
@@ -26,7 +26,7 @@ export default function Reportes() {
 
     try {
       const [rentRes, invRes] = await Promise.all([
-        supabase.rpc('fn_reporte_rentabilidad', {
+        supabase.rpc('fn_reporte_rentabilidad_producto', {
           p_fecha_inicio: inicioMes,
           p_fecha_fin: finMes
         }),
@@ -56,17 +56,22 @@ export default function Reportes() {
     valorVenta: acc.valorVenta + parseFloat(cat.valor_venta_potencial || 0)
   }), { productos: 0, stock: 0, valorCosto: 0, valorVenta: 0 });
 
-  // Totales de rentabilidad
-  const totalRent = rentabilidad.reduce((acc, p) => ({
-    ingreso: acc.ingreso + parseFloat(p.ingreso_total || 0),
-    costo: acc.costo + parseFloat(p.costo_total || 0),
-    ganancia: acc.ganancia + parseFloat(p.ganancia_bruta || 0)
-  }), { ingreso: 0, costo: 0, ganancia: 0 });
+  // Totales de rentabilidad (usando campos del fn_reporte_rentabilidad_producto)
+  const totalRent = rentabilidad.reduce((acc, p) => {
+    const cantidad = parseInt(p.cantidad_vendida || 0);
+    const ingreso = cantidad * parseFloat(p.precio_venta || 0);
+    const costo = cantidad * parseFloat(p.precio_costo || 0);
+    return {
+      ingreso: acc.ingreso + ingreso,
+      costo: acc.costo + costo,
+      ganancia: acc.ganancia + parseFloat(p.ganancia_total || 0)
+    };
+  }, { ingreso: 0, costo: 0, ganancia: 0 });
 
   return (
     <div style={styles.container}>
       <Toaster position="top-right" />
-      
+
       <header style={styles.header}>
         <div>
           <h1 style={styles.title}>
@@ -157,7 +162,7 @@ export default function Reportes() {
                         <td style={styles.td}>{cat.cantidad_productos}</td>
                         <td style={styles.td}>{cat.stock_total}</td>
                         <td style={styles.td}>{formatCurrency(cat.valor_costo_total)}</td>
-                        <td style={{...styles.td, color: '#2e7d32', fontWeight: '600'}}>{formatCurrency(cat.valor_venta_potencial)}</td>
+                        <td style={{ ...styles.td, color: '#2e7d32', fontWeight: '600' }}>{formatCurrency(cat.valor_venta_potencial)}</td>
                       </tr>
                     ))}
                   </tbody>
@@ -201,23 +206,29 @@ export default function Reportes() {
                     </tr>
                   </thead>
                   <tbody>
-                    {rentabilidad.slice(0, 10).map((prod, i) => (
-                      <tr key={i} style={styles.tr}>
-                        <td style={styles.td}><strong>{prod.producto}</strong></td>
-                        <td style={styles.td}>{prod.unidades_vendidas}</td>
-                        <td style={styles.td}>{formatCurrency(prod.ingreso_total)}</td>
-                        <td style={{...styles.td, color: '#2e7d32', fontWeight: '600'}}>{formatCurrency(prod.ganancia_bruta)}</td>
-                        <td style={styles.td}>
-                          <span style={{
-                            ...styles.badge,
-                            background: parseFloat(prod.margen_porcentaje) >= 20 ? '#e8f5e9' : '#fff3e0',
-                            color: parseFloat(prod.margen_porcentaje) >= 20 ? '#2e7d32' : '#e65100'
-                          }}>
-                            {prod.margen_porcentaje}%
-                          </span>
-                        </td>
-                      </tr>
-                    ))}
+                    {rentabilidad.slice(0, 10).map((prod, i) => {
+                      const ingreso = parseInt(prod.cantidad_vendida || 0) * parseFloat(prod.precio_venta || 0);
+                      const margenPct = prod.precio_venta > 0
+                        ? ((prod.precio_venta - prod.precio_costo) / prod.precio_venta * 100).toFixed(1)
+                        : 0;
+                      return (
+                        <tr key={i} style={styles.tr}>
+                          <td style={styles.td}><strong>{prod.producto}</strong></td>
+                          <td style={styles.td}>{prod.cantidad_vendida}</td>
+                          <td style={styles.td}>{formatCurrency(ingreso)}</td>
+                          <td style={{ ...styles.td, color: '#2e7d32', fontWeight: '600' }}>{formatCurrency(prod.ganancia_total)}</td>
+                          <td style={styles.td}>
+                            <span style={{
+                              ...styles.badge,
+                              background: parseFloat(margenPct) >= 20 ? '#e8f5e9' : '#fff3e0',
+                              color: parseFloat(margenPct) >= 20 ? '#2e7d32' : '#e65100'
+                            }}>
+                              {margenPct}%
+                            </span>
+                          </td>
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
