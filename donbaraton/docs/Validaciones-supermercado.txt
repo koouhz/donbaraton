@@ -1,5 +1,68 @@
 | nombre_funcion                    | codigo_completo                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | --------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| fn_obtener_ultimo_lote            | CREATE OR REPLACE FUNCTION public.fn_obtener_ultimo_lote()
+ RETURNS character varying
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_ultimo_lote VARCHAR;
+    v_numero INT;
+BEGIN
+    SELECT lote INTO v_ultimo_lote
+    FROM public.movimientos_inventario
+    WHERE lote LIKE 'LOT-%'
+    ORDER BY lote DESC
+    LIMIT 1;
+    
+    IF v_ultimo_lote IS NULL THEN
+        RETURN 'LOT-006'; -- Mínimo inicial
+    END IF;
+    
+    -- Extraer número y sumar 1
+    v_numero := COALESCE(
+        NULLIF(regexp_replace(v_ultimo_lote, '\D', '', 'g'), '')::INT, 
+        5
+    ) + 1;
+    
+    -- Asegurar mínimo de 6
+    IF v_numero < 6 THEN
+        v_numero := 6;
+    END IF;
+    
+    RETURN 'LOT-' || LPAD(v_numero::VARCHAR, 3, '0');
+END;
+$function$
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                           |
+| fn_cancelar_orden                 | CREATE OR REPLACE FUNCTION public.fn_cancelar_orden(p_id_orden character varying, p_username character varying)
+ RETURNS boolean
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    -- Validar que la orden exista y esté pendiente
+    IF NOT EXISTS (
+        SELECT 1 FROM public.ordenes_compra 
+        WHERE id_orden = p_id_orden AND estado = 'PENDIENTE'
+    ) THEN
+        RAISE EXCEPTION 'La orden no existe o no está pendiente';
+    END IF;
+    
+    -- Registrar auditoría
+    PERFORM public.fn_registrar_auditoria(
+        p_username, 
+        'COMPRAS', 
+        'CANCELAR_ORDEN',
+        'Orden cancelada: ' || p_id_orden
+    );
+    
+    -- Actualizar estado
+    UPDATE public.ordenes_compra 
+    SET estado = 'CANCELADA'
+    WHERE id_orden = p_id_orden;
+    
+    RETURN FOUND;
+END;
+$function$
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
 | fn_desactivar_rol                 | CREATE OR REPLACE FUNCTION public.fn_desactivar_rol(p_id_rol character varying, p_usuario_auditoria character varying)
  RETURNS boolean
  LANGUAGE plpgsql
@@ -43,6 +106,211 @@ BEGIN
 END;
 $function$
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| fn_registrar_asistencia           | CREATE OR REPLACE FUNCTION public.fn_registrar_asistencia(p_id_empleado character varying, p_tipo character varying, p_hora time without time zone, p_observaciones character varying, p_usuario_auditoria character varying)
+ RETURNS json
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_id VARCHAR;
+    v_fecha DATE := CURRENT_DATE;
+    v_asistencia RECORD;
+BEGIN
+    -- Buscar registro existente del día
+    SELECT * INTO v_asistencia
+    FROM public.asistencias
+    WHERE id_empleado = p_id_empleado
+      AND fecha = v_fecha;
+
+    -- REGISTRO DE ENTRADA
+    IF p_tipo = 'ENTRADA' THEN
+        IF v_asistencia.id_asistencia IS NOT NULL THEN
+            RAISE EXCEPTION 'Ya se registró una entrada para este empleado hoy.';
+        END IF;
+
+        v_id := 'ASIS-' || LPAD(nextval('asistencias_seq')::VARCHAR, 6, '0');
+
+        INSERT INTO public.asistencias (
+            id_asistencia, id_empleado, fecha, hora_entrada, tipo, metodo, observaciones
+        ) VALUES (
+            v_id, p_id_empleado, v_fecha, p_hora, 'ENTRADA', 'MANUAL', p_observaciones
+        );
+
+        PERFORM public.fn_registrar_auditoria(
+            p_usuario_auditoria, 'RRHH', 'REGISTRO_ENTRADA', 'Empleado: ' || p_id_empleado
+        );
+
+        RETURN json_build_object('estado', 'OK', 'mensaje', 'Entrada registrada', 'hora', p_hora);
+
+    -- REGISTRO DE SALIDA
+    ELSIF p_tipo = 'SALIDA' THEN
+        IF v_asistencia.id_asistencia IS NULL THEN
+            RAISE EXCEPTION 'No existe registro de entrada para este empleado hoy.';
+        END IF;
+
+        IF v_asistencia.hora_salida IS NOT NULL THEN
+            RAISE EXCEPTION 'Ya se registró una salida para este empleado hoy.';
+        END IF;
+
+        UPDATE public.asistencias
+        SET hora_salida = p_hora
+        WHERE id_asistencia = v_asistencia.id_asistencia;
+
+        PERFORM public.fn_registrar_auditoria(
+            p_usuario_auditoria, 'RRHH', 'REGISTRO_SALIDA', 'Empleado: ' || p_id_empleado
+        );
+
+        RETURN json_build_object('estado', 'OK', 'mensaje', 'Salida registrada', 'hora', p_hora);
+
+    ELSE
+        RAISE EXCEPTION 'Tipo inválido. Use ENTRADA o SALIDA.';
+    END IF;
+END;
+$function$
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| fn_leer_ordenes_compra_completo   | CREATE OR REPLACE FUNCTION public.fn_leer_ordenes_compra_completo(p_estado character varying DEFAULT NULL::character varying, p_fecha_inicio date DEFAULT NULL::date, p_fecha_fin date DEFAULT NULL::date, p_id_proveedor character varying DEFAULT NULL::character varying)
+ RETURNS TABLE(id_orden character varying, id_proveedor character varying, proveedor character varying, fecha_emision date, fecha_entrega date, total numeric, estado character varying)
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        oc.id_orden,
+        oc.id_proveedor,
+        p.razon_social as proveedor,
+        oc.fecha_emision,
+        oc.fecha_entrega,
+        oc.total,
+        oc.estado
+    FROM public.ordenes_compra oc
+    JOIN public.proveedores p ON oc.id_proveedor = p.id_proveedor
+    WHERE (p_estado IS NULL OR oc.estado = p_estado)
+      AND (p_fecha_inicio IS NULL OR oc.fecha_emision >= p_fecha_inicio)
+      AND (p_fecha_fin IS NULL OR oc.fecha_emision <= p_fecha_fin)
+      AND (p_id_proveedor IS NULL OR oc.id_proveedor = p_id_proveedor)
+    ORDER BY oc.fecha_emision DESC;
+END;
+$function$
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
+| fn_crear_orden_compra_v2          | CREATE OR REPLACE FUNCTION public.fn_crear_orden_compra_v2(p_id_proveedor character varying, p_fecha_emision date, p_fecha_entrega date, p_detalles jsonb, p_username character varying)
+ RETURNS character varying
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_id_orden VARCHAR;
+    v_id_usuario VARCHAR;
+    v_total NUMERIC := 0;
+    rec RECORD;
+BEGIN
+    SELECT id_usuario INTO v_id_usuario FROM usuarios WHERE username = p_username;
+    
+    PERFORM public.fn_registrar_auditoria(
+        p_username, 'COMPRAS', 'CREAR_ORDEN',
+        'Proveedor: ' || p_id_proveedor
+    );
+    
+    v_id_orden := 'OC-' || LPAD(nextval('ordenes_compra_seq')::VARCHAR, 3, '0');
+
+    INSERT INTO public.ordenes_compra (
+        id_orden, id_proveedor, fecha_emision, fecha_entrega,
+        estado, id_usuario, fecha_registro
+    ) VALUES (
+        v_id_orden, p_id_proveedor, p_fecha_emision, p_fecha_entrega,
+        'PENDIENTE', v_id_usuario, CURRENT_TIMESTAMP
+    );
+
+    FOR rec IN SELECT * FROM jsonb_to_recordset(p_detalles) AS x(
+        id_producto VARCHAR, cantidad INTEGER, precio_unitario NUMERIC
+    )
+    LOOP
+        INSERT INTO public.detalle_orden_compra (
+            id_detalle_orden, id_orden, id_producto, cantidad,
+            precio_unitario, subtotal
+        ) VALUES (
+            'DOC-' || LPAD(nextval('detalle_orden_seq')::VARCHAR, 3, '0'),
+            v_id_orden, rec.id_producto, rec.cantidad,
+            rec.precio_unitario, rec.cantidad * rec.precio_unitario
+        );
+        v_total := v_total + (rec.cantidad * rec.precio_unitario);
+    END LOOP;
+
+    UPDATE public.ordenes_compra SET total = v_total WHERE id_orden = v_id_orden;
+    RETURN v_id_orden;
+END;
+$function$
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     |
+| fn_recepcionar_orden_v2           | CREATE OR REPLACE FUNCTION public.fn_recepcionar_orden_v2(p_id_orden character varying, p_lote character varying, p_fecha_vencimiento date, p_fecha_entrega date, p_username character varying)
+ RETURNS character varying
+ LANGUAGE plpgsql
+AS $function$
+DECLARE
+    v_id_recepcion VARCHAR;
+    v_id_usuario VARCHAR;
+    v_id_proveedor VARCHAR;
+    v_total_orden NUMERIC;
+    rec RECORD;
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM public.ordenes_compra WHERE id_orden = p_id_orden AND estado = 'PENDIENTE'
+    ) THEN
+        RAISE EXCEPTION 'Orden no encontrada o ya procesada';
+    END IF;
+
+    SELECT id_usuario INTO v_id_usuario FROM usuarios WHERE username = p_username;
+    SELECT id_proveedor, total INTO v_id_proveedor, v_total_orden 
+    FROM ordenes_compra WHERE id_orden = p_id_orden;
+    
+    PERFORM public.fn_registrar_auditoria(
+        p_username, 'COMPRAS', 'RECEPCION', 'Orden: ' || p_id_orden
+    );
+    
+    v_id_recepcion := 'REC-' || LPAD(nextval('recepciones_seq')::VARCHAR, 3, '0');
+
+    INSERT INTO public.recepciones (
+        id_recepcion, id_orden, fecha_ingreso, lote, fecha_vencimiento, id_usuario
+    ) VALUES (
+        v_id_recepcion, p_id_orden, CURRENT_DATE, p_lote, p_fecha_vencimiento, v_id_usuario
+    );
+
+    FOR rec IN SELECT doc.id_producto, doc.cantidad FROM public.detalle_orden_compra doc WHERE doc.id_orden = p_id_orden
+    LOOP
+        INSERT INTO public.movimientos_inventario (
+            id_movimiento, id_producto, tipo, cantidad, lote,
+            fecha_vencimiento, documento, id_usuario, fecha_hora
+        ) VALUES (
+            'MOV-' || LPAD(nextval('movimientos_seq')::VARCHAR, 3, '0'),
+            rec.id_producto, 'ENTRADA', rec.cantidad, p_lote,
+            p_fecha_vencimiento, v_id_recepcion, v_id_usuario, CURRENT_TIMESTAMP
+        );
+
+        IF p_fecha_vencimiento IS NOT NULL THEN
+            INSERT INTO public.lotes (id_lote, id_producto, lote, fecha_vencimiento, cantidad, estado)
+            VALUES (
+                'LOT-' || LPAD(nextval('lotes_seq')::VARCHAR, 3, '0'),
+                rec.id_producto, p_lote, p_fecha_vencimiento, rec.cantidad, 'ACTIVO'
+            );
+        END IF;
+    END LOOP;
+
+    -- Actualizar estado Y fecha_entrega
+    UPDATE public.ordenes_compra 
+    SET estado = 'RECIBIDA', fecha_entrega = p_fecha_entrega 
+    WHERE id_orden = p_id_orden;
+
+    -- Crear cuenta por pagar
+    INSERT INTO public.cuentas_por_pagar (
+        id_cuenta, id_proveedor, numero_factura, fecha_emision, fecha_vencimiento,
+        monto_total, saldo_pendiente, estado, observaciones, fecha_registro
+    ) VALUES (
+        'CTAP-' || LPAD(nextval('cuentas_pagar_seq')::VARCHAR, 3, '0'),
+        v_id_proveedor, 'FAC-' || p_id_orden, CURRENT_DATE,
+        CURRENT_DATE + COALESCE((SELECT plazo_credito FROM proveedores WHERE id_proveedor = v_id_proveedor), 30),
+        v_total_orden, v_total_orden, 'PENDIENTE', 'Generado desde orden ' || p_id_orden, CURRENT_TIMESTAMP
+    );
+
+    RETURN v_id_recepcion;
+END;
+$function$
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                             |
 | fn_listar_productos               | CREATE OR REPLACE FUNCTION public.fn_listar_productos()
  RETURNS TABLE(id_producto character varying, codigo_interno character varying, nombre character varying, categoria character varying, marca character varying, precio_venta numeric, stock_actual integer, estado character varying)
  LANGUAGE plpgsql
@@ -2030,95 +2298,6 @@ BEGIN
 END;
 $function$
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                              |
-| fn_registrar_asistencia           | CREATE OR REPLACE FUNCTION public.fn_registrar_asistencia(p_id_empleado character varying, p_tipo character varying, p_observaciones character varying, p_usuario_auditoria character varying)
- RETURNS json
- LANGUAGE plpgsql
-AS $function$
-DECLARE
-    v_id VARCHAR;
-    v_fecha DATE := CURRENT_DATE;
-    v_hora TIME := CURRENT_TIME;
-    v_asistencia RECORD;
-BEGIN
-    -- Buscar registro existente del día
-    SELECT * INTO v_asistencia
-    FROM public.asistencias
-    WHERE id_empleado = p_id_empleado
-      AND fecha = v_fecha;
-
-    -- REGISTRO DE ENTRADA
-    IF p_tipo = 'ENTRADA' THEN
-        IF v_asistencia.id_asistencia IS NOT NULL THEN
-            RAISE EXCEPTION 'Ya se registró una entrada para este empleado hoy.';
-        END IF;
-
-        -- Generar ID de asistencia
-        v_id := 'ASIS-' || LPAD(nextval('asistencias_seq')::VARCHAR, 6, '0');
-
-        INSERT INTO public.asistencias (
-            id_asistencia,
-            id_empleado,
-            fecha,
-            hora_entrada,
-            tipo,
-            metodo,
-            observaciones
-        ) VALUES (
-            v_id,
-            p_id_empleado,
-            v_fecha,
-            v_hora,
-            'ENTRADA',
-            'MANUAL',
-            p_observaciones
-        );
-
-        PERFORM public.fn_registrar_auditoria(
-            p_usuario_auditoria,
-            'RRHH',
-            'REGISTRO_ENTRADA',
-            'Empleado: ' || p_id_empleado
-        );
-
-        RETURN json_build_object(
-            'estado', 'OK',
-            'mensaje', 'Entrada registrada',
-            'hora', v_hora
-        );
-
-    -- REGISTRO DE SALIDA
-    ELSIF p_tipo = 'SALIDA' THEN
-        IF v_asistencia.id_asistencia IS NULL THEN
-            RAISE EXCEPTION 'No existe registro de entrada para este empleado hoy.';
-        END IF;
-
-        IF v_asistencia.hora_salida IS NOT NULL THEN
-            RAISE EXCEPTION 'Ya se registró una salida para este empleado hoy.';
-        END IF;
-
-        UPDATE public.asistencias
-        SET hora_salida = v_hora
-        WHERE id_asistencia = v_asistencia.id_asistencia;
-
-        PERFORM public.fn_registrar_auditoria(
-            p_usuario_auditoria,
-            'RRHH',
-            'REGISTRO_SALIDA',
-            'Empleado: ' || p_id_empleado
-        );
-
-        RETURN json_build_object(
-            'estado', 'OK',
-            'mensaje', 'Salida registrada',
-            'hora', v_hora
-        );
-
-    ELSE
-        RAISE EXCEPTION 'Tipo inválido. Use ENTRADA o SALIDA.';
-    END IF;
-END;
-$function$
-                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                               |
 | fn_reporte_ventas_periodo         | CREATE OR REPLACE FUNCTION public.fn_reporte_ventas_periodo(p_fecha_inicio date, p_fecha_fin date)
  RETURNS TABLE(fecha date, cantidad_ventas integer, total_vendido numeric, promedio_ticket numeric)
  LANGUAGE plpgsql
@@ -2631,6 +2810,27 @@ BEGIN
 END;
 $function$
                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         |
+| fn_leer_productos_proveedor       | CREATE OR REPLACE FUNCTION public.fn_leer_productos_proveedor(p_id_proveedor character varying)
+ RETURNS TABLE(id_producto character varying, nombre character varying, precio_compra numeric, precio_costo numeric, stock_actual integer, estado character varying)
+ LANGUAGE plpgsql
+AS $function$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        pp.id_producto,
+        p.nombre,
+        pp.precio_compra,
+        p.precio_costo,
+        p.stock_actual,
+        p.estado
+    FROM public.producto_proveedor pp
+    JOIN public.productos p ON pp.id_producto = p.id_producto
+    WHERE pp.id_proveedor = p_id_proveedor
+      AND p.estado = 'ACTIVO'
+    ORDER BY p.nombre;
+END;
+$function$
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                    |
 | fn_leer_empleados                 | CREATE OR REPLACE FUNCTION public.fn_leer_empleados(p_buscar character varying DEFAULT NULL::character varying)
  RETURNS TABLE(id_empleado character varying, ci character varying, nombres character varying, apellido_paterno character varying, apellido_materno character varying, fecha_nacimiento date, sexo character varying, telefono character varying, email character varying, id_cargo character varying, cargo character varying, salario numeric, estado character varying)
  LANGUAGE plpgsql
