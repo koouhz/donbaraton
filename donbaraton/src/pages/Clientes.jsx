@@ -40,15 +40,17 @@ export default function Clientes() {
   const cargarClientes = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc('fn_listar_clientes', {
-        p_busqueda: searchTerm || null
+      const { data, error } = await supabase.rpc('fn_leer_clientes', {
+        p_buscar: searchTerm || null
       });
 
       if (error) {
         console.error('Error:', error);
         toast.error('Error al cargar clientes');
       } else {
-        setClientes(data || []);
+        // Ordenar por ID descendente para ver los nuevos arriba
+        const sortedData = (data || []).sort((a, b) => b.id - a.id);
+        setClientes(sortedData);
       }
     } catch (err) {
       console.error('Error:', err);
@@ -65,11 +67,60 @@ export default function Clientes() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const handleCreate = async () => {
-    if (!formData.nombres.trim() || !formData.ci_nit.trim()) {
-      toast.error('Nombre y CI/NIT son obligatorios');
-      return;
+  // Regex de validación
+  const REGEX_NOMBRE = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s-]+$/;
+  const REGEX_CI = /^[0-9A-Z-]{7,12}$/i; // 7-12 caracteres alfanuméricos
+  const REGEX_TELEFONO = /^\d{8}$/;
+  const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const validarFormulario = () => {
+    // 1. Validar Nombre
+    if (!formData.nombres.trim()) {
+      toast.error('El nombre es obligatorio');
+      return false;
     }
+    if (!REGEX_NOMBRE.test(formData.nombres.trim())) {
+      toast.error('El nombre solo puede contener letras y espacios');
+      return false;
+    }
+
+    // 2. Validar Apellidos (opcionales pero si existen, solo letras)
+    if (formData.apellido_paterno && !REGEX_NOMBRE.test(formData.apellido_paterno.trim())) {
+      toast.error('El apellido paterno solo puede contener letras');
+      return false;
+    }
+    if (formData.apellido_materno && !REGEX_NOMBRE.test(formData.apellido_materno.trim())) {
+      toast.error('El apellido materno solo puede contener letras');
+      return false;
+    }
+
+    // 3. Validar CI/NIT
+    if (!formData.ci_nit.trim()) {
+      toast.error('El CI/NIT es obligatorio');
+      return false;
+    }
+    if (!REGEX_CI.test(formData.ci_nit.trim())) {
+      toast.error('El CI/NIT debe tener entre 7 y 12 caracteres alfanuméricos');
+      return false;
+    }
+
+    // 4. Validar Teléfono (Opcional)
+    if (formData.telefono && !REGEX_TELEFONO.test(formData.telefono.trim())) {
+      toast.error('El teléfono debe tener exactamente 8 dígitos numéricos');
+      return false;
+    }
+
+    // 5. Validar Email (Opcional)
+    if (formData.email && !REGEX_EMAIL.test(formData.email.trim())) {
+      toast.error('El formato del correo electrónico es inválido');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleCreate = async () => {
+    if (!validarFormulario()) return;
 
     setSaving(true);
     try {
@@ -104,15 +155,12 @@ export default function Clientes() {
   };
 
   const handleUpdate = async () => {
-    if (!formData.nombres.trim() || !formData.ci_nit.trim()) {
-      toast.error('Nombre y CI/NIT son obligatorios');
-      return;
-    }
+    if (!validarFormulario()) return;
 
     setSaving(true);
     try {
       const { error } = await supabase.rpc('fn_actualizar_cliente', {
-        p_id: editingItem.id_cliente,
+        p_id: editingItem.id,
         p_nombres: formData.nombres.trim(),
         p_apellido_paterno: formData.apellido_paterno.trim() || null,
         p_apellido_materno: formData.apellido_materno.trim() || null,
@@ -248,75 +296,45 @@ export default function Clientes() {
           <table style={styles.table}>
             <thead>
               <tr>
-                <th style={styles.th}>Nombres</th>
-                <th style={styles.th}>Ap. Paterno</th>
-                <th style={styles.th}>Ap. Materno</th>
+                <th style={styles.th}>Nombre Completo</th>
                 <th style={styles.th}>CI/NIT</th>
                 <th style={styles.th}>Teléfono</th>
                 <th style={styles.th}>Email</th>
-                <th style={styles.th}>Dirección</th>
-                <th style={styles.th}>Estado</th>
                 <th style={{ ...styles.th, textAlign: 'center' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
               {clientes.map((cliente) => (
-                <tr key={cliente.id_cliente} style={styles.tr}>
+                <tr key={cliente.id} style={styles.tr}>
                   <td style={styles.td}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
                       <div style={styles.avatar}>
                         <User size={16} />
                       </div>
-                      <strong>{cliente.nombres}</strong>
+                      <strong>{`${cliente.nombres} ${cliente.apellido_paterno || ''} ${cliente.apellido_materno || ''}`.trim()}</strong>
                     </div>
                   </td>
-                  <td style={styles.td}>
-                    {cliente.apellido_paterno || <span style={{ color: '#999' }}>-</span>}
-                  </td>
-                  <td style={styles.td}>
-                    {cliente.apellido_materno || <span style={{ color: '#999' }}>-</span>}
-                  </td>
-                  <td style={styles.td}>
-                    <span style={styles.ciBadge}>{cliente.ci_nit}</span>
-                  </td>
+                  <td style={styles.td}>{cliente.ci_nit}</td>
                   <td style={styles.td}>
                     {cliente.telefono ? (
                       <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <Phone size={14} style={{ color: '#1a5d1a' }} /> {cliente.telefono}
+                        <Phone size={14} /> {cliente.telefono}
                       </span>
                     ) : <span style={{ color: '#999' }}>-</span>}
                   </td>
                   <td style={styles.td}>
                     {cliente.email ? (
                       <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
-                        <Mail size={14} style={{ color: '#1976d2' }} />
-                        <span style={{ maxWidth: '180px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={cliente.email}>
-                          {cliente.email}
-                        </span>
+                        <Mail size={14} /> {cliente.email}
                       </span>
                     ) : <span style={{ color: '#999' }}>-</span>}
-                  </td>
-                  <td style={styles.td}>
-                    {cliente.direccion ? (
-                      <span style={{ display: 'flex', alignItems: 'center', gap: '5px', maxWidth: '200px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }} title={cliente.direccion}>
-                        <MapPin size={14} style={{ color: '#e65100' }} /> {cliente.direccion}
-                      </span>
-                    ) : <span style={{ color: '#999' }}>-</span>}
-                  </td>
-                  <td style={styles.td}>
-                    <span style={{
-                      ...styles.statusBadge,
-                      ...(cliente.estado === 'ACTIVO' ? styles.statusActive : styles.statusInactive)
-                    }}>
-                      {cliente.estado}
-                    </span>
                   </td>
                   <td style={{ ...styles.td, textAlign: 'center' }}>
                     <div style={styles.actionButtons}>
-                      <button type="button" style={styles.editButton} onClick={() => openEditModal(cliente)} title="Editar cliente">
+                      <button type="button" style={styles.editButton} onClick={() => openEditModal(cliente)}>
                         <Edit size={16} />
                       </button>
-                      <button type="button" style={styles.deleteButton} onClick={() => handleDelete(cliente.id_cliente, cliente.nombre_completo)} title="Eliminar cliente">
+                      <button type="button" style={styles.deleteButton} onClick={() => handleDelete(cliente.id, cliente.nombre_completo)}>
                         <Trash2 size={16} />
                       </button>
                     </div>
@@ -446,7 +464,7 @@ export default function Clientes() {
 }
 
 const styles = {
-  container: { padding: '20px', maxWidth: '1400px', margin: '0 auto' },
+  container: { padding: '20px', maxWidth: '1200px', margin: '0 auto' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', flexWrap: 'wrap', gap: '15px' },
   title: { margin: 0, fontSize: '28px', fontWeight: '700', color: '#1a5d1a', display: 'flex', alignItems: 'center' },
   subtitle: { margin: '8px 0 0 0', color: '#6c757d', fontSize: '14px' },
@@ -456,14 +474,14 @@ const styles = {
   searchInput: { border: 'none', outline: 'none', fontSize: '14px', width: '100%', background: 'transparent' },
   clearButton: { background: 'none', border: 'none', cursor: 'pointer', color: '#999', padding: '2px' },
   tableContainer: { background: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)', overflow: 'auto' },
-  table: { width: '100%', borderCollapse: 'collapse', minWidth: '1100px' },
-  th: { padding: '12px 15px', textAlign: 'left', background: '#f8f9fa', color: '#1a5d1a', fontWeight: '600', fontSize: '13px', borderBottom: '2px solid #e9ecef', whiteSpace: 'nowrap' },
+  table: { width: '100%', borderCollapse: 'collapse', minWidth: '700px' },
+  th: { padding: '15px 20px', textAlign: 'left', background: '#f8f9fa', color: '#1a5d1a', fontWeight: '600', fontSize: '14px', borderBottom: '2px solid #e9ecef' },
   tr: { borderBottom: '1px solid #e9ecef' },
-  td: { padding: '12px 15px', fontSize: '13px', color: '#495057' },
-  avatar: { width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, #1a5d1a, #2e8b57)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white', flexShrink: 0 },
+  td: { padding: '15px 20px', fontSize: '14px', color: '#495057' },
+  avatar: { width: '32px', height: '32px', borderRadius: '50%', background: 'linear-gradient(135deg, #1a5d1a, #2e8b57)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'white' },
   actionButtons: { display: 'flex', gap: '8px', justifyContent: 'center' },
-  editButton: { padding: '8px', background: '#e3f2fd', border: 'none', borderRadius: '8px', cursor: 'pointer', color: '#1976d2', transition: 'all 0.2s' },
-  deleteButton: { padding: '8px', background: '#ffebee', border: 'none', borderRadius: '8px', cursor: 'pointer', color: '#d32f2f', transition: 'all 0.2s' },
+  editButton: { padding: '8px', background: '#e3f2fd', border: 'none', borderRadius: '8px', cursor: 'pointer', color: '#1976d2' },
+  deleteButton: { padding: '8px', background: '#ffebee', border: 'none', borderRadius: '8px', cursor: 'pointer', color: '#d32f2f' },
   loadingState: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', color: '#6c757d', gap: '15px' },
   emptyState: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', color: '#6c757d', gap: '15px' },
   modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0, 0, 0, 0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' },
@@ -479,8 +497,4 @@ const styles = {
   modalFooter: { display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: '20px 25px', borderTop: '1px solid #e9ecef', background: '#f8f9fa' },
   cancelButton: { padding: '10px 20px', background: 'white', border: '1px solid #e9ecef', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', color: '#6c757d' },
   saveButton: { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: 'linear-gradient(135deg, #1a5d1a, #2e8b57)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' },
-  statusBadge: { padding: '4px 8px', borderRadius: '12px', fontSize: '11px', fontWeight: '700', textTransform: 'uppercase', display: 'inline-block' },
-  statusActive: { background: '#e8f5e9', color: '#2e7d32', border: '1px solid #c8e6c9' },
-  statusInactive: { background: '#ffebee', color: '#c62828', border: '1px solid #ffcdd2' },
-  ciBadge: { padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', background: '#e3f2fd', color: '#1565c0', border: '1px solid #bbdefb' },
 };
