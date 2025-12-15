@@ -192,11 +192,18 @@ const MENU_CONFIG = [
 
   // SECCIÓN: SISTEMA
   {
-    label: "Configuración",
-    icon: Settings,
-    path: "/configuracion",
+    label: "Asistencias",
+    icon: Calendar,
+    path: "/asistencias",
+    roles: [ROLES.ADMINISTRADOR, ROLES.GERENTE],
+    description: "Control de asistencias del personal"
+  },
+  {
+    label: "Cajeros",
+    icon: UserCheck,
+    path: "/cajeros",
     roles: [ROLES.ADMINISTRADOR],
-    description: "Configuración general"
+    description: "Gestión de cajeros del sistema"
   },
 ];
 
