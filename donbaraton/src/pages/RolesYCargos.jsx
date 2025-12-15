@@ -71,10 +71,17 @@ export default function RolesYCargos() {
     }
   };
 
+  // Regex para nombres de Roles y Cargos (Letras, números, espacios)
+  const REGEX_ALFANUM = /^[a-zA-Z0-9áéíóúÁÉÍÓÚñÑ\s-]+$/;
+
   // ============== ROLES ==============
   const handleCreateRole = async () => {
     if (!roleForm.nombre.trim()) {
       toast.error('El nombre del rol es obligatorio');
+      return;
+    }
+    if (!REGEX_ALFANUM.test(roleForm.nombre.trim())) {
+      toast.error('El nombre del rol contiene caracteres inválidos');
       return;
     }
 
@@ -105,6 +112,10 @@ export default function RolesYCargos() {
   const handleUpdateRole = async () => {
     if (!roleForm.nombre.trim()) {
       toast.error('El nombre del rol es obligatorio');
+      return;
+    }
+    if (!REGEX_ALFANUM.test(roleForm.nombre.trim())) {
+      toast.error('El nombre del rol contiene caracteres inválidos');
       return;
     }
 
@@ -182,6 +193,10 @@ export default function RolesYCargos() {
       toast.error('El nombre del cargo es obligatorio');
       return;
     }
+    if (!REGEX_ALFANUM.test(cargoForm.nombre.trim())) {
+      toast.error('El nombre del cargo contiene caracteres inválidos');
+      return;
+    }
 
     setSaving(true);
     try {
@@ -210,6 +225,10 @@ export default function RolesYCargos() {
   const handleUpdateCargo = async () => {
     if (!cargoForm.nombre.trim()) {
       toast.error('El nombre del cargo es obligatorio');
+      return;
+    }
+    if (!REGEX_ALFANUM.test(cargoForm.nombre.trim())) {
+      toast.error('El nombre del cargo contiene caracteres inválidos');
       return;
     }
 

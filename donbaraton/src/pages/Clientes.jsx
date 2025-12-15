@@ -1,7 +1,7 @@
 // src/pages/Clientes.jsx
 import { useState, useEffect } from 'react';
-import { 
-  Building, Plus, Edit, Trash2, Search, 
+import {
+  Building, Plus, Edit, Trash2, Search,
   X, Save, Loader2, Phone, Mail, MapPin, User
 } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
@@ -27,7 +27,7 @@ export default function Clientes() {
   const getUsername = () => {
     const user = localStorage.getItem('user');
     if (user) {
-      try { return JSON.parse(user).username || 'admin'; } 
+      try { return JSON.parse(user).username || 'admin'; }
       catch { return 'admin'; }
     }
     return 'admin';
@@ -43,12 +43,14 @@ export default function Clientes() {
       const { data, error } = await supabase.rpc('fn_leer_clientes', {
         p_buscar: searchTerm || null
       });
-      
+
       if (error) {
         console.error('Error:', error);
         toast.error('Error al cargar clientes');
       } else {
-        setClientes(data || []);
+        // Ordenar por ID descendente para ver los nuevos arriba
+        const sortedData = (data || []).sort((a, b) => b.id - a.id);
+        setClientes(sortedData);
       }
     } catch (err) {
       console.error('Error:', err);
@@ -65,11 +67,60 @@ export default function Clientes() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
-  const handleCreate = async () => {
-    if (!formData.nombres.trim() || !formData.ci_nit.trim()) {
-      toast.error('Nombre y CI/NIT son obligatorios');
-      return;
+  // Regex de validación
+  const REGEX_NOMBRE = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s-]+$/;
+  const REGEX_CI = /^[0-9A-Z-]{7,12}$/i; // 7-12 caracteres alfanuméricos
+  const REGEX_TELEFONO = /^\d{8}$/;
+  const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+  const validarFormulario = () => {
+    // 1. Validar Nombre
+    if (!formData.nombres.trim()) {
+      toast.error('El nombre es obligatorio');
+      return false;
     }
+    if (!REGEX_NOMBRE.test(formData.nombres.trim())) {
+      toast.error('El nombre solo puede contener letras y espacios');
+      return false;
+    }
+
+    // 2. Validar Apellidos (opcionales pero si existen, solo letras)
+    if (formData.apellido_paterno && !REGEX_NOMBRE.test(formData.apellido_paterno.trim())) {
+      toast.error('El apellido paterno solo puede contener letras');
+      return false;
+    }
+    if (formData.apellido_materno && !REGEX_NOMBRE.test(formData.apellido_materno.trim())) {
+      toast.error('El apellido materno solo puede contener letras');
+      return false;
+    }
+
+    // 3. Validar CI/NIT
+    if (!formData.ci_nit.trim()) {
+      toast.error('El CI/NIT es obligatorio');
+      return false;
+    }
+    if (!REGEX_CI.test(formData.ci_nit.trim())) {
+      toast.error('El CI/NIT debe tener entre 7 y 12 caracteres alfanuméricos');
+      return false;
+    }
+
+    // 4. Validar Teléfono (Opcional)
+    if (formData.telefono && !REGEX_TELEFONO.test(formData.telefono.trim())) {
+      toast.error('El teléfono debe tener exactamente 8 dígitos numéricos');
+      return false;
+    }
+
+    // 5. Validar Email (Opcional)
+    if (formData.email && !REGEX_EMAIL.test(formData.email.trim())) {
+      toast.error('El formato del correo electrónico es inválido');
+      return false;
+    }
+
+    return true;
+  };
+
+  const handleCreate = async () => {
+    if (!validarFormulario()) return;
 
     setSaving(true);
     try {
@@ -104,10 +155,7 @@ export default function Clientes() {
   };
 
   const handleUpdate = async () => {
-    if (!formData.nombres.trim() || !formData.ci_nit.trim()) {
-      toast.error('Nombre y CI/NIT son obligatorios');
-      return;
-    }
+    if (!validarFormulario()) return;
 
     setSaving(true);
     try {
@@ -193,7 +241,7 @@ export default function Clientes() {
   return (
     <div style={styles.container}>
       <Toaster position="top-right" />
-      
+
       <header style={styles.header}>
         <div>
           <h1 style={styles.title}>
@@ -252,7 +300,7 @@ export default function Clientes() {
                 <th style={styles.th}>CI/NIT</th>
                 <th style={styles.th}>Teléfono</th>
                 <th style={styles.th}>Email</th>
-                <th style={{...styles.th, textAlign: 'center'}}>Acciones</th>
+                <th style={{ ...styles.th, textAlign: 'center' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -263,7 +311,7 @@ export default function Clientes() {
                       <div style={styles.avatar}>
                         <User size={16} />
                       </div>
-                      <strong>{cliente.nombre_completo}</strong>
+                      <strong>{`${cliente.nombres} ${cliente.apellido_paterno || ''} ${cliente.apellido_materno || ''}`.trim()}</strong>
                     </div>
                   </td>
                   <td style={styles.td}>{cliente.ci_nit}</td>
@@ -272,16 +320,16 @@ export default function Clientes() {
                       <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                         <Phone size={14} /> {cliente.telefono}
                       </span>
-                    ) : <span style={{color: '#999'}}>-</span>}
+                    ) : <span style={{ color: '#999' }}>-</span>}
                   </td>
                   <td style={styles.td}>
                     {cliente.email ? (
                       <span style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
                         <Mail size={14} /> {cliente.email}
                       </span>
-                    ) : <span style={{color: '#999'}}>-</span>}
+                    ) : <span style={{ color: '#999' }}>-</span>}
                   </td>
-                  <td style={{...styles.td, textAlign: 'center'}}>
+                  <td style={{ ...styles.td, textAlign: 'center' }}>
                     <div style={styles.actionButtons}>
                       <button type="button" style={styles.editButton} onClick={() => openEditModal(cliente)}>
                         <Edit size={16} />
@@ -318,7 +366,7 @@ export default function Clientes() {
                   <input
                     type="text"
                     value={formData.nombres}
-                    onChange={(e) => setFormData({...formData, nombres: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, nombres: e.target.value })}
                     style={styles.input}
                     placeholder="Nombres"
                   />
@@ -328,7 +376,7 @@ export default function Clientes() {
                   <input
                     type="text"
                     value={formData.apellido_paterno}
-                    onChange={(e) => setFormData({...formData, apellido_paterno: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, apellido_paterno: e.target.value })}
                     style={styles.input}
                     placeholder="Apellido Paterno"
                   />
@@ -341,7 +389,7 @@ export default function Clientes() {
                   <input
                     type="text"
                     value={formData.apellido_materno}
-                    onChange={(e) => setFormData({...formData, apellido_materno: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, apellido_materno: e.target.value })}
                     style={styles.input}
                     placeholder="Apellido Materno"
                   />
@@ -351,7 +399,7 @@ export default function Clientes() {
                   <input
                     type="text"
                     value={formData.ci_nit}
-                    onChange={(e) => setFormData({...formData, ci_nit: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, ci_nit: e.target.value })}
                     style={styles.input}
                     placeholder="Carnet o NIT"
                   />
@@ -364,7 +412,7 @@ export default function Clientes() {
                   <input
                     type="tel"
                     value={formData.telefono}
-                    onChange={(e) => setFormData({...formData, telefono: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
                     style={styles.input}
                     placeholder="Número de teléfono"
                   />
@@ -376,7 +424,7 @@ export default function Clientes() {
                 <input
                   type="email"
                   value={formData.email}
-                  onChange={(e) => setFormData({...formData, email: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                   style={styles.input}
                   placeholder="correo@ejemplo.com"
                 />
@@ -387,7 +435,7 @@ export default function Clientes() {
                 <input
                   type="text"
                   value={formData.direccion}
-                  onChange={(e) => setFormData({...formData, direccion: e.target.value})}
+                  onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
                   style={styles.input}
                   placeholder="Dirección del cliente"
                 />
