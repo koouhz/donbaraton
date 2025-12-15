@@ -41,6 +41,7 @@ const Reportes = lazy(() => import("./pages/Reportes"));
 const BalanceGeneral = lazy(() => import("./pages/BalanceGeneral"));
 const Backups = lazy(() => import("./pages/Backups"));
 const Configuracion = lazy(() => import("./pages/Configuracion"));
+const Cajeros = lazy(() => import("./pages/Cajeros"));
 
 // Componente de carga mientras se cargan las páginas
 const PageLoader = () => (
@@ -129,42 +130,43 @@ function App() {
               {/* Panel Principal */}
               <Route index element={<Dashboard />} />
               <Route path="dashboard" element={<Dashboard />} />
-              
+
               {/* Gestión de Personal y Roles */}
               <Route path="roles-cargos" element={<RolesYCargos />} />
               <Route path="personal" element={<Personal />} />
               <Route path="asistencias" element={<Asistencias />} />
-              
+
               {/* Inventario y Productos */}
               <Route path="productos" element={<Productos />} />
               <Route path="categorias" element={<Categorias />} />
               <Route path="inventario" element={<Inventario />} />
               <Route path="movimientos-inventario" element={<MovimientosInventario />} />
               <Route path="alertas-stock" element={<AlertasStock />} />
-              
+
               {/* Ventas */}
               <Route path="ventas" element={<Ventas />} />
               <Route path="caja" element={<Caja />} />
               <Route path="cierre-caja" element={<CierreCaja />} />
               <Route path="devoluciones" element={<Devoluciones />} />
               <Route path="reportes-ventas" element={<ReportesVentas />} />
-              
+
               {/* Compras */}
               <Route path="compras" element={<Compra />} />
               <Route path="ordenes-compra" element={<OrdenesCompra />} />
               <Route path="proveedores" element={<Proveedores />} />
               <Route path="reportes-compras" element={<ReportesCompras />} />
-              
+
               {/* Clientes */}
               <Route path="clientes" element={<Clientes />} />
               <Route path="cuentas-por-pagar" element={<CuentasPorPagar />} />
-              
+
               {/* Reportes y Administración */}
               <Route path="reportes" element={<Reportes />} />
               <Route path="balance-general" element={<BalanceGeneral />} />
               <Route path="backups" element={<Backups />} />
               <Route path="configuracion" element={<Configuracion />} />
-              
+              <Route path="cajeros" element={<Cajeros />} />
+
               {/* Redirigir cualquier ruta desconocida al dashboard */}
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
             </Route>

@@ -11,6 +11,7 @@ import {
   Store, ChevronRight, CheckCircle
 } from "lucide-react";
 import logoEmpresa from "../logo/images.jpg";
+import { supabase } from '../lib/supabaseClient';
 
 // ==================== CONSTANTES Y CONFIGURACIÓN ====================
 
@@ -192,11 +193,18 @@ const MENU_CONFIG = [
 
   // SECCIÓN: SISTEMA
   {
-    label: "Configuración",
-    icon: Settings,
-    path: "/configuracion",
+    label: "Asistencias",
+    icon: Calendar,
+    path: "/asistencias",
+    roles: [ROLES.ADMINISTRADOR, ROLES.GERENTE],
+    description: "Control de asistencias del personal"
+  },
+  {
+    label: "Cajeros",
+    icon: UserCheck,
+    path: "/cajeros",
     roles: [ROLES.ADMINISTRADOR],
-    description: "Configuración general"
+    description: "Gestión de cajeros del sistema"
   },
 ];
 
@@ -234,6 +242,7 @@ export default function Sidebar({ onLogout, empleado }) {
   const [logoError, setLogoError] = useState(false);
   const [breadcrumbs, setBreadcrumbs] = useState([]);
   const [currentPage, setCurrentPage] = useState("");
+  const [lowStockCount, setLowStockCount] = useState(0); // Contador de productos con bajo stock
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -243,6 +252,32 @@ export default function Sidebar({ onLogout, empleado }) {
     checkScreenSize();
     window.addEventListener("resize", checkScreenSize);
     return () => window.removeEventListener("resize", checkScreenSize);
+  }, []);
+
+  // Efecto para consultar productos con bajo stock
+  useEffect(() => {
+    const checkLowStock = async () => {
+      try {
+        // Obtener productos activos con stock_actual y stock_minimo
+        const { data, error } = await supabase
+          .from('productos')
+          .select('id_producto, stock_actual, stock_minimo')
+          .eq('estado', 'ACTIVO');
+
+        if (!error && data) {
+          // Filtrar en cliente: productos donde stock_actual <= stock_minimo
+          const lowStock = data.filter(p => p.stock_actual <= p.stock_minimo);
+          setLowStockCount(lowStock.length);
+        }
+      } catch (err) {
+        console.error('Error checking low stock:', err);
+      }
+    };
+
+    checkLowStock();
+    // Verificar cada 5 minutos
+    const interval = setInterval(checkLowStock, 5 * 60 * 1000);
+    return () => clearInterval(interval);
   }, []);
 
   // Efecto para actualizar breadcrumbs y página actual
@@ -922,6 +957,25 @@ export default function Sidebar({ onLogout, empleado }) {
                     <span style={sidebarStyles.navLabel}>
                       {item.label}
                     </span>
+                    {/* Alerta de bajo stock para Inventario */}
+                    {item.label === 'Inventario' && lowStockCount > 0 && (
+                      <span style={{
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: '4px',
+                        padding: '3px 8px',
+                        background: 'linear-gradient(135deg, #ff6b6b, #ee5a24)',
+                        color: 'white',
+                        borderRadius: '12px',
+                        fontSize: '11px',
+                        fontWeight: '600',
+                        boxShadow: '0 2px 8px rgba(238, 90, 36, 0.4)',
+                        animation: 'pulse 2s infinite'
+                      }} title={`${lowStockCount} productos con bajo stock`}>
+                        <AlertCircle size={12} />
+                        {lowStockCount}
+                      </span>
+                    )}
                     {active && (
                       <span style={sidebarStyles.navActiveBadge}>
                         <ChevronRight size={10} />

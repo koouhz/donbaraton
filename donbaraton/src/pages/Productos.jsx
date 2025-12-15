@@ -1,9 +1,10 @@
 // src/pages/Productos.jsx
 import { useState, useEffect } from 'react';
-import { 
-  Package, Plus, Edit, Trash2, Search, 
+import {
+  Package, Plus, Edit, Trash2, Search,
   X, Save, Loader2, Filter, AlertTriangle,
-  CheckCircle, AlertCircle, TrendingUp
+  CheckCircle, AlertCircle, TrendingUp,
+  Sparkles, ShoppingBag, RefreshCw
 } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
@@ -37,10 +38,84 @@ export default function Productos() {
   const getUsername = () => {
     const user = localStorage.getItem('user');
     if (user) {
-      try { return JSON.parse(user).usuario_id || 'USR-001'; } 
+      try { return JSON.parse(user).usuario_id || 'USR-001'; }
       catch { return 'USR-001'; }
     }
     return 'USR-001';
+  };
+
+  // Lista de marcas bolivianas populares
+  const marcasBolivianas = [
+    // Alimentos y Bebidas
+    { nombre: 'PIL Andina', categoria: 'Lácteos' },
+    { nombre: 'Delizia', categoria: 'Lácteos' },
+    { nombre: 'Pil Tarija', categoria: 'Lácteos' },
+    { nombre: 'Ilva', categoria: 'Lácteos' },
+    { nombre: 'Ceibo', categoria: 'Cacao/Chocolate' },
+    { nombre: 'Para Ti', categoria: 'Chocolate' },
+    { nombre: 'Breick', categoria: 'Snacks' },
+    { nombre: 'Lucana', categoria: 'Snacks' },
+    { nombre: 'Monopol', categoria: 'Galletas' },
+    { nombre: 'Cereales Andinos', categoria: 'Cereales' },
+    { nombre: 'Quinua Real', categoria: 'Cereales' },
+    { nombre: 'INI', categoria: 'Cereales' },
+    { nombre: 'Coronilla', categoria: 'Fideos' },
+    { nombre: 'Carozzi', categoria: 'Fideos' },
+    { nombre: 'Diana', categoria: 'Aceites' },
+    { nombre: 'Fino', categoria: 'Aceites' },
+    { nombre: 'Rico Pollo', categoria: 'Cárnicos' },
+    { nombre: 'Sofía', categoria: 'Cárnicos' },
+    { nombre: 'Stege', categoria: 'Embutidos' },
+    { nombre: 'Fridosa', categoria: 'Cárnicos' },
+    // Bebidas
+    { nombre: 'CBN (Huari, Paceña)', categoria: 'Bebidas' },
+    { nombre: 'Taquiña', categoria: 'Bebidas' },
+    { nombre: 'Coca-Cola Bolivia', categoria: 'Bebidas' },
+    { nombre: 'Cascada', categoria: 'Aguas' },
+    { nombre: 'Vital', categoria: 'Aguas' },
+    { nombre: 'Naturagua', categoria: 'Aguas' },
+    { nombre: 'Mendocina', categoria: 'Bebidas' },
+    { nombre: 'Tampico', categoria: 'Jugos' },
+    // Limpieza y Hogar
+    { nombre: 'Punto Azul', categoria: 'Limpieza' },
+    { nombre: 'Fabuloso', categoria: 'Limpieza' },
+    { nombre: 'Wiñay', categoria: 'Limpieza' },
+    { nombre: 'Boliviana de Detergentes', categoria: 'Limpieza' },
+    { nombre: 'Ypfb', categoria: 'Combustibles' },
+    // Higiene Personal
+    { nombre: 'Copacabana', categoria: 'Higiene' },
+    { nombre: 'Suavitel Bolivia', categoria: 'Higiene' },
+    // Otros
+    { nombre: 'Otras', categoria: 'General' },
+    { nombre: 'Importado', categoria: 'General' },
+    { nombre: 'Sin marca', categoria: 'General' }
+  ];
+
+  // Generar código interno automáticamente
+  const generarCodigoInterno = () => {
+    const timestamp = Date.now().toString().slice(-6);
+    const random = Math.random().toString(36).substring(2, 5).toUpperCase();
+    return `PROD-${timestamp}-${random}`;
+  };
+
+  // Generar código de barras tipo EAN-13
+  const generarCodigoBarras = () => {
+    // Prefijo Bolivia: 777
+    const prefijo = '777';
+    // Código de empresa ficticio
+    const empresa = '1234';
+    // Código de producto aleatorio
+    const producto = String(Math.floor(Math.random() * 100000)).padStart(5, '0');
+    const sinDigito = prefijo + empresa + producto;
+
+    // Calcular dígito verificador
+    let suma = 0;
+    for (let i = 0; i < 12; i++) {
+      suma += parseInt(sinDigito[i]) * (i % 2 === 0 ? 1 : 3);
+    }
+    const digitoVerificador = (10 - (suma % 10)) % 10;
+
+    return sinDigito + digitoVerificador;
   };
 
   useEffect(() => {
@@ -52,7 +127,7 @@ export default function Productos() {
     try {
       // Cargar productos, categorías y proveedores en paralelo
       const [prodRes, catRes, provRes] = await Promise.all([
-        supabase.rpc('fn_leer_productos', { 
+        supabase.rpc('fn_leer_productos', {
           p_buscar: searchTerm || null,
           p_categoria_id: filterCategoria ? parseInt(filterCategoria) : null
         }),
@@ -85,7 +160,7 @@ export default function Productos() {
 
   const cargarProductos = async () => {
     try {
-      const { data, error } = await supabase.rpc('fn_leer_productos', { 
+      const { data, error } = await supabase.rpc('fn_leer_productos', {
         p_buscar: searchTerm || null,
         p_categoria_id: filterCategoria ? parseInt(filterCategoria) : null
       });
@@ -117,15 +192,13 @@ export default function Productos() {
         p_codigo_interno: formData.codigo_interno.trim(),
         p_codigo_barras: formData.codigo_barras.trim() || null,
         p_nombre: formData.nombre.trim(),
-        p_categoria_id: parseInt(formData.categoria_id),
-        p_marca: formData.marca.trim() || null,
-        p_proveedor_id: formData.proveedor_id || null,
+        p_id_categoria: formData.categoria_id,  // Corregido: p_id_categoria (string)
+        p_marca: formData.marca || null,
         p_precio_costo: parseFloat(formData.precio_costo) || 0,
         p_precio_venta: parseFloat(formData.precio_venta),
         p_stock_minimo: parseInt(formData.stock_minimo) || 10,
         p_stock_maximo: parseInt(formData.stock_maximo) || 100,
         p_unidad_medida: formData.unidad_medida,
-        p_presentacion: formData.presentacion.trim() || null,
         p_controla_vencimiento: formData.controla_vencimiento,
         p_usuario_auditoria: getUsername()
       });
@@ -220,7 +293,7 @@ export default function Productos() {
       const { data, error } = await supabase.rpc('fn_obtener_producto_por_id', {
         p_id: producto.id
       });
-      
+
       if (data && data[0]) {
         const p = data[0];
         setFormData({
@@ -264,7 +337,22 @@ export default function Productos() {
 
   const openCreateModal = () => {
     setEditingItem(null);
-    resetForm();
+    // Generar códigos automáticamente para nuevo producto
+    setFormData({
+      codigo_interno: generarCodigoInterno(),
+      codigo_barras: generarCodigoBarras(),
+      nombre: '',
+      categoria_id: '',
+      marca: '',
+      proveedor_id: '',
+      precio_costo: '',
+      precio_venta: '',
+      stock_minimo: 10,
+      stock_maximo: 100,
+      unidad_medida: 'UNIDAD',
+      presentacion: '',
+      controla_vencimiento: false
+    });
     setShowModal(true);
   };
 
@@ -302,7 +390,7 @@ export default function Productos() {
   return (
     <div style={styles.container}>
       <Toaster position="top-right" />
-      
+
       <header style={styles.header}>
         <div>
           <h1 style={styles.title}>
@@ -321,20 +409,20 @@ export default function Productos() {
 
       {/* Estadísticas de stock */}
       <div style={styles.statsRow}>
-        <div style={{...styles.statCard, borderLeft: '4px solid #1a5d1a'}}>
+        <div style={{ ...styles.statCard, borderLeft: '4px solid #1a5d1a' }}>
           <span style={styles.statValue}>{stats.total}</span>
           <span style={styles.statLabel}>Total</span>
         </div>
-        <div style={{...styles.statCard, borderLeft: '4px solid #c62828'}}>
-          <span style={{...styles.statValue, color: '#c62828'}}>{stats.critico}</span>
+        <div style={{ ...styles.statCard, borderLeft: '4px solid #c62828' }}>
+          <span style={{ ...styles.statValue, color: '#c62828' }}>{stats.critico}</span>
           <span style={styles.statLabel}>Sin Stock</span>
         </div>
-        <div style={{...styles.statCard, borderLeft: '4px solid #e65100'}}>
-          <span style={{...styles.statValue, color: '#e65100'}}>{stats.bajo}</span>
+        <div style={{ ...styles.statCard, borderLeft: '4px solid #e65100' }}>
+          <span style={{ ...styles.statValue, color: '#e65100' }}>{stats.bajo}</span>
           <span style={styles.statLabel}>Bajo Stock</span>
         </div>
-        <div style={{...styles.statCard, borderLeft: '4px solid #2e7d32'}}>
-          <span style={{...styles.statValue, color: '#2e7d32'}}>{stats.normal}</span>
+        <div style={{ ...styles.statCard, borderLeft: '4px solid #2e7d32' }}>
+          <span style={{ ...styles.statValue, color: '#2e7d32' }}>{stats.normal}</span>
           <span style={styles.statLabel}>Normal</span>
         </div>
       </div>
@@ -399,7 +487,7 @@ export default function Productos() {
                 <th style={styles.th}>Precio Venta</th>
                 <th style={styles.th}>Stock</th>
                 <th style={styles.th}>Estado</th>
-                <th style={{...styles.th, textAlign: 'center'}}>Acciones</th>
+                <th style={{ ...styles.th, textAlign: 'center' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -436,7 +524,7 @@ export default function Productos() {
                         {prod.estado_stock}
                       </span>
                     </td>
-                    <td style={{...styles.td, textAlign: 'center'}}>
+                    <td style={{ ...styles.td, textAlign: 'center' }}>
                       <div style={styles.actionButtons}>
                         <button style={styles.editButton} onClick={() => openEditModal(prod)}>
                           <Edit size={16} />
@@ -468,78 +556,172 @@ export default function Productos() {
             </div>
 
             <div style={styles.modalBody}>
-              {/* Códigos */}
+              {/* Mensaje informativo para nuevos productos */}
+              {!editingItem && (
+                <div style={styles.infoBox}>
+                  <Sparkles size={24} style={{ color: '#1a5d1a' }} />
+                  <div>
+                    <strong>Códigos generados automáticamente</strong>
+                    <p style={{ margin: '4px 0 0 0', fontSize: '12px', opacity: 0.8 }}>
+                      El código interno y código de barras se han generado automáticamente. Solo completa los datos del producto.
+                    </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Códigos - Solo lectura con botón regenerar */}
               <div style={styles.formRow}>
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Código Interno *</label>
-                  <input
-                    type="text"
-                    value={formData.codigo_interno}
-                    onChange={(e) => setFormData({...formData, codigo_interno: e.target.value.toUpperCase()})}
-                    style={styles.input}
-                    placeholder="Ej: PROD-001"
-                    disabled={!!editingItem}
-                  />
+                  <label style={styles.label}>
+                    Código Interno
+                    <span style={styles.autoBadge}>Auto</span>
+                  </label>
+                  <div style={styles.codeInputWrapper}>
+                    <input
+                      type="text"
+                      value={formData.codigo_interno}
+                      style={{ ...styles.input, ...styles.codeInput }}
+                      readOnly
+                    />
+                    {!editingItem && (
+                      <button
+                        type="button"
+                        style={styles.regenerateButton}
+                        onClick={() => setFormData({ ...formData, codigo_interno: generarCodigoInterno() })}
+                        title="Regenerar código"
+                      >
+                        <RefreshCw size={16} />
+                      </button>
+                    )}
+                  </div>
                 </div>
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Código de Barras</label>
-                  <input
-                    type="text"
-                    value={formData.codigo_barras}
-                    onChange={(e) => setFormData({...formData, codigo_barras: e.target.value})}
-                    style={styles.input}
-                    placeholder="Escáner o manual"
-                  />
+                  <label style={styles.label}>
+                    Código de Barras (EAN-13)
+                    <span style={styles.autoBadge}>Auto</span>
+                  </label>
+                  <div style={styles.codeInputWrapper}>
+                    <input
+                      type="text"
+                      value={formData.codigo_barras}
+                      style={{ ...styles.input, ...styles.codeInput }}
+                      readOnly
+                    />
+                    {!editingItem && (
+                      <button
+                        type="button"
+                        style={styles.regenerateButton}
+                        onClick={() => setFormData({ ...formData, codigo_barras: generarCodigoBarras() })}
+                        title="Regenerar código"
+                      >
+                        <RefreshCw size={16} />
+                      </button>
+                    )}
+                  </div>
                 </div>
               </div>
 
-              {/* Nombre y Marca */}
+              {/* Nombre del Producto - Campo prominente */}
               <div style={styles.formRow}>
-                <div style={{...styles.formGroup, flex: 2}}>
+                <div style={{ ...styles.formGroup, flex: 1 }}>
                   <label style={styles.label}>Nombre del Producto *</label>
                   <input
                     type="text"
                     value={formData.nombre}
-                    onChange={(e) => setFormData({...formData, nombre: e.target.value})}
-                    style={styles.input}
-                    placeholder="Nombre descriptivo"
-                  />
-                </div>
-                <div style={styles.formGroup}>
-                  <label style={styles.label}>Marca</label>
-                  <input
-                    type="text"
-                    value={formData.marca}
-                    onChange={(e) => setFormData({...formData, marca: e.target.value})}
-                    style={styles.input}
-                    placeholder="Marca del producto"
+                    onChange={(e) => setFormData({ ...formData, nombre: e.target.value })}
+                    style={{ ...styles.input, fontSize: '16px', padding: '14px 15px' }}
+                    placeholder="Ej: Leche PIL Entera 1L, Arroz Grano de Oro 1Kg..."
+                    autoFocus
                   />
                 </div>
               </div>
 
-              {/* Categoría y Proveedor */}
+              {/* Categoría y Marca en la misma fila */}
               <div style={styles.formRow}>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>Categoría *</label>
                   <select
                     value={formData.categoria_id}
-                    onChange={(e) => setFormData({...formData, categoria_id: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, categoria_id: e.target.value })}
                     style={styles.input}
                   >
-                    <option value="">Seleccione...</option>
+                    <option value="">Seleccione categoría...</option>
                     {categorias.map(cat => (
                       <option key={cat.id} value={cat.id}>{cat.nombre}</option>
                     ))}
                   </select>
                 </div>
                 <div style={styles.formGroup}>
+                  <label style={styles.label}>
+                    <ShoppingBag size={16} />
+                    Marca
+                  </label>
+                  <select
+                    value={formData.marca}
+                    onChange={(e) => setFormData({ ...formData, marca: e.target.value })}
+                    style={styles.input}
+                  >
+                    <option value="">Seleccione marca...</option>
+                    <optgroup label="— Lácteos —">
+                      {marcasBolivianas.filter(m => m.categoria === 'Lácteos').map(m => (
+                        <option key={m.nombre} value={m.nombre}>{m.nombre}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="— Chocolate/Cacao —">
+                      {marcasBolivianas.filter(m => m.categoria.includes('Chocolate') || m.categoria.includes('Cacao')).map(m => (
+                        <option key={m.nombre} value={m.nombre}>{m.nombre}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="— Snacks/Galletas —">
+                      {marcasBolivianas.filter(m => m.categoria === 'Snacks' || m.categoria === 'Galletas').map(m => (
+                        <option key={m.nombre} value={m.nombre}>{m.nombre}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="— Cereales/Fideos —">
+                      {marcasBolivianas.filter(m => m.categoria === 'Cereales' || m.categoria === 'Fideos').map(m => (
+                        <option key={m.nombre} value={m.nombre}>{m.nombre}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="— Cárnicos/Embutidos —">
+                      {marcasBolivianas.filter(m => m.categoria === 'Cárnicos' || m.categoria === 'Embutidos').map(m => (
+                        <option key={m.nombre} value={m.nombre}>{m.nombre}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="— Aceites —">
+                      {marcasBolivianas.filter(m => m.categoria === 'Aceites').map(m => (
+                        <option key={m.nombre} value={m.nombre}>{m.nombre}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="— Bebidas/Aguas/Jugos —">
+                      {marcasBolivianas.filter(m => ['Bebidas', 'Aguas', 'Jugos'].includes(m.categoria)).map(m => (
+                        <option key={m.nombre} value={m.nombre}>{m.nombre}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="— Limpieza/Higiene —">
+                      {marcasBolivianas.filter(m => m.categoria === 'Limpieza' || m.categoria === 'Higiene').map(m => (
+                        <option key={m.nombre} value={m.nombre}>{m.nombre}</option>
+                      ))}
+                    </optgroup>
+                    <optgroup label="— Otros —">
+                      {marcasBolivianas.filter(m => m.categoria === 'General').map(m => (
+                        <option key={m.nombre} value={m.nombre}>{m.nombre}</option>
+                      ))}
+                    </optgroup>
+                  </select>
+                </div>
+              </div>
+
+
+              {/* Proveedor */}
+              <div style={styles.formRow}>
+                <div style={styles.formGroup}>
                   <label style={styles.label}>Proveedor Principal</label>
                   <select
                     value={formData.proveedor_id}
-                    onChange={(e) => setFormData({...formData, proveedor_id: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, proveedor_id: e.target.value })}
                     style={styles.input}
                   >
-                    <option value="">Seleccione...</option>
+                    <option value="">Seleccione proveedor (opcional)...</option>
                     {proveedores.map(prov => (
                       <option key={prov.id} value={prov.id}>{prov.razon_social}</option>
                     ))}
@@ -556,7 +738,7 @@ export default function Productos() {
                     step="0.01"
                     min="0"
                     value={formData.precio_costo}
-                    onChange={(e) => setFormData({...formData, precio_costo: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, precio_costo: e.target.value })}
                     style={styles.input}
                     placeholder="0.00"
                   />
@@ -568,7 +750,7 @@ export default function Productos() {
                     step="0.01"
                     min="0"
                     value={formData.precio_venta}
-                    onChange={(e) => setFormData({...formData, precio_venta: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, precio_venta: e.target.value })}
                     style={styles.input}
                     placeholder="0.00"
                   />
@@ -583,7 +765,7 @@ export default function Productos() {
                     type="number"
                     min="0"
                     value={formData.stock_minimo}
-                    onChange={(e) => setFormData({...formData, stock_minimo: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, stock_minimo: e.target.value })}
                     style={styles.input}
                   />
                 </div>
@@ -593,7 +775,7 @@ export default function Productos() {
                     type="number"
                     min="0"
                     value={formData.stock_maximo}
-                    onChange={(e) => setFormData({...formData, stock_maximo: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, stock_maximo: e.target.value })}
                     style={styles.input}
                   />
                 </div>
@@ -601,7 +783,7 @@ export default function Productos() {
                   <label style={styles.label}>Unidad de Medida</label>
                   <select
                     value={formData.unidad_medida}
-                    onChange={(e) => setFormData({...formData, unidad_medida: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, unidad_medida: e.target.value })}
                     style={styles.input}
                   >
                     <option value="UNIDAD">Unidad</option>
@@ -616,22 +798,22 @@ export default function Productos() {
 
               {/* Opciones adicionales */}
               <div style={styles.formRow}>
-                <div style={{...styles.formGroup, flex: 2}}>
+                <div style={{ ...styles.formGroup, flex: 2 }}>
                   <label style={styles.label}>Presentación</label>
                   <input
                     type="text"
                     value={formData.presentacion}
-                    onChange={(e) => setFormData({...formData, presentacion: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, presentacion: e.target.value })}
                     style={styles.input}
                     placeholder="Ej: Botella 500ml, Paquete 6 unidades"
                   />
                 </div>
-                <div style={{...styles.formGroup, display: 'flex', alignItems: 'center', paddingTop: '25px'}}>
+                <div style={{ ...styles.formGroup, display: 'flex', alignItems: 'center', paddingTop: '25px' }}>
                   <label style={styles.checkbox}>
                     <input
                       type="checkbox"
                       checked={formData.controla_vencimiento}
-                      onChange={(e) => setFormData({...formData, controla_vencimiento: e.target.checked})}
+                      onChange={(e) => setFormData({ ...formData, controla_vencimiento: e.target.checked })}
                     />
                     <span>Controla vencimiento</span>
                   </label>
@@ -697,10 +879,17 @@ const styles = {
   modalBody: { padding: '25px' },
   formRow: { display: 'flex', gap: '15px', marginBottom: '15px', flexWrap: 'wrap' },
   formGroup: { flex: 1, minWidth: '180px' },
-  label: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#1a5d1a' },
+  label: { display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#1a5d1a' },
   input: { width: '100%', padding: '12px 15px', border: '2px solid #e9ecef', borderRadius: '10px', fontSize: '14px', outline: 'none', boxSizing: 'border-box' },
   checkbox: { display: 'flex', alignItems: 'center', gap: '8px', fontSize: '14px', cursor: 'pointer' },
   modalFooter: { display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: '20px 25px', borderTop: '1px solid #e9ecef', background: '#f8f9fa', position: 'sticky', bottom: 0 },
   cancelButton: { padding: '10px 20px', background: 'white', border: '1px solid #e9ecef', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', color: '#6c757d' },
   saveButton: { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: 'linear-gradient(135deg, #1a5d1a, #2e8b57)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' },
+  // Nuevos estilos para el formulario mejorado
+  infoBox: { display: 'flex', alignItems: 'flex-start', gap: '12px', padding: '15px', background: 'linear-gradient(135deg, #e8f5e9, #c8e6c9)', borderRadius: '12px', marginBottom: '20px', border: '1px solid #a5d6a7' },
+  infoIcon: { fontSize: '24px' },
+  autoBadge: { display: 'inline-block', padding: '2px 8px', background: '#1a5d1a', color: 'white', borderRadius: '10px', fontSize: '10px', fontWeight: '600', marginLeft: '8px' },
+  codeInputWrapper: { display: 'flex', gap: '8px', alignItems: 'center' },
+  codeInput: { background: '#f8f9fa', fontFamily: 'monospace', fontSize: '13px', color: '#495057' },
+  regenerateButton: { padding: '10px 12px', background: 'white', border: '2px solid #e9ecef', borderRadius: '10px', cursor: 'pointer', fontSize: '16px', transition: 'all 0.2s' },
 };

@@ -1,6 +1,6 @@
 // src/pages/AlertasStock.jsx
 import { useState, useEffect } from 'react';
-import { 
+import {
   AlertTriangle, AlertCircle, Clock, Package,
   Loader2, RefreshCw, ChevronRight, Calendar
 } from 'lucide-react';
@@ -22,15 +22,40 @@ export default function AlertasStock() {
   const cargarAlertas = async () => {
     setLoading(true);
     try {
+      // Consultar productos con bajo stock directamente con más detalles
       const [stockRes, vencRes] = await Promise.all([
-        supabase.rpc('fn_alerta_stock_bajo'),
+        supabase
+          .from('productos')
+          .select(`
+            id_producto,
+            codigo_interno,
+            nombre,
+            marca,
+            stock_actual,
+            stock_minimo,
+            stock_maximo,
+            precio_venta,
+            unidad_medida,
+            categorias (nombre)
+          `)
+          .eq('estado', 'ACTIVO')
+          .order('stock_actual', { ascending: true }),
         supabase.rpc('fn_alerta_vencimientos', { p_dias_anticipacion: 30 })
       ]);
 
       if (stockRes.error) {
         console.error('Error stock:', stockRes.error);
       } else {
-        setAlertasStock(stockRes.data || []);
+        // Filtrar productos donde stock_actual <= stock_minimo
+        const productosConBajoStock = (stockRes.data || [])
+          .filter(p => p.stock_actual <= p.stock_minimo)
+          .map(p => ({
+            ...p,
+            categoria: p.categorias?.nombre || 'Sin categoría',
+            faltante: Math.max(0, p.stock_minimo - p.stock_actual),
+            porcentaje_stock: p.stock_minimo > 0 ? Math.round((p.stock_actual / p.stock_minimo) * 100) : 0
+          }));
+        setAlertasStock(productosConBajoStock);
       }
 
       if (vencRes.error) {
@@ -58,7 +83,7 @@ export default function AlertasStock() {
   return (
     <div style={styles.container}>
       <Toaster position="top-right" />
-      
+
       <header style={styles.header}>
         <div>
           <h1 style={styles.title}>
@@ -77,7 +102,7 @@ export default function AlertasStock() {
 
       {/* Resumen */}
       <div style={styles.summaryCards}>
-        <div 
+        <div
           style={{
             ...styles.summaryCard,
             borderLeft: '4px solid #c62828',
@@ -88,12 +113,12 @@ export default function AlertasStock() {
         >
           <AlertTriangle size={32} style={{ color: '#c62828' }} />
           <div>
-            <span style={{...styles.summaryValue, color: '#c62828'}}>{alertasStock.length}</span>
+            <span style={{ ...styles.summaryValue, color: '#c62828' }}>{alertasStock.length}</span>
             <span style={styles.summaryLabel}>Productos con Stock Bajo</span>
           </div>
           <ChevronRight size={20} style={{ color: '#ccc' }} />
         </div>
-        <div 
+        <div
           style={{
             ...styles.summaryCard,
             borderLeft: '4px solid #e65100',
@@ -104,7 +129,7 @@ export default function AlertasStock() {
         >
           <Clock size={32} style={{ color: '#e65100' }} />
           <div>
-            <span style={{...styles.summaryValue, color: '#e65100'}}>{alertasVencimiento.length}</span>
+            <span style={{ ...styles.summaryValue, color: '#e65100' }}>{alertasVencimiento.length}</span>
             <span style={styles.summaryLabel}>Próximos a Vencer (30 días)</span>
           </div>
           <ChevronRight size={20} style={{ color: '#ccc' }} />
@@ -123,7 +148,7 @@ export default function AlertasStock() {
             <AlertTriangle size={20} style={{ color: '#c62828' }} />
             Productos con Stock Bajo o Agotado
           </h2>
-          
+
           {alertasStock.length === 0 ? (
             <div style={styles.emptyState}>
               <Package size={48} style={{ color: '#2e7d32' }} />
@@ -131,47 +156,120 @@ export default function AlertasStock() {
             </div>
           ) : (
             <div style={styles.alertsList}>
-              {alertasStock.map((alerta, index) => (
-                <div key={alerta.producto_id || index} style={styles.alertCard}>
-                  <div style={styles.alertIcon}>
-                    {alerta.stock_actual <= 0 ? (
+              {alertasStock.map((producto, index) => (
+                <div
+                  key={producto.id_producto || index}
+                  style={{
+                    ...styles.alertCard,
+                    background: producto.stock_actual <= 0 ? '#fff5f5' : '#fffbf0',
+                    borderLeft: `4px solid ${producto.stock_actual <= 0 ? '#c62828' : '#e65100'}`
+                  }}
+                >
+                  {/* Icono de estado */}
+                  <div style={{
+                    ...styles.alertIcon,
+                    background: producto.stock_actual <= 0 ? '#ffcdd2' : '#ffe0b2'
+                  }}>
+                    {producto.stock_actual <= 0 ? (
                       <AlertTriangle size={24} style={{ color: '#c62828' }} />
                     ) : (
                       <AlertCircle size={24} style={{ color: '#e65100' }} />
                     )}
                   </div>
+
+                  {/* Información del producto */}
                   <div style={styles.alertContent}>
-                    <h3 style={styles.alertTitle}>{alerta.producto}</h3>
-                    <p style={styles.alertProveedor}>
-                      Proveedor: {alerta.proveedor || 'No asignado'}
-                    </p>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '4px' }}>
+                      <code style={{
+                        background: '#e9ecef',
+                        padding: '2px 8px',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        color: '#495057'
+                      }}>
+                        {producto.codigo_interno}
+                      </code>
+                      <span style={{
+                        padding: '2px 8px',
+                        borderRadius: '10px',
+                        fontSize: '10px',
+                        fontWeight: '600',
+                        background: producto.stock_actual <= 0 ? '#c62828' : '#e65100',
+                        color: 'white'
+                      }}>
+                        {producto.stock_actual <= 0 ? 'AGOTADO' : 'BAJO STOCK'}
+                      </span>
+                    </div>
+                    <h3 style={styles.alertTitle}>{producto.nombre}</h3>
+                    <div style={{ display: 'flex', gap: '15px', flexWrap: 'wrap', marginTop: '8px' }}>
+                      {producto.marca && (
+                        <span style={styles.productDetail}>
+                          <strong>Marca:</strong> {producto.marca}
+                        </span>
+                      )}
+                      <span style={styles.productDetail}>
+                        <strong>Categoría:</strong> {producto.categoria}
+                      </span>
+                      <span style={styles.productDetail}>
+                        <strong>Unidad:</strong> {producto.unidad_medida || 'UNIDAD'}
+                      </span>
+                      <span style={styles.productDetail}>
+                        <strong>Precio:</strong> Bs {parseFloat(producto.precio_venta || 0).toFixed(2)}
+                      </span>
+                    </div>
                   </div>
+
+                  {/* Estadísticas de stock */}
                   <div style={styles.alertStats}>
                     <div style={styles.alertStat}>
-                      <span style={styles.alertStatLabel}>Actual</span>
+                      <span style={styles.alertStatLabel}>Stock Actual</span>
                       <span style={{
                         ...styles.alertStatValue,
-                        color: alerta.stock_actual <= 0 ? '#c62828' : '#e65100'
+                        color: producto.stock_actual <= 0 ? '#c62828' : '#e65100'
                       }}>
-                        {alerta.stock_actual}
+                        {producto.stock_actual}
                       </span>
                     </div>
                     <div style={styles.alertStat}>
                       <span style={styles.alertStatLabel}>Mínimo</span>
-                      <span style={styles.alertStatValue}>{alerta.stock_minimo}</span>
+                      <span style={styles.alertStatValue}>{producto.stock_minimo}</span>
                     </div>
                     <div style={styles.alertStat}>
                       <span style={styles.alertStatLabel}>Faltante</span>
-                      <span style={{...styles.alertStatValue, color: '#c62828'}}>
-                        {alerta.faltante}
+                      <span style={{ ...styles.alertStatValue, color: '#c62828' }}>
+                        -{producto.faltante}
+                      </span>
+                    </div>
+                    <div style={styles.alertStat}>
+                      <span style={styles.alertStatLabel}>Estado</span>
+                      {/* Barra de progreso */}
+                      <div style={{
+                        width: '60px',
+                        height: '8px',
+                        background: '#e9ecef',
+                        borderRadius: '4px',
+                        overflow: 'hidden',
+                        marginTop: '4px'
+                      }}>
+                        <div style={{
+                          width: `${Math.min(producto.porcentaje_stock, 100)}%`,
+                          height: '100%',
+                          background: producto.stock_actual <= 0 ? '#c62828' : '#e65100',
+                          borderRadius: '4px'
+                        }} />
+                      </div>
+                      <span style={{ fontSize: '10px', color: '#6c757d' }}>
+                        {producto.porcentaje_stock}%
                       </span>
                     </div>
                   </div>
-                  <button 
+
+                  {/* Botón de acción */}
+                  <button
                     style={styles.orderButton}
-                    onClick={() => navigate('/ordenes-compra')}
+                    onClick={() => navigate('/compras')}
                   >
-                    Ordenar
+                    Crear Orden
                   </button>
                 </div>
               ))}
@@ -184,7 +282,7 @@ export default function AlertasStock() {
             <Clock size={20} style={{ color: '#e65100' }} />
             Productos Próximos a Vencer
           </h2>
-          
+
           {alertasVencimiento.length === 0 ? (
             <div style={styles.emptyState}>
               <Calendar size={48} style={{ color: '#2e7d32' }} />
@@ -195,8 +293,8 @@ export default function AlertasStock() {
               {alertasVencimiento.map((alerta, index) => {
                 const semaforoStyle = getSemaforoColor(alerta.estado_alerta);
                 return (
-                  <div 
-                    key={index} 
+                  <div
+                    key={index}
                     style={{
                       ...styles.alertCard,
                       background: semaforoStyle.bg,
@@ -277,4 +375,5 @@ const styles = {
   semaforoBadge: { padding: '8px 16px', borderRadius: '20px', color: 'white', fontSize: '12px', fontWeight: '600', textTransform: 'uppercase' },
   loadingState: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 20px', color: '#6c757d', gap: '15px', background: 'white', borderRadius: '16px' },
   emptyState: { display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '60px 20px', color: '#6c757d', gap: '15px' },
+  productDetail: { fontSize: '12px', color: '#666', display: 'inline-block' },
 };
