@@ -49,7 +49,12 @@ export default function Clientes() {
         toast.error('Error al cargar clientes');
       } else {
         // Ordenar por ID descendente para ver los nuevos arriba
-        const sortedData = (data || []).sort((a, b) => b.id - a.id);
+        // id_cliente tiene formato CLI-XXX, extraemos el número
+        const sortedData = (data || []).sort((a, b) => {
+          const idA = parseInt((a.id_cliente || '').replace(/\D/g, '') || '0');
+          const idB = parseInt((b.id_cliente || '').replace(/\D/g, '') || '0');
+          return idB - idA;
+        });
         setClientes(sortedData);
       }
     } catch (err) {
