@@ -210,7 +210,29 @@ export default function Productos() {
           toast.error(error.message || 'Error al crear producto');
         }
       } else {
-        toast.success('Producto creado exitosamente');
+        // Si hay proveedor seleccionado, asociar el producto con el proveedor
+        if (formData.proveedor_id && data) {
+          try {
+            const { error: errorAsociacion } = await supabase.rpc('fn_asociar_producto_proveedor', {
+              p_id_producto: data,  // data contiene el ID del producto creado
+              p_id_proveedor: formData.proveedor_id,
+              p_precio_compra: parseFloat(formData.precio_costo) || 0,
+              p_usuario_auditoria: getUsername()
+            });
+            
+            if (errorAsociacion) {
+              console.error('Error al asociar proveedor:', errorAsociacion);
+              toast.success('Producto creado, pero hubo un error al asociar proveedor');
+            } else {
+              toast.success('Producto creado y asociado al proveedor');
+            }
+          } catch (errAsoc) {
+            console.error('Error:', errAsoc);
+            toast.success('Producto creado exitosamente');
+          }
+        } else {
+          toast.success('Producto creado exitosamente');
+        }
         setShowModal(false);
         resetForm();
         cargarProductos();
@@ -237,7 +259,6 @@ export default function Productos() {
         p_nombre: formData.nombre.trim(),
         p_categoria_id: parseInt(formData.categoria_id),
         p_marca: formData.marca.trim() || null,
-        p_proveedor_id: formData.proveedor_id || null,
         p_precio_costo: parseFloat(formData.precio_costo) || 0,
         p_precio_venta: parseFloat(formData.precio_venta),
         p_stock_minimo: parseInt(formData.stock_minimo) || 10,
@@ -248,6 +269,23 @@ export default function Productos() {
       if (error) {
         toast.error(error.message || 'Error al actualizar');
       } else {
+        // Si hay proveedor seleccionado, actualizar/crear la asociación
+        if (formData.proveedor_id) {
+          try {
+            const { error: errorAsociacion } = await supabase.rpc('fn_asociar_producto_proveedor', {
+              p_id_producto: editingItem.id,
+              p_id_proveedor: formData.proveedor_id,
+              p_precio_compra: parseFloat(formData.precio_costo) || 0,
+              p_usuario_auditoria: getUsername()
+            });
+            
+            if (errorAsociacion) {
+              console.error('Error al asociar proveedor:', errorAsociacion);
+            }
+          } catch (errAsoc) {
+            console.error('Error asociando proveedor:', errAsoc);
+          }
+        }
         toast.success('Producto actualizado exitosamente');
         setShowModal(false);
         resetForm();
