@@ -71,12 +71,25 @@ export default function Inventario() {
     setLoadingMovimientos(true);
 
     try {
-      // Cargar movimientos del producto
+      // Cargar movimientos del producto - Usar id_producto correcto
+      // El producto viene de fn_leer_productos que devuelve 'id' mapeado
+      const productoId = producto.id_producto || producto.id;
+
       const { data, error } = await supabase
         .from('movimientos_inventario')
-        .select('*')
-        .eq('producto_id', producto.id)
-        .eq('estadoa', true)
+        .select(`
+          id_movimiento,
+          tipo,
+          cantidad,
+          lote,
+          fecha_vencimiento,
+          documento,
+          motivo,
+          observaciones,
+          fecha_hora,
+          id_usuario
+        `)
+        .eq('id_producto', productoId)
         .order('fecha_hora', { ascending: false })
         .limit(20);
 
@@ -85,6 +98,7 @@ export default function Inventario() {
     } catch (err) {
       console.error('Error cargando movimientos:', err);
       toast.error('Error al cargar el kardex del producto');
+      setMovimientos([]);
     } finally {
       setLoadingMovimientos(false);
     }
@@ -427,21 +441,57 @@ export default function Inventario() {
                   {movimientos.map((mov, idx) => {
                     const tipoInfo = getTipoMovimiento(mov.tipo);
                     return (
-                      <div key={idx} style={styles.movimientoItem}>
+                      <div key={mov.id_movimiento || idx} style={styles.movimientoItem}>
                         <div style={{ ...styles.movimientoIcono, background: `${tipoInfo.color}15`, color: tipoInfo.color }}>
                           {tipoInfo.icon}
                         </div>
                         <div style={styles.movimientoInfo}>
                           <div style={styles.movimientoTipo}>
                             <strong>{tipoInfo.label}</strong>
-                            <span style={styles.movimientoCantidad}>
+                            <span style={{
+                              ...styles.movimientoCantidad,
+                              color: mov.tipo.includes('ENTRADA') || mov.tipo.includes('+') ? '#2e7d32' : '#c62828'
+                            }}>
                               {mov.tipo.includes('ENTRADA') || mov.tipo.includes('+') ? '+' : '-'}
                               {mov.cantidad} unids.
                             </span>
                           </div>
                           <div style={styles.movimientoMeta}>
-                            <span>{mov.motivo || 'Sin motivo'}</span>
+                            <span style={{ fontWeight: '500', color: '#333' }}>
+                              {mov.motivo || mov.tipo || 'Sin motivo'}
+                            </span>
+                            {mov.documento && (
+                              <span style={{
+                                background: '#e9ecef',
+                                padding: '2px 6px',
+                                borderRadius: '4px',
+                                fontSize: '11px',
+                                fontFamily: 'monospace'
+                              }}>
+                                {mov.documento}
+                              </span>
+                            )}
+                          </div>
+                          {mov.observaciones && (
+                            <p style={{
+                              margin: '4px 0 0 0',
+                              fontSize: '12px',
+                              color: '#6c757d',
+                              fontStyle: 'italic'
+                            }}>
+                              "{mov.observaciones}"
+                            </p>
+                          )}
+                          <div style={{
+                            display: 'flex',
+                            gap: '15px',
+                            marginTop: '6px',
+                            fontSize: '11px',
+                            color: '#999'
+                          }}>
                             <span>{new Date(mov.fecha_hora).toLocaleDateString('es-BO')}</span>
+                            <span>{new Date(mov.fecha_hora).toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' })}</span>
+                            {mov.lote && <span>Lote: {mov.lote}</span>}
                           </div>
                         </div>
                       </div>
