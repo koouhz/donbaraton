@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import { 
   FileBarChart, Calendar, Package, Eye, X,
   Loader2, TrendingUp, DollarSign, ShoppingCart, FileDown, 
-  ArrowUp, ArrowDown, Users
+  ArrowUp, ArrowDown, Users, RotateCcw
 } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
@@ -19,6 +19,7 @@ export default function ReportesVentas() {
   const [detalleVenta, setDetalleVenta] = useState([]);
   const [exportando, setExportando] = useState(false);
   const [ordenAscendente, setOrdenAscendente] = useState(false);
+  const [devoluciones, setDevoluciones] = useState([]);
   
   // Filtros
   const [filtros, setFiltros] = useState({
@@ -85,6 +86,15 @@ export default function ReportesVentas() {
       });
       if (!topRes.error) {
         setProductosTop(topRes.data || []);
+      }
+
+      // Cargar devoluciones de ventas
+      const devRes = await supabase.rpc('fn_leer_devoluciones_ventas', {
+        p_fecha_inicio: filtros.fechaInicio,
+        p_fecha_fin: filtros.fechaFin
+      });
+      if (!devRes.error) {
+        setDevoluciones(devRes.data || []);
       }
 
     } catch (err) {
@@ -330,6 +340,38 @@ export default function ReportesVentas() {
                     <td>${p.producto || 'Sin nombre'}</td>
                     <td>${p.cantidad_vendida || 0}</td>
                     <td>Bs ${parseFloat(p.ingresos_generados || 0).toFixed(2)}</td>
+                  </tr>
+                `).join('')}
+              </tbody>
+            </table>
+          </div>
+          ` : ''}
+
+          ${devoluciones.length > 0 ? `
+          <div class="seccion">
+            <h3 style="color: #c62828; border-bottom: 2px solid #ffebee; padding-bottom: 10px; margin-bottom: 15px;">
+              Devoluciones de Ventas (${devoluciones.length})
+            </h3>
+            <table>
+              <thead>
+                <tr>
+                  <th style="background: #c62828;">ID</th>
+                  <th style="background: #c62828;">Venta</th>
+                  <th style="background: #c62828;">Fecha</th>
+                  <th style="background: #c62828;">Cliente</th>
+                  <th style="background: #c62828;">Motivo</th>
+                  <th style="background: #c62828;">Total</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${devoluciones.map(dev => `
+                  <tr style="background: #fff5f5;">
+                    <td><strong>${dev.id_devolucion}</strong></td>
+                    <td>${dev.id_venta}</td>
+                    <td>${new Date(dev.fecha).toLocaleDateString('es-BO')}</td>
+                    <td>${dev.cliente || 'Cliente General'}</td>
+                    <td>${dev.motivo || '-'}</td>
+                    <td style="color: #c62828; font-weight: bold;">Bs ${parseFloat(dev.total_venta || 0).toFixed(2)}</td>
                   </tr>
                 `).join('')}
               </tbody>
@@ -585,6 +627,46 @@ export default function ReportesVentas() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Sección Devoluciones de Ventas */}
+      {devoluciones.length > 0 && (
+        <div style={{...styles.tableContainer, borderTop: '4px solid #c62828', marginTop: '25px'}}>
+          <div style={styles.tableHeader}>
+            <h3 style={{...styles.tableTitle, color: '#c62828'}}>
+              <RotateCcw size={18} style={{ marginRight: '8px' }} />
+              Devoluciones de Ventas ({devoluciones.length} registros)
+            </h3>
+          </div>
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th style={{...styles.th, background: '#c62828'}}>ID Devolución</th>
+                <th style={{...styles.th, background: '#c62828'}}>Venta</th>
+                <th style={{...styles.th, background: '#c62828'}}>Fecha</th>
+                <th style={{...styles.th, background: '#c62828'}}>Cliente</th>
+                <th style={{...styles.th, background: '#c62828'}}>Motivo</th>
+                <th style={{...styles.th, background: '#c62828'}}>Reembolso</th>
+                <th style={{...styles.th, background: '#c62828', textAlign: 'right'}}>Total</th>
+              </tr>
+            </thead>
+            <tbody>
+              {devoluciones.map((dev, index) => (
+                <tr key={`dev-${index}`} style={{...styles.tr, background: '#fff5f5'}}>
+                  <td style={styles.td}><strong>{dev.id_devolucion}</strong></td>
+                  <td style={styles.td}>{dev.id_venta}</td>
+                  <td style={styles.td}>{formatDateTime(dev.fecha)}</td>
+                  <td style={styles.td}>{dev.cliente || 'Cliente General'}</td>
+                  <td style={styles.td}>{dev.motivo || '-'}</td>
+                  <td style={styles.td}>{dev.forma_reembolso || '-'}</td>
+                  <td style={{...styles.td, textAlign: 'right', color: '#c62828', fontWeight: '700'}}>
+                    {formatCurrency(dev.total_venta)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
       )}
 

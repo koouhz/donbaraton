@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { 
   FileBarChart, Calendar, Package, Eye, X,
-  Loader2, TrendingUp, DollarSign, ShoppingBag, FileDown, ArrowUp, ArrowDown
+  Loader2, TrendingUp, DollarSign, ShoppingBag, FileDown, ArrowUp, ArrowDown, RotateCcw
 } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
@@ -16,6 +16,7 @@ export default function ReportesCompras() {
   const [ordenSeleccionada, setOrdenSeleccionada] = useState(null);
   const [exportando, setExportando] = useState(false);
   const [ordenAscendente, setOrdenAscendente] = useState(false); // false = desc, true = asc
+  const [devoluciones, setDevoluciones] = useState([]);
   
   // Filtros
   const [filtros, setFiltros] = useState({
@@ -69,6 +70,12 @@ export default function ReportesCompras() {
       const provRes = await supabase.rpc('fn_listar_proveedores');
       if (!provRes.error) {
         setProveedores(provRes.data || []);
+      }
+      
+      // Cargar devoluciones a proveedores
+      const devRes = await supabase.rpc('fn_leer_devoluciones_proveedor');
+      if (!devRes.error) {
+        setDevoluciones(devRes.data || []);
       }
     } catch (err) {
       toast.error('Error al cargar datos');
@@ -181,7 +188,7 @@ export default function ReportesCompras() {
 
       const totalFiltrado = ordenesFiltradas.reduce((sum, o) => sum + parseFloat(o.total || 0), 0);
 
-      // Crear contenido HTML para el PDF
+      // Crear contenido HTML para el PDF con diseño profesional
       const contenidoHTML = `
         <!DOCTYPE html>
         <html>
@@ -189,95 +196,236 @@ export default function ReportesCompras() {
           <meta charset="utf-8">
           <title>Reporte de Compras - Don Baraton</title>
           <style>
+            @page { size: A4 portrait; margin: 15mm; }
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; background: #fff; color: #333; }
-            .header { display: flex; align-items: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #1a5d1a; }
-            .logo { width: 80px; height: 80px; margin-right: 20px; border-radius: 10px; }
-            .empresa { flex: 1; }
-            .empresa h1 { color: #1a5d1a; font-size: 28px; margin-bottom: 5px; }
-            .empresa p { color: #666; font-size: 14px; }
-            .titulo-reporte { background: linear-gradient(135deg, #1a5d1a, #2e8b57); color: white; padding: 15px 25px; border-radius: 10px; margin-bottom: 25px; }
-            .titulo-reporte h2 { font-size: 20px; margin-bottom: 5px; }
-            .titulo-reporte p { font-size: 12px; opacity: 0.9; }
-            .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
-            .stat { background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center; border-left: 4px solid #1a5d1a; }
-            .stat-value { font-size: 24px; font-weight: bold; color: #1a5d1a; }
-            .stat-label { font-size: 12px; color: #666; margin-top: 5px; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th { background: #1a5d1a; color: white; padding: 12px 15px; text-align: left; font-size: 13px; }
-            td { padding: 12px 15px; border-bottom: 1px solid #e9ecef; font-size: 12px; }
+            body { 
+              font-family: 'Segoe UI', Tahoma, Arial, sans-serif; 
+              background: #fff; 
+              color: #333; 
+              font-size: 11px;
+              line-height: 1.4;
+            }
+            .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+            
+            /* Header Premium */
+            .header { 
+              display: flex; 
+              align-items: center; 
+              justify-content: space-between;
+              margin-bottom: 25px; 
+              padding-bottom: 20px; 
+              border-bottom: 3px solid #1a5d1a;
+            }
+            .header-left { display: flex; align-items: center; gap: 15px; }
+            .logo { width: 70px; height: 70px; border-radius: 10px; object-fit: cover; }
+            .empresa h1 { color: #1a5d1a; font-size: 24px; margin-bottom: 3px; }
+            .empresa p { color: #666; font-size: 11px; }
+            .header-right { text-align: right; }
+            .header-right p { font-size: 10px; color: #666; margin-bottom: 2px; }
+            
+            /* Título */
+            .titulo-reporte { 
+              background: linear-gradient(135deg, #1a5d1a 0%, #2e8b57 100%); 
+              color: white; 
+              padding: 18px 25px; 
+              border-radius: 12px; 
+              margin-bottom: 25px;
+              box-shadow: 0 4px 15px rgba(26, 93, 26, 0.3);
+            }
+            .titulo-reporte h2 { font-size: 18px; margin-bottom: 5px; font-weight: 700; }
+            .titulo-reporte p { font-size: 11px; opacity: 0.9; }
+            
+            /* Stats Grid */
+            .stats { 
+              display: grid; 
+              grid-template-columns: repeat(4, 1fr); 
+              gap: 12px; 
+              margin-bottom: 25px; 
+            }
+            .stat { 
+              background: linear-gradient(145deg, #f8f9fa, #ffffff);
+              padding: 18px; 
+              border-radius: 12px; 
+              text-align: center; 
+              border-left: 4px solid #1a5d1a;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            }
+            .stat-value { font-size: 22px; font-weight: 700; color: #1a5d1a; }
+            .stat-label { font-size: 10px; color: #666; margin-top: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+            
+            /* Secciones */
+            .seccion {
+              background: #fff;
+              border-radius: 12px;
+              padding: 20px;
+              margin-bottom: 20px;
+              border: 1px solid #e9ecef;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            }
+            .seccion-titulo {
+              font-size: 14px;
+              font-weight: 700;
+              color: #1a5d1a;
+              margin-bottom: 15px;
+              padding-bottom: 10px;
+              border-bottom: 2px solid #e8f5e9;
+            }
+            .seccion-titulo.devolucion { color: #c62828; border-bottom-color: #ffebee; }
+            
+            /* Tablas */
+            table { width: 100%; border-collapse: collapse; }
+            th { 
+              background: linear-gradient(135deg, #1a5d1a, #2e8b57); 
+              color: white; 
+              padding: 12px 10px; 
+              text-align: left; 
+              font-size: 10px; 
+              font-weight: 600;
+              text-transform: uppercase;
+              letter-spacing: 0.3px;
+            }
+            th.devolucion { background: linear-gradient(135deg, #c62828, #e53935); }
+            th:first-child { border-radius: 8px 0 0 0; }
+            th:last-child { border-radius: 0 8px 0 0; }
+            td { 
+              padding: 10px; 
+              border-bottom: 1px solid #e9ecef; 
+              font-size: 10px; 
+            }
             tr:nth-child(even) { background: #f8f9fa; }
-            .total-row { background: #e8f5e9 !important; font-weight: bold; }
-            .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e9ecef; font-size: 11px; color: #666; text-align: center; }
-            .badge { padding: 4px 10px; border-radius: 12px; font-size: 11px; font-weight: 500; }
-            .badge-recibida { background: #e8f5e9; color: #2e7d32; }
-            .badge-pendiente { background: #fff3e0; color: #e65100; }
-            .badge-cancelada { background: #ffebee; color: #c62828; }
+            tr:hover { background: #e8f5e9; }
+            .currency { font-weight: 600; }
+            .positive { color: #2e7d32; }
+            .negative { color: #c62828; }
+            
+            tfoot td {
+              background: linear-gradient(135deg, #e8f5e9, #f0f9f0);
+              font-weight: 700;
+              border-top: 2px solid #1a5d1a;
+            }
+            
+            /* Footer */
+            .footer { 
+              margin-top: 30px; 
+              padding-top: 20px; 
+              border-top: 2px solid #e9ecef; 
+              text-align: center;
+            }
+            .footer p { font-size: 9px; color: #999; margin-bottom: 2px; }
+            .footer .brand { color: #1a5d1a; font-weight: 600; font-size: 10px; }
+            
+            @media print {
+              body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+              .container { padding: 0; }
+            }
           </style>
         </head>
         <body>
-          <div class="header">
-            <img src="${logo}" class="logo" alt="Logo">
-            <div class="empresa">
-              <h1>Don Baraton</h1>
-              <p>Supermercado - Sistema de Gestión</p>
+          <div class="container">
+            <div class="header">
+              <div class="header-left">
+                <img src="${logo}" class="logo" alt="Logo">
+                <div class="empresa">
+                  <h1>Don Baraton</h1>
+                  <p>Supermercado - Sistema de Gestión</p>
+                </div>
+              </div>
+              <div class="header-right">
+                <p><strong>NIT:</strong> 123456789</p>
+                <p><strong>Tel:</strong> +591 XXX XXXX</p>
+                <p><strong>Dirección:</strong> La Paz, Bolivia</p>
+              </div>
             </div>
-          </div>
-          
-          <div class="titulo-reporte">
-            <h2>📊 Reporte de Compras</h2>
-            <p>Período: ${periodoTexto} | Generado: ${new Date().toLocaleDateString('es-BO')} ${new Date().toLocaleTimeString('es-BO')}</p>
-          </div>
+            
+            <div class="titulo-reporte">
+              <h2>Reporte de Compras</h2>
+              <p>Período: ${periodoTexto} • Generado: ${new Date().toLocaleDateString('es-BO')} ${new Date().toLocaleTimeString('es-BO')}</p>
+            </div>
 
-          <div class="stats">
-            <div class="stat">
-              <div class="stat-value">${ordenesFiltradas.length}</div>
-              <div class="stat-label">Órdenes Totales</div>
+            <div class="stats">
+              <div class="stat">
+                <div class="stat-value">${ordenesFiltradas.length}</div>
+                <div class="stat-label">Órdenes Totales</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value">Bs ${totalFiltrado.toFixed(2)}</div>
+                <div class="stat-label">Total en Compras</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value">${ordenesFiltradas.filter(o => o.estado === 'RECIBIDA').length}</div>
+                <div class="stat-label">Recibidas</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value" style="color:${devoluciones.length > 0 ? '#c62828' : '#1a5d1a'}">${devoluciones.length}</div>
+                <div class="stat-label">Devoluciones</div>
+              </div>
             </div>
-            <div class="stat">
-              <div class="stat-value">Bs ${totalFiltrado.toFixed(2)}</div>
-              <div class="stat-label">Total en Compras</div>
-            </div>
-            <div class="stat">
-              <div class="stat-value">${ordenesFiltradas.filter(o => o.estado === 'RECIBIDA').length}</div>
-              <div class="stat-label">Recibidas</div>
-            </div>
-            <div class="stat">
-              <div class="stat-value">${ordenesFiltradas.filter(o => o.estado === 'PENDIENTE').length}</div>
-              <div class="stat-label">Pendientes</div>
-            </div>
-          </div>
 
-          <table>
-            <thead>
-              <tr>
-                <th>ID Orden</th>
-                <th>Proveedor</th>
-                <th>Fecha Emisión</th>
-                <th>Fecha Entrega</th>
-                <th>Total</th>
-              </tr>
-            </thead>
-            <tbody>
-              ${ordenesFiltradas.map(o => `
-                <tr>
-                  <td><strong>${o.id}</strong></td>
-                  <td>${o.proveedor}</td>
-                  <td>${formatDate(o.fecha_emision)}</td>
-                  <td>${formatDate(o.fecha_entrega) || '-'}</td>
-                  <td><strong>Bs ${parseFloat(o.total || 0).toFixed(2)}</strong></td>
-                </tr>
-              `).join('')}
-              <tr class="total-row">
-                <td colspan="4" style="text-align: right;">TOTAL:</td>
-                <td><strong>Bs ${totalFiltrado.toFixed(2)}</strong></td>
-              </tr>
-            </tbody>
-          </table>
+            <div class="seccion">
+              <div class="seccion-titulo">Órdenes de Compra</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th>ID Orden</th>
+                    <th>Proveedor</th>
+                    <th>Fecha Emisión</th>
+                    <th>Fecha Entrega</th>
+                    <th style="text-align:right">Total</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${ordenesFiltradas.map(o => `
+                    <tr>
+                      <td><strong>${o.id}</strong></td>
+                      <td>${o.proveedor}</td>
+                      <td>${formatDate(o.fecha_emision)}</td>
+                      <td>${formatDate(o.fecha_entrega) || '-'}</td>
+                      <td style="text-align:right" class="currency positive"><strong>Bs ${parseFloat(o.total || 0).toFixed(2)}</strong></td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+                <tfoot>
+                  <tr>
+                    <td colspan="4" style="text-align:right"><strong>TOTAL:</strong></td>
+                    <td style="text-align:right" class="currency positive"><strong>Bs ${totalFiltrado.toFixed(2)}</strong></td>
+                  </tr>
+                </tfoot>
+              </table>
+            </div>
 
-          <div class="footer">
-            <p>Don Baraton - Sistema de Gestión de Supermercado</p>
-            <p>Reporte generado automáticamente el ${new Date().toLocaleDateString('es-BO')}</p>
+            ${devoluciones.length > 0 ? `
+            <div class="seccion">
+              <div class="seccion-titulo devolucion">Devoluciones a Proveedores</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th class="devolucion">ID</th>
+                    <th class="devolucion">Fecha</th>
+                    <th class="devolucion">Producto</th>
+                    <th class="devolucion" style="text-align:center">Cantidad</th>
+                    <th class="devolucion">Motivo</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${devoluciones.map(dev => `
+                    <tr style="background:#fff5f5">
+                      <td><strong>${dev.id}</strong></td>
+                      <td>${formatDate(dev.fecha)}</td>
+                      <td>${dev.producto || 'Sin producto'}</td>
+                      <td style="text-align:center;color:#c62828;font-weight:700">${dev.cantidad}</td>
+                      <td>${dev.motivo || '-'}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+            ` : ''}
+
+            <div class="footer">
+              <p class="brand">Don Baraton - Sistema de Gestión de Supermercado</p>
+              <p>Reporte generado automáticamente • ${new Date().toLocaleDateString('es-BO')} ${new Date().toLocaleTimeString('es-BO')}</p>
+              <p>Este documento es para uso interno</p>
+            </div>
           </div>
         </body>
         </html>
@@ -285,6 +433,11 @@ export default function ReportesCompras() {
 
       // Abrir nueva ventana para imprimir como PDF
       const ventana = window.open('', '_blank');
+      if (!ventana) {
+        toast.error('Por favor permite las ventanas emergentes para generar el PDF');
+        setExportando(false);
+        return;
+      }
       ventana.document.write(contenidoHTML);
       ventana.document.close();
       
@@ -532,6 +685,40 @@ export default function ReportesCompras() {
           </table>
         )}
       </div>
+
+      {/* Sección Devoluciones a Proveedores */}
+      {devoluciones.length > 0 && (
+        <div style={{...styles.tableContainer, borderTop: '4px solid #c62828', marginTop: '25px'}}>
+          <div style={styles.tableHeader}>
+            <h3 style={{...styles.tableTitle, color: '#c62828'}}>
+              <RotateCcw size={18} style={{ marginRight: '8px' }} />
+              Devoluciones a Proveedores ({devoluciones.length} registros)
+            </h3>
+          </div>
+          <table style={styles.table}>
+            <thead>
+              <tr>
+                <th style={{...styles.th, background: '#c62828'}}>ID</th>
+                <th style={{...styles.th, background: '#c62828'}}>Fecha</th>
+                <th style={{...styles.th, background: '#c62828'}}>Producto</th>
+                <th style={{...styles.th, background: '#c62828', textAlign: 'center'}}>Cantidad</th>
+                <th style={{...styles.th, background: '#c62828'}}>Motivo</th>
+              </tr>
+            </thead>
+            <tbody>
+              {devoluciones.map((dev, index) => (
+                <tr key={`dev-${index}`} style={{...styles.tr, background: '#fff5f5'}}>
+                  <td style={styles.td}><strong>{dev.id}</strong></td>
+                  <td style={styles.td}>{formatDate(dev.fecha)}</td>
+                  <td style={styles.td}>{dev.producto || 'Sin producto'}</td>
+                  <td style={{...styles.td, textAlign: 'center', color: '#c62828', fontWeight: '700'}}>{dev.cantidad}</td>
+                  <td style={styles.td}>{dev.motivo || '-'}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
 
       {/* Modal Detalle */}
       {showDetalleModal && ordenSeleccionada && (
