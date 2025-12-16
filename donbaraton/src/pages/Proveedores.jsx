@@ -1,7 +1,7 @@
 // src/pages/Proveedores.jsx
 import { useState, useEffect } from 'react';
-import { 
-  Truck, Plus, Edit, Trash2, Search, 
+import {
+  Truck, Plus, Edit, Trash2, Search,
   X, Save, Loader2, Phone, Mail, MapPin, Building
 } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
@@ -28,7 +28,7 @@ export default function Proveedores() {
   const getUsername = () => {
     const user = localStorage.getItem('user');
     if (user) {
-      try { return JSON.parse(user).usuario_id || 'USR-001'; } 
+      try { return JSON.parse(user).usuario_id || 'USR-001'; }
       catch { return 'USR-001'; }
     }
     return 'USR-001';
@@ -44,7 +44,7 @@ export default function Proveedores() {
       const { data, error } = await supabase.rpc('fn_leer_proveedores', {
         p_buscar_texto: searchTerm || null
       });
-      
+
       if (error) {
         console.error('Error:', error);
         toast.error('Error al cargar proveedores');
@@ -194,7 +194,7 @@ export default function Proveedores() {
   return (
     <div style={styles.container}>
       <Toaster position="top-right" />
-      
+
       <header style={styles.header}>
         <div>
           <h1 style={styles.title}>
@@ -249,8 +249,7 @@ export default function Proveedores() {
                 <th style={styles.th}>Contacto</th>
                 <th style={styles.th}>Teléfono</th>
                 <th style={styles.th}>Email</th>
-                <th style={styles.th}>Estado</th>
-                <th style={{...styles.th, textAlign: 'center'}}>Acciones</th>
+                <th style={{ ...styles.th, textAlign: 'center' }}>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -275,16 +274,7 @@ export default function Proveedores() {
                       </span>
                     ) : '-'}
                   </td>
-                  <td style={styles.td}>
-                    <span style={{
-                      ...styles.badge,
-                      background: prov.estado === 'ACTIVO' ? '#e8f5e9' : '#ffebee',
-                      color: prov.estado === 'ACTIVO' ? '#2e7d32' : '#c62828'
-                    }}>
-                      {prov.estado}
-                    </span>
-                  </td>
-                  <td style={{...styles.td, textAlign: 'center'}}>
+                  <td style={{ ...styles.td, textAlign: 'center' }}>
                     <div style={styles.actionButtons}>
                       <button style={styles.editButton} onClick={() => openEditModal(prov)}>
                         <Edit size={16} />
@@ -321,7 +311,7 @@ export default function Proveedores() {
                   <input
                     type="text"
                     value={formData.razon_social}
-                    onChange={(e) => setFormData({...formData, razon_social: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, razon_social: e.target.value })}
                     style={styles.input}
                     placeholder="Nombre de la empresa"
                     disabled={!!editingItem}
@@ -332,7 +322,7 @@ export default function Proveedores() {
                   <input
                     type="text"
                     value={formData.nit_ci}
-                    onChange={(e) => setFormData({...formData, nit_ci: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, nit_ci: e.target.value })}
                     style={styles.input}
                     placeholder="NIT o Carnet"
                     disabled={!!editingItem}
@@ -346,7 +336,7 @@ export default function Proveedores() {
                   <input
                     type="tel"
                     value={formData.telefono}
-                    onChange={(e) => setFormData({...formData, telefono: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, telefono: e.target.value })}
                     style={styles.input}
                     placeholder="Teléfono fijo"
                   />
@@ -356,7 +346,7 @@ export default function Proveedores() {
                   <input
                     type="tel"
                     value={formData.celular}
-                    onChange={(e) => setFormData({...formData, celular: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, celular: e.target.value })}
                     style={styles.input}
                     placeholder="Celular de contacto"
                   />
@@ -369,7 +359,7 @@ export default function Proveedores() {
                   <input
                     type="email"
                     value={formData.email}
-                    onChange={(e) => setFormData({...formData, email: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                     style={styles.input}
                     placeholder="correo@empresa.com"
                   />
@@ -379,7 +369,7 @@ export default function Proveedores() {
                   <input
                     type="text"
                     value={formData.nombre_contacto}
-                    onChange={(e) => setFormData({...formData, nombre_contacto: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, nombre_contacto: e.target.value })}
                     style={styles.input}
                     placeholder="Nombre del contacto"
                   />
@@ -387,22 +377,22 @@ export default function Proveedores() {
               </div>
 
               <div style={styles.formRow}>
-                <div style={{...styles.formGroup, flex: 2}}>
+                <div style={{ ...styles.formGroup, flex: 2 }}>
                   <label style={styles.label}>Dirección</label>
                   <input
                     type="text"
                     value={formData.direccion}
-                    onChange={(e) => setFormData({...formData, direccion: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, direccion: e.target.value })}
                     style={styles.input}
                     placeholder="Dirección del proveedor"
                   />
                 </div>
-                <div style={{...styles.formGroup, flex: 1}}>
+                <div style={{ ...styles.formGroup, flex: 1 }}>
                   <label style={styles.label}>Plazo Crédito (días)</label>
                   <input
                     type="number"
                     value={formData.plazo_credito}
-                    onChange={(e) => setFormData({...formData, plazo_credito: e.target.value})}
+                    onChange={(e) => setFormData({ ...formData, plazo_credito: e.target.value })}
                     style={styles.input}
                     min="0"
                   />

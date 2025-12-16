@@ -15,6 +15,8 @@ export default function Personal() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [fotoPreview, setFotoPreview] = useState(null);
+  const [existingEmployee, setExistingEmployee] = useState(null);
+  const [checkingCI, setCheckingCI] = useState(false);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroCargo, setFiltroCargo] = useState(''); // Nuevo estado para filtro
@@ -157,6 +159,86 @@ export default function Personal() {
   const quitarFoto = () => {
     setFotoPreview(null);
     setFormData({ ...formData, foto_url: '', fotoFile: null });
+  };
+
+  // Buscar empleado existente por CI
+  const buscarEmpleadoPorCI = async (ci) => {
+    if (!ci || ci.length < 5) {
+      setExistingEmployee(null);
+      return;
+    }
+    setCheckingCI(true);
+    try {
+      const { data, error } = await supabase
+        .from('empleados')
+        .select('*')
+        .eq('ci', ci.trim())
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error buscando empleado:', error);
+        setExistingEmployee(null);
+        return;
+      }
+
+      if (data) {
+        setExistingEmployee(data);
+        // Auto-completar formulario
+        setFormData(prev => ({
+          ...prev,
+          nombres: data.nombres || '',
+          paterno: data.apellido_paterno || '',
+          materno: data.apellido_materno || '',
+          fecha_nac: data.fecha_nacimiento || '',
+          sexo: data.sexo || 'M',
+          telefono: data.telefono || '',
+          email: data.email || '',
+          cargo_id: data.id_cargo || '',
+          salario: data.salario || '',
+          foto_url: data.foto_url || ''
+        }));
+
+        if (data.estado === 'ACTIVO') {
+          toast.error('Este empleado ya está ACTIVO en el sistema');
+        } else {
+          toast.success('Empleado encontrado. Puede activarlo.');
+        }
+      } else {
+        setExistingEmployee(null);
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      setExistingEmployee(null);
+    } finally {
+      setCheckingCI(false);
+    }
+  };
+
+  // Reactivar empleado
+  const handleReactivate = async () => {
+    if (!existingEmployee) return;
+
+    setSaving(true);
+    try {
+      const { error } = await supabase.rpc('fn_reactivar_empleado', {
+        p_id_empleado: existingEmployee.id_empleado,
+        p_usuario_auditoria: getUsername()
+      });
+
+      if (error) {
+        toast.error(error.message || 'Error al activar empleado');
+      } else {
+        toast.success('Empleado activado exitosamente');
+        setShowModal(false);
+        resetForm();
+        cargarDatos();
+      }
+    } catch (err) {
+      console.error(err);
+      toast.error('Error al activar empleado');
+    } finally {
+      setSaving(false);
+    }
   };
 
   useEffect(() => {
@@ -406,6 +488,7 @@ export default function Personal() {
     });
     setFotoPreview(null);
     setEditingItem(null);
+    setExistingEmployee(null);
   };
 
   const getEstadoBadge = (estado) => {
@@ -630,12 +713,16 @@ export default function Personal() {
                 <>
                   <div style={styles.formRow}>
                     <div style={styles.formGroup}>
-                      <label style={styles.label}>CI *</label>
+                      <label style={styles.label}>CI * {checkingCI && <Loader2 size={14} style={{ animation: 'spin 1s linear infinite', marginLeft: '5px' }} />}</label>
                       <input
                         type="text"
                         value={formData.ci}
                         onChange={e => setFormData({ ...formData, ci: e.target.value })}
-                        style={styles.input}
+                        onBlur={(e) => buscarEmpleadoPorCI(e.target.value)}
+                        style={{
+                          ...styles.input,
+                          borderColor: existingEmployee ? (existingEmployee.estado === 'ACTIVO' ? '#c62828' : '#2e7d32') : '#e9ecef'
+                        }}
                         placeholder="Carnet de identidad"
                       />
                     </div>
@@ -798,13 +885,34 @@ export default function Personal() {
               <button style={styles.cancelButton} onClick={() => setShowModal(false)} disabled={saving}>
                 Cancelar
               </button>
-              <button style={styles.saveButton} onClick={editingItem ? handleUpdate : handleCreate} disabled={saving}>
-                {saving ? (
-                  <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Guardando...</>
-                ) : (
-                  <><Save size={16} /> {editingItem ? 'Actualizar' : 'Registrar'}</>
-                )}
-              </button>
+              {/* Botón Activar Empleado - solo si es empleado existente INACTIVO */}
+              {!editingItem && existingEmployee && existingEmployee.estado === 'INACTIVO' && (
+                <button
+                  style={{ ...styles.saveButton, background: 'linear-gradient(135deg, #1976d2, #42a5f5)' }}
+                  onClick={handleReactivate}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Activando...</>
+                  ) : (
+                    <><Check size={16} /> Activar Empleado</>
+                  )}
+                </button>
+              )}
+              {/* Botón normal Registrar/Actualizar - ocultar si hay empleado existente activo */}
+              {!(existingEmployee && existingEmployee.estado === 'ACTIVO') && (
+                <button
+                  style={styles.saveButton}
+                  onClick={editingItem ? handleUpdate : handleCreate}
+                  disabled={saving || (existingEmployee && existingEmployee.estado === 'INACTIVO')}
+                >
+                  {saving ? (
+                    <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Guardando...</>
+                  ) : (
+                    <><Save size={16} /> {editingItem ? 'Actualizar' : 'Registrar'}</>
+                  )}
+                </button>
+              )}
             </div>
           </div>
         </div>
