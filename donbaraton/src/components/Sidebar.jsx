@@ -8,7 +8,7 @@ import {
   UserCheck, AlertCircle, Settings,
   Building, Calculator, Warehouse, ShoppingBag, CreditCard,
   BarChart3, Calendar, Bell, FileText, ClipboardList,
-  Store, ChevronRight, CheckCircle
+  Store, ChevronRight, CheckCircle, RotateCcw
 } from "lucide-react";
 import logoEmpresa from "../logo/images.jpg";
 import { supabase } from '../lib/supabaseClient';
@@ -59,10 +59,10 @@ const ROLE_PERMISSIONS = {
     "Configuración", "Órdenes de Compra", "Cierre de Caja"
   ],
   [ROLES.CAJERO]: [
-    "Panel Principal", "Ventas", "Caja", "Clientes", "Cierre de Caja"
+    "Ventas", "Caja", "Clientes", "Cierre de Caja"
   ],
   [ROLES.ENCARGADO_ALMACEN]: [
-    "Panel Principal", "Inventario", "Productos", "Categorías",
+    "Inventario", "Productos", "Categorías",
     "Alertas de Stock", "Movimientos de Inventario"
   ],
   [ROLES.ENCARGADO_COMPRAS]: [
@@ -91,7 +91,7 @@ const MENU_CONFIG = [
     icon: Home,
     path: "/dashboard",  // Cambiado de "/" a "/dashboard"
     exact: true,
-    roles: Object.values(ROLES),
+    roles: [ROLES.ADMINISTRADOR, ROLES.GERENTE],
     description: "Dashboard y estadísticas"
   },
 
@@ -180,6 +180,13 @@ const MENU_CONFIG = [
     path: "/cierre-caja",
     roles: [ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.SUPERVISOR_CAJA, ROLES.CONTADOR],
     description: "Cierre diario de caja"
+  },
+  {
+    label: "Devoluciones",
+    icon: RotateCcw,
+    path: "/devoluciones-ventas",
+    roles: [ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.SUPERVISOR_CAJA, ROLES.GERENTE],
+    description: "Devoluciones de ventas"
   },
 
   // SECCIÓN: REPORTES
@@ -877,30 +884,7 @@ export default function Sidebar({ onLogout, empleado }) {
               </ul>
             </div>
 
-            {/* Permisos NO disponibles (ROJO) */}
-            {unavailablePermissions.length > 0 && (
-              <div style={sidebarStyles.unavailableSection}>
-                <div style={sidebarStyles.permissionsHeader}>
-                  <AlertCircle size={14} />
-                  <span>Permisos restringidos</span>
-                </div>
-                <ul style={sidebarStyles.permissionsList}>
-                  {unavailablePermissions.slice(0, 4).map((permiso, index) => (
-                    <li key={`unavailable-${index}`} style={sidebarStyles.permissionItem}>
-                      <div style={sidebarStyles.permissionDotUnavailable}></div>
-                      <span style={sidebarStyles.permissionTextUnavailable}>{permiso}</span>
-                    </li>
-                  ))}
-                  {unavailablePermissions.length > 4 && (
-                    <li style={sidebarStyles.permissionItem}>
-                      <span style={{ fontSize: '11px', color: '#1a5d1a', opacity: 0.7 }}>
-                        + {unavailablePermissions.length - 4} más...
-                      </span>
-                    </li>
-                  )}
-                </ul>
-              </div>
-            )}
+
           </div>
         )}
       </div>

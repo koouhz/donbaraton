@@ -24,6 +24,7 @@ const Ventas = lazy(() => import("./pages/Ventas"));
 const Caja = lazy(() => import("./pages/Caja"));
 const CierreCaja = lazy(() => import("./pages/CierreCaja"));
 const Devoluciones = lazy(() => import("./pages/Devoluciones"));
+const DevolucionesVentas = lazy(() => import("./pages/DevolucionesVentas"));
 const ReportesVentas = lazy(() => import("./pages/ReportesVentas"));
 
 // Compras
@@ -148,6 +149,7 @@ function App() {
               <Route path="caja" element={<Caja />} />
               <Route path="cierre-caja" element={<CierreCaja />} />
               <Route path="devoluciones" element={<Devoluciones />} />
+              <Route path="devoluciones-ventas" element={<DevolucionesVentas />} />
               <Route path="reportes-ventas" element={<ReportesVentas />} />
 
               {/* Compras */}
