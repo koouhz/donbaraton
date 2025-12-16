@@ -309,10 +309,9 @@ export default function RolesYCargos() {
 
     setSaving(true);
     try {
-      const { data, error } = await supabase.rpc('fn_actualizar_usuario', {
-        p_id: parseInt(assignForm.id_usuario),
-        p_rol_id: parseInt(assignForm.id_rol),
-        p_password_hash: null,
+      const { data, error } = await supabase.rpc('fn_asignar_rol_usuario', {
+        p_id_usuario: assignForm.id_usuario,
+        p_id_rol: assignForm.id_rol,
         p_usuario_auditoria: getUsername()
       });
 
@@ -577,7 +576,6 @@ export default function RolesYCargos() {
                       <th style={styles.thPurple}>Usuario</th>
                       <th style={styles.thPurple}>Empleado</th>
                       <th style={styles.thPurple}>Rol Actual</th>
-                      <th style={styles.thPurple}>Estado</th>
                       <th style={{ ...styles.thPurple, textAlign: 'center' }}>Acciones</th>
                     </tr>
                   </thead>
@@ -594,11 +592,6 @@ export default function RolesYCargos() {
                         <td style={styles.td}>
                           <span style={styles.roleBadge}>
                             {user.rol || 'Sin rol'}
-                          </span>
-                        </td>
-                        <td style={styles.td}>
-                          <span style={user.estado === 'ACTIVO' ? styles.statusActive : styles.statusInactive}>
-                            {user.estado}
                           </span>
                         </td>
                         <td style={{ ...styles.td, textAlign: 'center' }}>
