@@ -4,7 +4,8 @@ import {
   Package, Plus, Edit, Trash2, Search,
   X, Save, Loader2, Filter, AlertTriangle,
   CheckCircle, AlertCircle, TrendingUp,
-  Sparkles, ShoppingBag, RefreshCw
+  Sparkles, ShoppingBag, RefreshCw,
+  Camera, Upload, Image as ImageIcon
 } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
@@ -15,6 +16,8 @@ export default function Productos() {
   const [proveedores, setProveedores] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [fotoPreview, setFotoPreview] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [filterCategoria, setFilterCategoria] = useState('');
   const [showModal, setShowModal] = useState(false);
@@ -32,7 +35,9 @@ export default function Productos() {
     stock_maximo: 100,
     unidad_medida: 'UNIDAD',
     presentacion: '',
-    controla_vencimiento: false
+    controla_vencimiento: false,
+    foto_url: '',
+    fotoFile: null
   });
 
   const getUsername = () => {
@@ -116,6 +121,71 @@ export default function Productos() {
     const digitoVerificador = (10 - (suma % 10)) % 10;
 
     return sinDigito + digitoVerificador;
+  };
+
+  // Subir imagen a Supabase Storage
+  const subirFoto = async (file) => {
+    if (!file) return null;
+    
+    setUploading(true);
+    try {
+      // Generar nombre único para el archivo
+      const fileExt = file.name.split('.').pop();
+      const fileName = `producto_${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+      
+      // Subir a Supabase Storage
+      const { data, error } = await supabase.storage
+        .from('productos')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+      
+      if (error) throw error;
+      
+      // Obtener URL pública
+      const { data: urlData } = supabase.storage
+        .from('productos')
+        .getPublicUrl(filePath);
+      
+      return urlData.publicUrl;
+    } catch (err) {
+      console.error('Error subiendo foto:', err);
+      toast.error('Error al subir la imagen');
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Manejar selección de archivo de foto
+  const handleFotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validar tipo
+      if (!file.type.startsWith('image/')) {
+        toast.error('Solo se permiten imágenes');
+        return;
+      }
+      // Validar tamaño (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('La imagen no debe superar 5MB');
+        return;
+      }
+      // Vista previa
+      const reader = new FileReader();
+      reader.onloadend = () => setFotoPreview(reader.result);
+      reader.readAsDataURL(file);
+      // Guardar archivo para subir después
+      setFormData({ ...formData, fotoFile: file });
+    }
+  };
+
+  // Quitar foto
+  const quitarFoto = () => {
+    setFotoPreview(null);
+    setFormData({ ...formData, foto_url: '', fotoFile: null });
   };
 
   useEffect(() => {
@@ -210,6 +280,18 @@ export default function Productos() {
           toast.error(error.message || 'Error al crear producto');
         }
       } else {
+        // Subir foto si hay una y tenemos el ID del producto
+        if (formData.fotoFile && data) {
+          const fotoUrl = await subirFoto(formData.fotoFile);
+          if (fotoUrl) {
+            await supabase.rpc('fn_actualizar_foto_producto', {
+              p_id_producto: data,
+              p_foto_url: fotoUrl,
+              p_usuario_auditoria: getUsername()
+            });
+          }
+        }
+        
         // Si hay proveedor seleccionado, asociar el producto con el proveedor
         if (formData.proveedor_id && data) {
           try {
@@ -234,6 +316,7 @@ export default function Productos() {
           toast.success('Producto creado exitosamente');
         }
         setShowModal(false);
+        setFotoPreview(null);
         resetForm();
         cargarProductos();
       }
@@ -269,6 +352,18 @@ export default function Productos() {
       if (error) {
         toast.error(error.message || 'Error al actualizar');
       } else {
+        // Subir nueva foto si hay una seleccionada
+        if (formData.fotoFile) {
+          const fotoUrl = await subirFoto(formData.fotoFile);
+          if (fotoUrl) {
+            await supabase.rpc('fn_actualizar_foto_producto', {
+              p_id_producto: editingItem.id,
+              p_foto_url: fotoUrl,
+              p_usuario_auditoria: getUsername()
+            });
+          }
+        }
+        
         // Si hay proveedor seleccionado, actualizar/crear la asociación
         if (formData.proveedor_id) {
           try {
@@ -288,6 +383,7 @@ export default function Productos() {
         }
         toast.success('Producto actualizado exitosamente');
         setShowModal(false);
+        setFotoPreview(null);
         resetForm();
         cargarProductos();
       }
@@ -326,6 +422,7 @@ export default function Productos() {
 
   const openEditModal = async (producto) => {
     setEditingItem(producto);
+    setFotoPreview(null);  // Limpiar preview anterior
     // Obtener detalles completos del producto
     try {
       const { data, error } = await supabase.rpc('fn_obtener_producto_por_id', {
@@ -347,7 +444,9 @@ export default function Productos() {
           stock_maximo: p.stock_maximo || 100,
           unidad_medida: p.unidad_medida || 'UNIDAD',
           presentacion: p.presentacion || '',
-          controla_vencimiento: p.controla_vencimiento || false
+          controla_vencimiento: p.controla_vencimiento || false,
+          foto_url: p.foto_url || '',
+          fotoFile: null
         });
       } else {
         // Fallback con datos de la tabla
@@ -364,7 +463,9 @@ export default function Productos() {
           stock_maximo: 100,
           unidad_medida: 'UNIDAD',
           presentacion: '',
-          controla_vencimiento: false
+          controla_vencimiento: false,
+          foto_url: producto.foto_url || '',
+          fotoFile: null
         });
       }
     } catch (err) {
@@ -375,6 +476,7 @@ export default function Productos() {
 
   const openCreateModal = () => {
     setEditingItem(null);
+    setFotoPreview(null);  // Limpiar preview anterior
     // Generar códigos automáticamente para nuevo producto
     setFormData({
       codigo_interno: generarCodigoInterno(),
@@ -389,7 +491,9 @@ export default function Productos() {
       stock_maximo: 100,
       unidad_medida: 'UNIDAD',
       presentacion: '',
-      controla_vencimiento: false
+      controla_vencimiento: false,
+      foto_url: '',
+      fotoFile: null
     });
     setShowModal(true);
   };
@@ -401,9 +505,11 @@ export default function Productos() {
       precio_costo: '', precio_venta: '',
       stock_minimo: 10, stock_maximo: 100,
       unidad_medida: 'UNIDAD', presentacion: '',
-      controla_vencimiento: false
+      controla_vencimiento: false,
+      foto_url: '', fotoFile: null
     });
     setEditingItem(null);
+    setFotoPreview(null);
   };
 
   // Obtener estilo del semáforo de stock
@@ -519,6 +625,7 @@ export default function Productos() {
           <table style={styles.table}>
             <thead>
               <tr>
+                <th style={styles.th}>Imagen</th>
                 <th style={styles.th}>Código</th>
                 <th style={styles.th}>Producto</th>
                 <th style={styles.th}>Categoría</th>
@@ -533,6 +640,19 @@ export default function Productos() {
                 const stockStyle = getStockBadge(prod.estado_stock);
                 return (
                   <tr key={prod.id} style={styles.tr}>
+                    <td style={styles.td}>
+                      {prod.foto_url ? (
+                        <img 
+                          src={prod.foto_url} 
+                          alt={prod.nombre}
+                          style={styles.tableFotoImg}
+                        />
+                      ) : (
+                        <div style={styles.tableFotoPlaceholder}>
+                          <Package size={20} style={{ color: '#ccc' }} />
+                        </div>
+                      )}
+                    </td>
                     <td style={styles.td}>
                       <code style={styles.code}>{prod.codigo_interno}</code>
                     </td>
@@ -857,6 +977,60 @@ export default function Productos() {
                   </label>
                 </div>
               </div>
+
+              {/* Foto del Producto */}
+              <div style={styles.formRow}>
+                <div style={{ ...styles.formGroup, flex: 1 }}>
+                  <label style={styles.label}>
+                    <Camera size={16} />
+                    Foto del Producto (opcional)
+                  </label>
+                  <div style={styles.fotoSection}>
+                    {/* Vista previa */}
+                    <div style={styles.fotoPreview}>
+                      {(fotoPreview || formData.foto_url) ? (
+                        <img 
+                          src={fotoPreview || formData.foto_url} 
+                          alt="Preview" 
+                          style={styles.fotoImage}
+                        />
+                      ) : (
+                        <div style={styles.fotoPlaceholder}>
+                          <ImageIcon size={48} style={{ color: '#ccc' }} />
+                          <span>Sin imagen</span>
+                        </div>
+                      )}
+                    </div>
+                    {/* Botones */}
+                    <div style={styles.fotoActions}>
+                      <label style={styles.uploadButton}>
+                        <input
+                          type="file"
+                          accept="image/jpeg,image/png,image/webp"
+                          onChange={handleFotoChange}
+                          style={{ display: 'none' }}
+                          disabled={uploading}
+                        />
+                        <Upload size={16} />
+                        {uploading ? 'Subiendo...' : 'Seleccionar Imagen'}
+                      </label>
+                      {(fotoPreview || formData.foto_url) && (
+                        <button 
+                          type="button"
+                          style={styles.removeFotoButton}
+                          onClick={quitarFoto}
+                        >
+                          <X size={16} />
+                          Quitar
+                        </button>
+                      )}
+                      <span style={styles.fotoHelp}>
+                        JPG, PNG o WebP. Máx 5MB.
+                      </span>
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
 
             <div style={styles.modalFooter}>
@@ -930,4 +1104,33 @@ const styles = {
   codeInputWrapper: { display: 'flex', gap: '8px', alignItems: 'center' },
   codeInput: { background: '#f8f9fa', fontFamily: 'monospace', fontSize: '13px', color: '#495057' },
   regenerateButton: { padding: '10px 12px', background: 'white', border: '2px solid #e9ecef', borderRadius: '10px', cursor: 'pointer', fontSize: '16px', transition: 'all 0.2s' },
+  // Estilos para foto de producto
+  fotoSection: { display: 'flex', gap: '20px', alignItems: 'flex-start', flexWrap: 'wrap' },
+  fotoPreview: { width: '150px', height: '150px', border: '2px dashed #e9ecef', borderRadius: '12px', overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#f8f9fa' },
+  fotoImage: { width: '100%', height: '100%', objectFit: 'cover' },
+  fotoPlaceholder: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: '#999', fontSize: '12px' },
+  fotoActions: { display: 'flex', flexDirection: 'column', gap: '10px' },
+  uploadButton: { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: '#e8f5e9', color: '#1a5d1a', border: '2px solid #1a5d1a', borderRadius: '8px', cursor: 'pointer', fontSize: '14px', fontWeight: '500' },
+  removeFotoButton: { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: '#ffebee', color: '#c62828', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' },
+  fotoHelp: { fontSize: '12px', color: '#6c757d' },
+  // Estilos para imagen en tabla
+  tableFotoImg: { 
+    width: '50px', 
+    height: '50px', 
+    borderRadius: '10px', 
+    objectFit: 'cover',
+    border: '2px solid #e8f5e9',
+    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+    background: 'linear-gradient(135deg, #f8f9fa, #e8f5e9)'
+  },
+  tableFotoPlaceholder: { 
+    width: '50px', 
+    height: '50px', 
+    background: 'linear-gradient(135deg, #f8f9fa, #e9ecef)', 
+    borderRadius: '10px', 
+    display: 'flex', 
+    alignItems: 'center', 
+    justifyContent: 'center',
+    border: '2px dashed #dee2e6'
+  },
 };
