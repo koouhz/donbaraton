@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react';
 import {
   Users, Plus, Edit, Trash2, Search,
-  X, Save, Loader2, Phone, Mail, Briefcase, User, Check, AlertCircle
+  X, Save, Loader2, Phone, Mail, Briefcase, User, Check, AlertCircle,
+  Camera, Upload, Image as ImageIcon
 } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
@@ -12,6 +13,8 @@ export default function Personal() {
   const [cargos, setCargos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [fotoPreview, setFotoPreview] = useState(null);
 
   const [searchTerm, setSearchTerm] = useState('');
   const [filtroCargo, setFiltroCargo] = useState(''); // Nuevo estado para filtro
@@ -29,7 +32,9 @@ export default function Personal() {
     cargo_id: '',
     salario: '',
     username: '',
-    password: ''
+    password: '',
+    foto_url: '',
+    fotoFile: null
   });
 
   // Regex de validación
@@ -79,6 +84,7 @@ export default function Personal() {
     return true;
   };
 
+
   const getUsername = () => {
     const user = localStorage.getItem('user');
     if (user) {
@@ -86,6 +92,71 @@ export default function Personal() {
       catch { return 'admin'; }
     }
     return 'admin';
+  };
+
+  // Subir imagen a Supabase Storage
+  const subirFoto = async (file) => {
+    if (!file) return null;
+
+    setUploading(true);
+    try {
+      // Generar nombre único para el archivo
+      const fileExt = file.name.split('.').pop();
+      const fileName = `empleado_${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      // Subir a Supabase Storage (bucket 'empleados')
+      const { data, error } = await supabase.storage
+        .from('empleados')
+        .upload(filePath, file, {
+          cacheControl: '3600',
+          upsert: false
+        });
+
+      if (error) throw error;
+
+      // Obtener URL pública
+      const { data: urlData } = supabase.storage
+        .from('empleados')
+        .getPublicUrl(filePath);
+
+      return urlData.publicUrl;
+    } catch (err) {
+      console.error('Error subiendo foto:', err);
+      toast.error('Error al subir la imagen');
+      return null;
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  // Manejar selección de archivo de foto
+  const handleFotoChange = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      // Validar tipo
+      if (!file.type.startsWith('image/')) {
+        toast.error('Solo se permiten imágenes');
+        return;
+      }
+      // Validar tamaño (5MB max)
+      if (file.size > 5 * 1024 * 1024) {
+        toast.error('La imagen no debe superar 5MB');
+        return;
+      }
+      // Vista previa
+      const reader = new FileReader();
+      reader.onloadend = () => setFotoPreview(reader.result);
+      reader.readAsDataURL(file);
+      // Guardar archivo para subir después
+      setFormData({ ...formData, fotoFile: file });
+    }
+  };
+
+  // Quitar foto
+  const quitarFoto = () => {
+    setFotoPreview(null);
+    setFormData({ ...formData, foto_url: '', fotoFile: null });
   };
 
   useEffect(() => {
@@ -100,16 +171,22 @@ export default function Personal() {
         supabase.rpc('fn_leer_cargos')
       ]);
 
-      if (empRes.error) throw empRes.error;
-      if (carRes.error) throw carRes.error;
+      if (empRes.error) {
+        console.error('Error detallado empleados:', empRes.error);
+        throw new Error(`Error empleados: ${empRes.error.message} (${empRes.error.details || ''})`);
+      }
+      if (carRes.error) {
+        console.error('Error detallado cargos:', carRes.error);
+        throw new Error(`Error cargos: ${carRes.error.message}`);
+      }
 
       // Ordenar por ID descendente
       const sortedEmps = (empRes.data || []).sort((a, b) => b.id_empleado - a.id_empleado);
       setEmpleados(sortedEmps);
       setCargos(carRes.data || []);
     } catch (err) {
-      console.error('Error:', err);
-      toast.error('Error al cargar datos');
+      console.error('Error cargando datos:', err);
+      toast.error(err.message || 'Error al cargar datos');
     } finally {
       setLoading(false);
     }
@@ -181,6 +258,23 @@ export default function Personal() {
           toast.error(error.message || 'Error al crear empleado');
         }
       } else {
+        // Subir foto si hay una y tenemos el ID del empleado
+        if (formData.fotoFile && data) {
+          const fotoUrl = await subirFoto(formData.fotoFile);
+          if (fotoUrl) {
+            try {
+              await supabase.rpc('fn_actualizar_foto_empleado', {
+                p_id_empleado: data,
+                p_foto_url: fotoUrl,
+                p_usuario_auditoria: getUsername()
+              });
+            } catch (errFoto) {
+              console.error("Error al actualizar foto de empleado:", errFoto);
+              toast.warning("Empleado creado, pero no se pudo guardar la foto. Verifique la base de datos.");
+            }
+          }
+        }
+
         toast.success('Empleado registrado exitosamente');
         setShowModal(false);
         resetForm();
@@ -224,6 +318,23 @@ export default function Personal() {
       if (error) {
         toast.error(error.message || 'Error al actualizar');
       } else {
+        // Subir nueva foto si hay una seleccionada
+        if (formData.fotoFile) {
+          const fotoUrl = await subirFoto(formData.fotoFile);
+          if (fotoUrl) {
+            try {
+              await supabase.rpc('fn_actualizar_foto_empleado', {
+                p_id_empleado: editingItem.id_empleado,
+                p_foto_url: fotoUrl,
+                p_usuario_auditoria: getUsername()
+              });
+            } catch (errFoto) {
+              console.error("Error al actualizar foto de empleado:", errFoto);
+              toast.warning("Datos actualizados, pero error al guardar la foto.");
+            }
+          }
+        }
+
         toast.success('Empleado actualizado');
         setShowModal(false);
         resetForm();
@@ -272,8 +383,11 @@ export default function Personal() {
       cargo_id: empleado.id_cargo || '',
       salario: empleado.salario || '',
       username: '', // No editamos usuario/pass aquí por seguridad simple
-      password: ''
+      password: '',
+      foto_url: empleado.foto_url || '',
+      fotoFile: null
     });
+    setFotoPreview(null); // Limpiar preview anterior, usaremos la URL si existe en la UI
     setShowModal(true);
   };
 
@@ -287,8 +401,10 @@ export default function Personal() {
     setFormData({
       ci: '', nombres: '', paterno: '', materno: '',
       fecha_nac: '', sexo: 'M', telefono: '', email: '',
-      cargo_id: '', salario: '', username: '', password: ''
+      cargo_id: '', salario: '', username: '', password: '',
+      foto_url: '', fotoFile: null
     });
+    setFotoPreview(null);
     setEditingItem(null);
   };
 
@@ -367,6 +483,7 @@ export default function Personal() {
           <table style={styles.table}>
             <thead>
               <tr>
+                <th style={styles.th}>Foto</th>
                 <th style={styles.th}>Empleado</th>
                 <th style={styles.th}>CI</th>
                 <th style={styles.th}>Contacto</th>
@@ -381,11 +498,21 @@ export default function Personal() {
                   const estadoStyle = getEstadoBadge(emp.estado);
                   return (
                     <tr key={emp.id_empleado} style={styles.tr}>
-                      <td style={{ ...styles.td, whiteSpace: 'normal', wordBreak: 'break-word', maxWidth: '250px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <td style={styles.td}>
+                        {emp.foto_url ? (
+                          <img
+                            src={emp.foto_url}
+                            alt={emp.nombres}
+                            style={{ width: '40px', height: '40px', borderRadius: '50%', objectFit: 'cover', border: '2px solid #e9ecef' }}
+                          />
+                        ) : (
                           <div style={styles.avatar}>
                             <User size={18} />
                           </div>
+                        )}
+                      </td>
+                      <td style={{ ...styles.td, whiteSpace: 'normal', wordBreak: 'break-word', maxWidth: '250px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                           <div>
                             <strong>{`${emp.nombres} ${emp.apellido_paterno || ''} ${emp.apellido_materno || ''}`.trim()}</strong>
                             {emp.email && <div style={{ fontSize: '12px', color: '#666' }}>{emp.email}</div>}
@@ -438,6 +565,67 @@ export default function Personal() {
             </div>
 
             <div style={styles.modalBody}>
+
+              {/* Sección de Foto */}
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', marginBottom: '25px' }}>
+                <div style={{
+                  width: '120px', height: '120px', borderRadius: '50%',
+                  background: '#f8f9fa', border: '3px solid #e9ecef',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  overflow: 'hidden', position: 'relative', marginBottom: '15px'
+                }}>
+                  {fotoPreview ? (
+                    <img src={fotoPreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : formData.foto_url ? (
+                    <img src={formData.foto_url} alt="Actual" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                  ) : (
+                    <User size={48} style={{ color: '#dee2e6' }} />
+                  )}
+
+                  {uploading && (
+                    <div style={{
+                      position: 'absolute', top: 0, left: 0, right: 0, bottom: 0,
+                      background: 'rgba(255,255,255,0.8)', display: 'flex',
+                      alignItems: 'center', justifyContent: 'center'
+                    }}>
+                      <Loader2 size={30} style={{ animation: 'spin 1s linear infinite', color: '#1a5d1a' }} />
+                    </div>
+                  )}
+                </div>
+
+                <div style={{ display: 'flex', gap: '10px' }}>
+                  <label style={{
+                    display: 'flex', alignItems: 'center', gap: '8px',
+                    padding: '8px 16px', background: '#e3f2fd', color: '#1976d2',
+                    borderRadius: '20px', cursor: 'pointer', fontSize: '13px', fontWeight: '500',
+                    transition: 'background 0.2s'
+                  }}>
+                    <Camera size={16} />
+                    {formData.foto_url || fotoPreview ? 'Cambiar Foto' : 'Subir Foto'}
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleFotoChange}
+                      style={{ display: 'none' }}
+                    />
+                  </label>
+
+                  {(formData.foto_url || fotoPreview) && (
+                    <button
+                      onClick={quitarFoto}
+                      style={{
+                        padding: '8px', background: '#ffebee', color: '#c62828',
+                        borderRadius: '50%', border: 'none', cursor: 'pointer',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center'
+                      }}
+                      title="Quitar foto"
+                    >
+                      <Trash2 size={16} />
+                    </button>
+                  )}
+                </div>
+              </div>
+
               {!editingItem && (
                 <>
                   <div style={styles.formRow}>
