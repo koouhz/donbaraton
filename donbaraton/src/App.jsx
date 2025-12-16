@@ -39,6 +39,8 @@ const CuentasPorPagar = lazy(() => import("./pages/CuentasPorPagar"));
 
 // Reportes y Administración
 const Reportes = lazy(() => import("./pages/Reportes"));
+const ReportesRentabilidad = lazy(() => import("./pages/ReportesRentabilidad"));
+const ReportesInventario = lazy(() => import("./pages/ReportesInventario"));
 const BalanceGeneral = lazy(() => import("./pages/BalanceGeneral"));
 const Backups = lazy(() => import("./pages/Backups"));
 const Configuracion = lazy(() => import("./pages/Configuracion"));
@@ -164,6 +166,8 @@ function App() {
 
               {/* Reportes y Administración */}
               <Route path="reportes" element={<Reportes />} />
+              <Route path="reportes-rentabilidad" element={<ReportesRentabilidad />} />
+              <Route path="reportes-inventario" element={<ReportesInventario />} />
               <Route path="balance-general" element={<BalanceGeneral />} />
               <Route path="backups" element={<Backups />} />
               <Route path="configuracion" element={<Configuracion />} />

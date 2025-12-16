@@ -94,19 +94,35 @@ export default function Reportes() {
           </div>
           <ArrowRight size={20} style={{ color: '#ccc' }} />
         </button>
-        <button style={styles.linkCard} onClick={() => navigate('/balance-general')}>
+        <button style={styles.linkCard} onClick={() => navigate('/reportes-rentabilidad')}>
           <DollarSign size={24} style={{ color: '#2e7d32' }} />
+          <div>
+            <strong>Rentabilidad por Producto</strong>
+            <span>Márgenes y ganancias</span>
+          </div>
+          <ArrowRight size={20} style={{ color: '#ccc' }} />
+        </button>
+        <button style={styles.linkCard} onClick={() => navigate('/reportes-inventario')}>
+          <Package size={24} style={{ color: '#1565c0' }} />
+          <div>
+            <strong>Inventario Valorado</strong>
+            <span>Stock por categoría y alertas</span>
+          </div>
+          <ArrowRight size={20} style={{ color: '#ccc' }} />
+        </button>
+        <button style={styles.linkCard} onClick={() => navigate('/balance-general')}>
+          <Calendar size={24} style={{ color: '#e65100' }} />
           <div>
             <strong>Balance General</strong>
             <span>Resumen financiero</span>
           </div>
           <ArrowRight size={20} style={{ color: '#ccc' }} />
         </button>
-        <button style={styles.linkCard} onClick={() => navigate('/inventario')}>
-          <Warehouse size={24} style={{ color: '#1565c0' }} />
+        <button style={styles.linkCard} onClick={() => navigate('/reportes-compras')}>
+          <Warehouse size={24} style={{ color: '#7b1fa2' }} />
           <div>
-            <strong>Inventario</strong>
-            <span>Estado del stock</span>
+            <strong>Reportes de Compras</strong>
+            <span>Historial de compras</span>
           </div>
           <ArrowRight size={20} style={{ color: '#ccc' }} />
         </button>
