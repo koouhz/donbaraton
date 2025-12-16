@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { supabase } from "../lib/supabaseClient";
 import { Eye, EyeOff, Store, AlertCircle, CheckCircle, X, LogIn } from "lucide-react";
+import bgImage from "../logo/bg.png";
 
 // Función para hashear contraseñas
 // Función para hashear contraseñas
@@ -226,7 +227,10 @@ export default function Login({ onLogin }) {
   return (
     <div style={{
       minHeight: "100vh",
-      background: "linear-gradient(135deg, #1a5d1a 0%, #2e8b57 100%)",
+      backgroundImage: `url(${bgImage})`,
+      backgroundSize: "cover",
+      backgroundPosition: "center",
+      backgroundRepeat: "no-repeat",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",

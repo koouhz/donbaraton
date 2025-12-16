@@ -282,7 +282,7 @@ const fetchVentasHoy = async () => {
   try {
     const hoy = new Date();
     const fechaHoy = hoy.toISOString().split('T')[0];
-    
+
     const { data, error } = await supabase.rpc('fn_reporte_ventas_periodo', {
       p_fecha_inicio: fechaHoy,
       p_fecha_fin: fechaHoy
@@ -292,7 +292,7 @@ const fetchVentasHoy = async () => {
 
     // fn_reporte_ventas_periodo retorna: fecha, cantidad_ventas, total_vendido, promedio_ticket
     const ventasHoy = data && data.length > 0 ? data[0] : null;
-    
+
     return {
       total: ventasHoy?.total_vendido || 0,
       cantidad: ventasHoy?.cantidad_ventas || 0
@@ -309,7 +309,7 @@ const fetchPedidosActivos = async () => {
     const hoy = new Date();
     const hace6Meses = new Date();
     hace6Meses.setMonth(hace6Meses.getMonth() - 6);
-    
+
     const { data, error } = await supabase.rpc('fn_historial_compras', {
       p_fecha_inicio: hace6Meses.toISOString().split('T')[0],
       p_fecha_fin: hoy.toISOString().split('T')[0],
@@ -338,12 +338,12 @@ const fetchInventarioStats = async () => {
   try {
     // Obtener total de productos activos (fn_leer_productos acepta p_buscar)
     const { data: productos, error: errorProd } = await supabase.rpc('fn_leer_productos', { p_buscar: null });
-    
+
     if (errorProd) throw errorProd;
 
     // Obtener productos con stock bajo (fn_alerta_stock_bajo es el nombre correcto)
     const { data: alertasStock, error: errorAlertas } = await supabase.rpc('fn_alerta_stock_bajo');
-    
+
     if (errorAlertas) {
       console.warn('Error en fn_generar_alertas_stock_bajo:', errorAlertas);
     }
@@ -463,7 +463,7 @@ const fetchDistribucionVentas = async () => {
 
     // Obtener productos con sus categorías
     const { data: productos, error: errorProd } = await supabase.rpc('fn_leer_productos', { p_buscar: null });
-    
+
     if (errorProd) throw errorProd;
 
     // Crear mapa de producto a categoría
@@ -945,9 +945,6 @@ function Dashboard() {
           </div>
         </div>
       </section>
-
-      {/* Acciones Rápidas */}
-      <SimpleQuickActions onAction={handleQuickAction} />
     </div>
   );
 }
