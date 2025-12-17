@@ -1,8 +1,9 @@
 // src/pages/CierreCaja.jsx
 import { useState, useEffect } from 'react';
-import { 
+import {
   Calculator, DollarSign, Loader2, X, Save,
-  CheckCircle, AlertTriangle, Clock, Eye, FileText
+  CheckCircle, AlertTriangle, Clock, FileText, CreditCard, Smartphone,
+  Wallet, Calendar
 } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
@@ -11,20 +12,18 @@ export default function CierreCaja() {
   const [cierres, setCierres] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [totalSistema, setTotalSistema] = useState(0);
+  const [resumenCaja, setResumenCaja] = useState(null);
   const [showModal, setShowModal] = useState(false);
   const [efectivoFisico, setEfectivoFisico] = useState('');
   const [observaciones, setObservaciones] = useState('');
   const [filterFecha, setFilterFecha] = useState('');
-  const [firmaSupervisor, setFirmaSupervisor] = useState('');
-
 
   const getUser = () => {
     const user = localStorage.getItem('user');
     if (user) {
-      try { 
+      try {
         const parsed = JSON.parse(user);
-        return { id: parsed.usuario_id || 1, username: parsed.username || 'admin' }; 
+        return { id: parsed.usuario_id || 1, username: parsed.username || 'admin' };
       } catch { return { id: 1, username: 'admin' }; }
     }
     return { id: 1, username: 'admin' };
@@ -37,23 +36,21 @@ export default function CierreCaja() {
   const cargarDatos = async () => {
     setLoading(true);
     try {
-      const user = getUser();
-      
-      // Cargar cierres y total del sistema
-      const [cierresRes, sistemaRes] = await Promise.all([
-        supabase.rpc('fn_leer_cierres_caja', { 
-          p_fecha: filterFecha || null 
+      // Cargar cierres con filtro de fecha y resumen de caja del día
+      const [cierresRes, resumenRes] = await Promise.all([
+        supabase.rpc('fn_leer_cierres_caja', {
+          p_fecha: filterFecha || null
         }),
-        supabase.rpc('fn_calcular_sistema_caja', { 
-          p_usuario_id: user.id 
+        supabase.rpc('fn_resumen_caja', {
+          p_fecha: new Date().toISOString().split('T')[0]
         })
       ]);
 
       if (cierresRes.error) console.error('Error cierres:', cierresRes.error);
-      if (sistemaRes.error) console.error('Error sistema:', sistemaRes.error);
+      if (resumenRes.error) console.error('Error resumen:', resumenRes.error);
 
       setCierres(cierresRes.data || []);
-      setTotalSistema(sistemaRes.data || 0);
+      setResumenCaja(resumenRes.data?.[0] || null);
     } catch (err) {
       console.error('Error:', err);
       toast.error('Error al cargar datos');
@@ -71,18 +68,27 @@ export default function CierreCaja() {
     setSaving(true);
     try {
       const user = getUser();
-      const { data, error } = await supabase.rpc('fn_crear_cierre_caja', {
-        p_usuario_id: user.id,
-        p_efectivo_fisico: parseFloat(efectivoFisico),
-        p_observaciones: observaciones.trim() || null,
-        p_usuario_auditoria: user.id,  // Usar ID de usuario (USR-001) para auditoría
-        p_firma_supervisor: firmaSupervisor.trim() || null
+      const efectivoNum = parseFloat(efectivoFisico);
+      const totalSistema = resumenCaja?.total_efectivo || 0;
+      const diferencia = efectivoNum - totalSistema;
+
+      // Obtener hora y fecha del dispositivo
+      const ahora = new Date();
+      const horaLocal = ahora.toTimeString().split(' ')[0]; // "HH:mm:ss"
+      const fechaLocal = ahora.toISOString().split('T')[0]; // "YYYY-MM-DD"
+
+      const { data, error } = await supabase.rpc('fn_registrar_cierre_caja', {
+        p_id_usuario: user.id,
+        p_fecha: fechaLocal,
+        p_hora_cierre: horaLocal,
+        p_total_efectivo: efectivoNum,
+        p_diferencia: diferencia,
+        p_observaciones: observaciones.trim() || null
       });
 
       if (error) {
         toast.error(error.message || 'Error al crear cierre');
       } else {
-        const diferencia = parseFloat(efectivoFisico) - totalSistema;
         if (diferencia !== 0) {
           toast(
             `Cierre registrado con diferencia de ${diferencia >= 0 ? '+' : ''}${diferencia.toFixed(2)} Bs`,
@@ -94,7 +100,6 @@ export default function CierreCaja() {
         setShowModal(false);
         setEfectivoFisico('');
         setObservaciones('');
-        setFirmaSupervisor('');
         cargarDatos();
       }
     } catch (err) {
@@ -105,14 +110,22 @@ export default function CierreCaja() {
   };
 
   const formatCurrency = (value) => `Bs ${parseFloat(value || 0).toFixed(2)}`;
-  const formatTime = (time) => time?.substring(0, 5) || '--:--';
 
-  const diferencia = parseFloat(efectivoFisico || 0) - totalSistema;
+  const formatFechaHora = (fecha, hora) => {
+    if (!fecha) return '--';
+    const opciones = { day: '2-digit', month: 'short', year: 'numeric' };
+    const fechaFormateada = new Date(fecha).toLocaleDateString('es-BO', opciones);
+    const horaFormateada = hora?.substring(0, 5) || '';
+    return horaFormateada ? `${fechaFormateada} - ${horaFormateada}` : fechaFormateada;
+  };
+
+  const efectivoSistema = resumenCaja?.total_efectivo || 0;
+  const diferencia = parseFloat(efectivoFisico || 0) - efectivoSistema;
 
   return (
     <div style={styles.container}>
       <Toaster position="top-right" />
-      
+
       <header style={styles.header}>
         <div>
           <h1 style={styles.title}>
@@ -120,7 +133,7 @@ export default function CierreCaja() {
             Cierre de Caja
           </h1>
           <p style={styles.subtitle}>
-            Cuadre de efectivo diario
+            Cuadre de efectivo diario - {new Date().toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
         <button style={styles.primaryButton} onClick={() => setShowModal(true)}>
@@ -129,22 +142,48 @@ export default function CierreCaja() {
         </button>
       </header>
 
-      {/* Resumen del día */}
-      <div style={styles.summaryCard}>
-        <div style={styles.summaryItem}>
-          <Clock size={24} style={{ color: '#6c757d' }} />
-          <div>
-            <span style={styles.summaryLabel}>Fecha</span>
-            <span style={styles.summaryValue}>{new Date().toLocaleDateString('es-BO')}</span>
+      {/* Resumen del día con desglose */}
+      <div style={styles.summarySection}>
+        <h2 style={styles.sectionTitle}>💰 Resumen del Día</h2>
+        <div style={styles.summaryGrid}>
+          <div style={styles.summaryCard}>
+            <div style={styles.cardIcon}><FileText size={24} /></div>
+            <div>
+              <span style={styles.cardLabel}>Total Ventas</span>
+              <span style={styles.cardValue}>{resumenCaja?.total_ventas || 0}</span>
+            </div>
           </div>
-        </div>
-        <div style={styles.summaryItem}>
-          <DollarSign size={24} style={{ color: '#1a5d1a' }} />
-          <div>
-            <span style={styles.summaryLabel}>Total en Sistema</span>
-            <span style={{...styles.summaryValue, color: '#1a5d1a', fontSize: '24px'}}>
-              {formatCurrency(totalSistema)}
-            </span>
+
+          <div style={{ ...styles.summaryCard, ...styles.cardHighlight }}>
+            <div style={{ ...styles.cardIcon, background: '#e8f5e9' }}><Wallet size={24} color="#1a5d1a" /></div>
+            <div>
+              <span style={styles.cardLabel}>Efectivo</span>
+              <span style={{ ...styles.cardValue, color: '#1a5d1a', fontSize: '22px' }}>{formatCurrency(resumenCaja?.total_efectivo)}</span>
+            </div>
+          </div>
+
+          <div style={styles.summaryCard}>
+            <div style={{ ...styles.cardIcon, background: '#e3f2fd' }}><CreditCard size={24} color="#1565c0" /></div>
+            <div>
+              <span style={styles.cardLabel}>Tarjeta</span>
+              <span style={styles.cardValue}>{formatCurrency(resumenCaja?.total_tarjeta)}</span>
+            </div>
+          </div>
+
+          <div style={styles.summaryCard}>
+            <div style={{ ...styles.cardIcon, background: '#fff3e0' }}><Smartphone size={24} color="#e65100" /></div>
+            <div>
+              <span style={styles.cardLabel}>QR</span>
+              <span style={styles.cardValue}>{formatCurrency(resumenCaja?.total_qr)}</span>
+            </div>
+          </div>
+
+          <div style={styles.summaryCard}>
+            <div style={{ ...styles.cardIcon, background: '#f3e5f5' }}><DollarSign size={24} color="#7b1fa2" /></div>
+            <div>
+              <span style={styles.cardLabel}>Total Recaudado</span>
+              <span style={{ ...styles.cardValue, fontWeight: '700' }}>{formatCurrency(resumenCaja?.total_recaudado)}</span>
+            </div>
           </div>
         </div>
       </div>
@@ -152,7 +191,7 @@ export default function CierreCaja() {
       {/* Historial de cierres */}
       <div style={styles.section}>
         <div style={styles.sectionHeader}>
-          <h2 style={styles.sectionTitle}>Historial de Cierres</h2>
+          <h2 style={styles.sectionTitleAlt}>📋 Historial de Cierres</h2>
           <input
             type="date"
             value={filterFecha}
@@ -171,39 +210,56 @@ export default function CierreCaja() {
             <p>No hay cierres de caja registrados</p>
           </div>
         ) : (
-          <div style={styles.cierresList}>
-            {cierres.map((cierre, i) => (
-              <div key={cierre.id || i} style={styles.cierreCard}>
-                <div style={styles.cierreInfo}>
-                  <div style={styles.cierreTime}>
-                    <Clock size={16} />
-                    {formatTime(cierre.hora)}
-                  </div>
-                  <span style={styles.cierreUsuario}>Usuario #{cierre.usuario}</span>
-                </div>
-                <div style={styles.cierreMontos}>
-                  <div style={styles.montoItem}>
-                    <span>Efectivo</span>
-                    <strong>{formatCurrency(cierre.efectivo)}</strong>
-                  </div>
-                  <div style={{
-                    ...styles.montoItem,
-                    color: cierre.diferencia === 0 ? '#2e7d32' : 
-                           cierre.diferencia > 0 ? '#1565c0' : '#c62828'
-                  }}>
-                    <span>Diferencia</span>
-                    <strong>
+          <div style={styles.tableContainer}>
+            <table style={styles.table}>
+              <thead>
+                <tr>
+                  <th style={styles.th}>Fecha y Hora</th>
+                  <th style={styles.th}>Usuario</th>
+                  <th style={{ ...styles.th, textAlign: 'right' }}>Efectivo</th>
+                  <th style={{ ...styles.th, textAlign: 'right' }}>Diferencia</th>
+                  <th style={{ ...styles.th, textAlign: 'center' }}>Estado</th>
+                  <th style={styles.th}>Observaciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                {cierres.map((cierre, i) => (
+                  <tr key={cierre.id || i} style={styles.tr}>
+                    <td style={styles.td}>
+                      <div style={styles.fechaCell}>
+                        <Calendar size={16} style={{ color: '#6c757d' }} />
+                        <span style={styles.fechaText}>{formatFechaHora(cierre.fecha, cierre.hora)}</span>
+                      </div>
+                    </td>
+                    <td style={styles.td}>{cierre.usuario || 'Usuario'}</td>
+                    <td style={{ ...styles.td, textAlign: 'right', fontWeight: '600' }}>
+                      {formatCurrency(cierre.efectivo)}
+                    </td>
+                    <td style={{
+                      ...styles.td,
+                      textAlign: 'right',
+                      fontWeight: '600',
+                      color: cierre.diferencia === 0 ? '#2e7d32' :
+                        cierre.diferencia > 0 ? '#1565c0' : '#c62828'
+                    }}>
                       {cierre.diferencia >= 0 ? '+' : ''}{formatCurrency(cierre.diferencia)}
-                    </strong>
-                  </div>
-                </div>
-                {cierre.diferencia === 0 ? (
-                  <CheckCircle size={24} style={{ color: '#2e7d32' }} />
-                ) : (
-                  <AlertTriangle size={24} style={{ color: cierre.diferencia > 0 ? '#1565c0' : '#c62828' }} />
-                )}
-              </div>
-            ))}
+                    </td>
+                    <td style={{ ...styles.td, textAlign: 'center' }}>
+                      {cierre.diferencia === 0 ? (
+                        <span style={styles.badgeSuccess}><CheckCircle size={14} /> Cuadrado</span>
+                      ) : cierre.diferencia > 0 ? (
+                        <span style={styles.badgeInfo}><AlertTriangle size={14} /> Sobrante</span>
+                      ) : (
+                        <span style={styles.badgeDanger}><AlertTriangle size={14} /> Faltante</span>
+                      )}
+                    </td>
+                    <td style={{ ...styles.td, color: '#6c757d', fontSize: '13px' }}>
+                      {cierre.observaciones || '-'}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </div>
         )}
       </div>
@@ -220,13 +276,17 @@ export default function CierreCaja() {
             </div>
 
             <div style={styles.modalBody}>
+              {/* Resumen claro del sistema */}
               <div style={styles.sistemaBox}>
-                <span>Total según sistema</span>
-                <span style={styles.sistemaValue}>{formatCurrency(totalSistema)}</span>
+                <div>
+                  <span style={styles.sistemaLabel}>Efectivo según ventas del día</span>
+                  <p style={styles.sistemaHint}>(Solo pagos en efectivo)</p>
+                </div>
+                <span style={styles.sistemaValue}>{formatCurrency(efectivoSistema)}</span>
               </div>
 
               <div style={styles.formGroup}>
-                <label style={styles.label}>Efectivo Físico Contado (Bs) *</label>
+                <label style={styles.label}>¿Cuánto efectivo hay en caja? (Bs)</label>
                 <input
                   type="number"
                   value={efectivoFisico}
@@ -242,24 +302,24 @@ export default function CierreCaja() {
               {efectivoFisico && (
                 <div style={{
                   ...styles.diferenciaBox,
-                  background: diferencia === 0 ? '#e8f5e9' : 
-                             diferencia > 0 ? '#e3f2fd' : '#ffebee',
-                  borderColor: diferencia === 0 ? '#a5d6a7' : 
-                               diferencia > 0 ? '#90caf9' : '#ef9a9a'
+                  background: diferencia === 0 ? '#e8f5e9' :
+                    diferencia > 0 ? '#e3f2fd' : '#ffebee',
+                  borderColor: diferencia === 0 ? '#a5d6a7' :
+                    diferencia > 0 ? '#90caf9' : '#ef9a9a'
                 }}>
                   <div style={styles.diferenciaLabel}>
                     {diferencia === 0 ? (
-                      <><CheckCircle size={20} /> Cuadre Perfecto</>
+                      <><CheckCircle size={20} color="#2e7d32" /> <span style={{ color: '#2e7d32' }}>¡Cuadre Perfecto!</span></>
                     ) : diferencia > 0 ? (
-                      <><AlertTriangle size={20} /> Sobrante</>
+                      <><AlertTriangle size={20} color="#1565c0" /> <span style={{ color: '#1565c0' }}>Hay un sobrante</span></>
                     ) : (
-                      <><AlertTriangle size={20} /> Faltante</>
+                      <><AlertTriangle size={20} color="#c62828" /> <span style={{ color: '#c62828' }}>Hay un faltante</span></>
                     )}
                   </div>
                   <span style={{
                     ...styles.diferenciaValue,
-                    color: diferencia === 0 ? '#2e7d32' : 
-                           diferencia > 0 ? '#1565c0' : '#c62828'
+                    color: diferencia === 0 ? '#2e7d32' :
+                      diferencia > 0 ? '#1565c0' : '#c62828'
                   }}>
                     {diferencia >= 0 ? '+' : ''}{formatCurrency(diferencia)}
                   </span>
@@ -267,24 +327,13 @@ export default function CierreCaja() {
               )}
 
               <div style={styles.formGroup}>
-                <label style={styles.label}>Observaciones</label>
+                <label style={styles.label}>Observaciones (opcional)</label>
                 <textarea
                   value={observaciones}
                   onChange={e => setObservaciones(e.target.value)}
                   style={styles.textarea}
-                  placeholder="Notas adicionales sobre el cierre..."
-                  rows={3}
-                />
-              </div>
-
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Firma del Supervisor (Administrador)</label>
-                <input
-                  type="text"
-                  value={firmaSupervisor}
-                  onChange={e => setFirmaSupervisor(e.target.value)}
-                  style={{...styles.textarea, height: 'auto', padding: '12px 15px'}}
-                  placeholder="Nombre del supervisor que autoriza..."
+                  placeholder="Ej: Faltante debido a error en cambio..."
+                  rows={2}
                 />
               </div>
             </div>
@@ -295,7 +344,7 @@ export default function CierreCaja() {
               </button>
               <button style={styles.saveButton} onClick={handleCierre} disabled={saving || !efectivoFisico}>
                 {saving ? (
-                  <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Procesando...</>
+                  <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Guardando...</>
                 ) : (
                   <><Save size={16} /> Registrar Cierre</>
                 )}
@@ -311,44 +360,70 @@ export default function CierreCaja() {
 }
 
 const styles = {
-  container: { padding: '20px', maxWidth: '1000px', margin: '0 auto' },
+  container: { padding: '20px', maxWidth: '1200px', margin: '0 auto' },
   header: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px', flexWrap: 'wrap', gap: '15px' },
   title: { margin: 0, fontSize: '28px', fontWeight: '700', color: '#1a5d1a', display: 'flex', alignItems: 'center' },
   subtitle: { margin: '8px 0 0 0', color: '#6c757d', fontSize: '14px' },
-  primaryButton: { display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: 'linear-gradient(135deg, #1a5d1a, #2e8b57)', color: 'white', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer' },
-  summaryCard: { display: 'flex', gap: '30px', padding: '25px', background: 'white', borderRadius: '16px', marginBottom: '25px', boxShadow: '0 2px 12px rgba(0,0,0,0.05)', flexWrap: 'wrap' },
-  summaryItem: { display: 'flex', alignItems: 'center', gap: '15px' },
-  summaryLabel: { display: 'block', fontSize: '13px', color: '#6c757d' },
-  summaryValue: { display: 'block', fontSize: '18px', fontWeight: '600', color: '#333' },
+  primaryButton: { display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: 'linear-gradient(135deg, #1a5d1a, #2e8b57)', color: 'white', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', boxShadow: '0 4px 12px rgba(26,93,26,0.3)' },
+
+  // Resumen Section
+  summarySection: { marginBottom: '25px' },
+  sectionTitle: { margin: '0 0 15px 0', fontSize: '18px', fontWeight: '600', color: '#333' },
+  sectionTitleAlt: { margin: 0, fontSize: '18px', fontWeight: '600', color: '#333' },
+  summaryGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px' },
+  summaryCard: { display: 'flex', alignItems: 'center', gap: '15px', padding: '18px', background: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.05)' },
+  cardHighlight: { border: '2px solid #a5d6a7' },
+  cardIcon: { padding: '10px', background: '#f8f9fa', borderRadius: '10px' },
+  cardLabel: { display: 'block', fontSize: '13px', color: '#6c757d', marginBottom: '2px' },
+  cardValue: { display: 'block', fontSize: '18px', fontWeight: '600', color: '#333' },
+
+  // Section
   section: { background: 'white', borderRadius: '16px', padding: '25px', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' },
-  sectionHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px' },
-  sectionTitle: { margin: 0, fontSize: '18px', fontWeight: '600', color: '#333' },
+  sectionHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '20px', flexWrap: 'wrap', gap: '15px' },
+
+  // Filters
+  filterGroup: { display: 'flex', gap: '15px', alignItems: 'flex-end' },
+  dateField: { display: 'flex', flexDirection: 'column', gap: '4px' },
+  dateLabel: { fontSize: '12px', color: '#6c757d' },
   dateInput: { padding: '8px 12px', border: '1px solid #e9ecef', borderRadius: '8px', fontSize: '14px' },
-  cierresList: { display: 'flex', flexDirection: 'column', gap: '12px' },
-  cierreCard: { display: 'flex', alignItems: 'center', gap: '20px', padding: '20px', background: '#f8f9fa', borderRadius: '12px' },
-  cierreInfo: { flex: 1 },
-  cierreTime: { display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600', fontSize: '16px', color: '#333' },
-  cierreUsuario: { display: 'block', fontSize: '13px', color: '#6c757d', marginTop: '4px' },
-  cierreMontos: { display: 'flex', gap: '25px' },
-  montoItem: { textAlign: 'center' },
+
+  // Table
+  tableContainer: { overflowX: 'auto' },
+  table: { width: '100%', borderCollapse: 'collapse' },
+  th: { textAlign: 'left', padding: '12px 15px', background: '#f8f9fa', borderBottom: '2px solid #e9ecef', fontSize: '13px', fontWeight: '600', color: '#6c757d', textTransform: 'uppercase' },
+  tr: { borderBottom: '1px solid #f0f0f0' },
+  td: { padding: '14px 15px', fontSize: '14px', verticalAlign: 'middle' },
+  fechaCell: { display: 'flex', alignItems: 'center', gap: '8px' },
+  fechaText: { fontWeight: '500' },
+
+  // Badges
+  badgeSuccess: { display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', background: '#e8f5e9', color: '#2e7d32', borderRadius: '20px', fontSize: '12px', fontWeight: '500' },
+  badgeInfo: { display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', background: '#e3f2fd', color: '#1565c0', borderRadius: '20px', fontSize: '12px', fontWeight: '500' },
+  badgeDanger: { display: 'inline-flex', alignItems: 'center', gap: '4px', padding: '4px 10px', background: '#ffebee', color: '#c62828', borderRadius: '20px', fontSize: '12px', fontWeight: '500' },
+
+  // Loading & Empty
   loadingState: { display: 'flex', justifyContent: 'center', padding: '60px' },
   emptyState: { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '60px', color: '#6c757d', gap: '15px' },
+
+  // Modal
   modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' },
-  modal: { background: 'white', borderRadius: '16px', width: '100%', maxWidth: '500px' },
-  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 25px', borderBottom: '1px solid #e9ecef', background: 'linear-gradient(135deg, #f8f9fa, #e8f5e9)' },
+  modal: { background: 'white', borderRadius: '16px', width: '100%', maxWidth: '480px' },
+  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 25px', borderBottom: '1px solid #e9ecef', background: 'linear-gradient(135deg, #f8f9fa, #e8f5e9)', borderRadius: '16px 16px 0 0' },
   modalTitle: { margin: 0, fontSize: '20px', fontWeight: '600', color: '#1a5d1a' },
-  closeButton: { background: 'none', border: 'none', cursor: 'pointer', color: '#6c757d' },
+  closeButton: { background: 'none', border: 'none', cursor: 'pointer', color: '#6c757d', padding: '5px' },
   modalBody: { padding: '25px' },
-  sistemaBox: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', background: '#f8f9fa', borderRadius: '12px', marginBottom: '20px' },
+  sistemaBox: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px', background: 'linear-gradient(135deg, #f8f9fa, #e8f5e9)', borderRadius: '12px', marginBottom: '25px', border: '1px solid #e9ecef' },
+  sistemaLabel: { fontSize: '14px', fontWeight: '500', color: '#333' },
+  sistemaHint: { margin: '4px 0 0 0', fontSize: '12px', color: '#6c757d' },
   sistemaValue: { fontSize: '28px', fontWeight: '700', color: '#1a5d1a' },
   formGroup: { marginBottom: '20px' },
   label: { display: 'block', marginBottom: '8px', fontSize: '14px', fontWeight: '500', color: '#333' },
-  montoInput: { width: '100%', padding: '16px', fontSize: '24px', textAlign: 'center', border: '2px solid #e9ecef', borderRadius: '12px', boxSizing: 'border-box' },
+  montoInput: { width: '100%', padding: '16px', fontSize: '24px', textAlign: 'center', border: '2px solid #e9ecef', borderRadius: '12px', boxSizing: 'border-box', transition: 'border-color 0.2s' },
   diferenciaBox: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '15px 20px', borderRadius: '12px', marginBottom: '20px', border: '2px solid' },
   diferenciaLabel: { display: 'flex', alignItems: 'center', gap: '8px', fontWeight: '600' },
   diferenciaValue: { fontSize: '24px', fontWeight: '700' },
   textarea: { width: '100%', padding: '12px 15px', border: '2px solid #e9ecef', borderRadius: '10px', fontSize: '14px', resize: 'vertical', boxSizing: 'border-box', fontFamily: 'inherit' },
-  modalFooter: { display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: '20px 25px', borderTop: '1px solid #e9ecef', background: '#f8f9fa' },
+  modalFooter: { display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: '20px 25px', borderTop: '1px solid #e9ecef', background: '#f8f9fa', borderRadius: '0 0 16px 16px' },
   cancelButton: { padding: '10px 20px', background: 'white', border: '1px solid #e9ecef', borderRadius: '8px', fontSize: '14px', cursor: 'pointer', color: '#6c757d' },
   saveButton: { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 20px', background: 'linear-gradient(135deg, #1a5d1a, #2e8b57)', color: 'white', border: 'none', borderRadius: '8px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' },
 };
