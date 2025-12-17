@@ -26,7 +26,7 @@ BEGIN
         cpp.id_cuenta_pagar as id,
         COALESCE(p.razon_social, 'Sin proveedor')::TEXT as proveedor,
         cpp.factura_nro,
-        cpp.fecha_emision,
+        cpp.fecha_emision,npm
         cpp.fecha_vencimiento,
         cpp.monto_total,
         cpp.saldo_pendiente,

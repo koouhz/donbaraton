@@ -1,8 +1,9 @@
 // src/pages/Caja.jsx
 import { useState, useEffect } from 'react';
-import { 
+import {
   Wallet, ShoppingCart, TrendingUp, Clock,
-  Loader2, DollarSign, CreditCard, QrCode, Banknote
+  Loader2, DollarSign, CreditCard, QrCode, Banknote,
+  Eye, X, Package, User, Receipt, Calendar
 } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
@@ -13,6 +14,10 @@ export default function Caja() {
   const [ventas, setVentas] = useState([]);
   const [loading, setLoading] = useState(true);
   const [totalHoy, setTotalHoy] = useState(0);
+  const [showDetalleModal, setShowDetalleModal] = useState(false);
+  const [ventaSeleccionada, setVentaSeleccionada] = useState(null);
+  const [detallesVenta, setDetallesVenta] = useState([]);
+  const [loadingDetalles, setLoadingDetalles] = useState(false);
   const hoy = new Date().toISOString().split('T')[0];
 
   useEffect(() => {
@@ -28,7 +33,7 @@ export default function Caja() {
       });
 
       if (error) throw error;
-      
+
       const ventasActivas = (data || []).filter(v => v.estado);
       setVentas(ventasActivas);
       setTotalHoy(ventasActivas.reduce((sum, v) => sum + parseFloat(v.total || 0), 0));
@@ -42,11 +47,37 @@ export default function Caja() {
 
   const formatCurrency = (value) => `Bs ${parseFloat(value || 0).toFixed(2)}`;
   const formatTime = (date) => new Date(date).toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
+  const formatDate = (date) => new Date(date).toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+  const verDetalles = async (venta) => {
+    setVentaSeleccionada(venta);
+    setShowDetalleModal(true);
+    setLoadingDetalles(true);
+
+    try {
+      const { data, error } = await supabase
+        .from('detalle_ventas')
+        .select(`
+          *,
+          productos (nombre, codigo_interno, marca)
+        `)
+        .eq('id_venta', venta.id);
+
+      if (!error) {
+        setDetallesVenta(data || []);
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      toast.error('Error al cargar detalles');
+    } finally {
+      setLoadingDetalles(false);
+    }
+  };
 
   return (
     <div style={styles.container}>
       <Toaster position="top-right" />
-      
+
       <header style={styles.header}>
         <div>
           <h1 style={styles.title}>
@@ -71,24 +102,24 @@ export default function Caja() {
 
       {/* Dashboard de Caja */}
       <div style={styles.statsGrid}>
-        <div style={{...styles.statCard, borderTop: '4px solid #1a5d1a'}}>
+        <div style={{ ...styles.statCard, borderTop: '4px solid #1a5d1a' }}>
           <ShoppingCart size={32} style={{ color: '#1a5d1a' }} />
           <div>
             <span style={styles.statValue}>{ventas.length}</span>
             <span style={styles.statLabel}>Ventas Hoy</span>
           </div>
         </div>
-        <div style={{...styles.statCard, borderTop: '4px solid #2e7d32'}}>
+        <div style={{ ...styles.statCard, borderTop: '4px solid #2e7d32' }}>
           <DollarSign size={32} style={{ color: '#2e7d32' }} />
           <div>
-            <span style={{...styles.statValue, color: '#2e7d32'}}>{formatCurrency(totalHoy)}</span>
+            <span style={{ ...styles.statValue, color: '#2e7d32' }}>{formatCurrency(totalHoy)}</span>
             <span style={styles.statLabel}>Total Recaudado</span>
           </div>
         </div>
-        <div style={{...styles.statCard, borderTop: '4px solid #1565c0'}}>
+        <div style={{ ...styles.statCard, borderTop: '4px solid #1565c0' }}>
           <TrendingUp size={32} style={{ color: '#1565c0' }} />
           <div>
-            <span style={{...styles.statValue, color: '#1565c0'}}>
+            <span style={{ ...styles.statValue, color: '#1565c0' }}>
               {formatCurrency(ventas.length > 0 ? totalHoy / ventas.length : 0)}
             </span>
             <span style={styles.statLabel}>Promedio por Venta</span>
@@ -132,6 +163,13 @@ export default function Caja() {
                 <div style={styles.ventaTotal}>
                   {formatCurrency(venta.total)}
                 </div>
+                <button
+                  style={styles.detalleButton}
+                  onClick={() => verDetalles(venta)}
+                >
+                  <Eye size={16} />
+                  Detalles
+                </button>
               </div>
             ))}
           </div>
@@ -154,6 +192,88 @@ export default function Caja() {
         </button>
       </div>
 
+      {/* Modal de Detalles de Venta */}
+      {showDetalleModal && ventaSeleccionada && (
+        <div style={styles.modalOverlay} onClick={() => setShowDetalleModal(false)}>
+          <div style={styles.modal} onClick={e => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h3 style={styles.modalTitle}>
+                <Receipt size={20} />
+                Detalle de Venta
+              </h3>
+              <button style={styles.closeButton} onClick={() => setShowDetalleModal(false)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div style={styles.modalBody}>
+              {/* Info de la venta */}
+              <div style={styles.ventaInfo}>
+                <div style={styles.infoRow}>
+                  <span style={styles.infoLabel}><Receipt size={14} /> Ticket:</span>
+                  <span style={styles.infoValue}>{ventaSeleccionada.id}</span>
+                </div>
+                <div style={styles.infoRow}>
+                  <span style={styles.infoLabel}><Calendar size={14} /> Fecha:</span>
+                  <span style={styles.infoValue}>{formatDate(ventaSeleccionada.fecha)} - {formatTime(ventaSeleccionada.fecha)}</span>
+                </div>
+                <div style={styles.infoRow}>
+                  <span style={styles.infoLabel}><User size={14} /> Cliente:</span>
+                  <span style={styles.infoValue}>{ventaSeleccionada.cliente || 'Cliente General'}</span>
+                </div>
+                <div style={styles.infoRow}>
+                  <span style={styles.infoLabel}>Comprobante:</span>
+                  <span style={styles.infoValue}>{ventaSeleccionada.comprobante}</span>
+                </div>
+              </div>
+
+              {/* Productos */}
+              <h4 style={styles.productosTitle}>
+                <Package size={16} />
+                Productos ({detallesVenta.length})
+              </h4>
+
+              {loadingDetalles ? (
+                <div style={{ textAlign: 'center', padding: '30px' }}>
+                  <Loader2 size={32} style={{ animation: 'spin 1s linear infinite', color: '#1a5d1a' }} />
+                </div>
+              ) : (
+                <table style={styles.detalleTable}>
+                  <thead>
+                    <tr>
+                      <th style={styles.detalleTh}>Producto</th>
+                      <th style={styles.detalleTh}>Cant.</th>
+                      <th style={styles.detalleTh}>P. Unit.</th>
+                      <th style={styles.detalleTh}>Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detallesVenta.map((det, i) => (
+                      <tr key={i}>
+                        <td style={styles.detalleTd}>
+                          <strong>{det.productos?.nombre || 'Producto'}</strong>
+                          <span style={{ display: 'block', fontSize: '11px', color: '#6c757d' }}>
+                            {det.productos?.codigo_interno}
+                          </span>
+                        </td>
+                        <td style={{ ...styles.detalleTd, textAlign: 'center' }}>{det.cantidad}</td>
+                        <td style={styles.detalleTd}>{formatCurrency(det.precio_unitario)}</td>
+                        <td style={{ ...styles.detalleTd, fontWeight: '600' }}>{formatCurrency(det.subtotal)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+
+              {/* Total */}
+              <div style={styles.totalRow}>
+                <span>TOTAL</span>
+                <strong>{formatCurrency(ventaSeleccionada.total)}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div>
   );
@@ -174,13 +294,31 @@ const styles = {
   section: { background: 'white', borderRadius: '16px', padding: '25px', marginBottom: '25px', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' },
   sectionTitle: { display: 'flex', alignItems: 'center', gap: '10px', margin: '0 0 20px 0', fontSize: '18px', fontWeight: '600', color: '#333' },
   ventasList: { display: 'flex', flexDirection: 'column', gap: '10px' },
-  ventaCard: { display: 'grid', gridTemplateColumns: '100px 1fr 120px 120px', alignItems: 'center', gap: '15px', padding: '15px 20px', background: '#f8f9fa', borderRadius: '10px' },
+  ventaCard: { display: 'grid', gridTemplateColumns: '100px 1fr 120px 120px auto', alignItems: 'center', gap: '15px', padding: '15px 20px', background: '#f8f9fa', borderRadius: '10px' },
   ventaTime: { display: 'flex', alignItems: 'center', gap: '8px', color: '#6c757d', fontSize: '14px' },
   ventaCliente: { fontWeight: '500', color: '#333' },
   ventaComprobante: { fontSize: '13px', color: '#6c757d' },
   ventaTotal: { fontWeight: '700', color: '#1a5d1a', textAlign: 'right', fontSize: '16px' },
+  detalleButton: { display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: '#e8f5e9', border: 'none', borderRadius: '8px', cursor: 'pointer', color: '#1a5d1a', fontSize: '13px', fontWeight: '500' },
   actionsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '15px' },
   actionCard: { display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '12px', padding: '25px', background: 'white', border: '2px solid #e9ecef', borderRadius: '16px', cursor: 'pointer', transition: 'all 0.2s', fontSize: '14px', fontWeight: '500', color: '#333' },
   loadingState: { display: 'flex', justifyContent: 'center', padding: '60px' },
   emptyState: { display: 'flex', flexDirection: 'column', alignItems: 'center', padding: '60px', color: '#6c757d', gap: '15px' },
+
+  // Modal styles
+  modalOverlay: { position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000, padding: '20px' },
+  modal: { background: 'white', borderRadius: '16px', width: '100%', maxWidth: '550px', maxHeight: '90vh', overflow: 'hidden', display: 'flex', flexDirection: 'column' },
+  modalHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '20px 25px', borderBottom: '1px solid #e9ecef', background: 'linear-gradient(135deg, #f8f9fa, #e8f5e9)' },
+  modalTitle: { margin: 0, fontSize: '18px', fontWeight: '600', color: '#1a5d1a', display: 'flex', alignItems: 'center', gap: '10px' },
+  closeButton: { background: 'none', border: 'none', cursor: 'pointer', color: '#6c757d' },
+  modalBody: { padding: '25px', overflowY: 'auto', flex: 1 },
+  ventaInfo: { background: '#f8f9fa', borderRadius: '10px', padding: '15px', marginBottom: '20px' },
+  infoRow: { display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: '1px solid #e9ecef' },
+  infoLabel: { display: 'flex', alignItems: 'center', gap: '8px', color: '#6c757d', fontSize: '14px' },
+  infoValue: { fontWeight: '500', color: '#333', fontSize: '14px' },
+  productosTitle: { display: 'flex', alignItems: 'center', gap: '8px', margin: '0 0 15px 0', fontSize: '16px', fontWeight: '600', color: '#333' },
+  detalleTable: { width: '100%', borderCollapse: 'collapse', marginBottom: '20px' },
+  detalleTh: { padding: '10px 12px', textAlign: 'left', background: '#f8f9fa', fontSize: '12px', fontWeight: '600', color: '#333' },
+  detalleTd: { padding: '10px 12px', borderBottom: '1px solid #e9ecef', fontSize: '13px' },
+  totalRow: { display: 'flex', justifyContent: 'space-between', padding: '15px', background: 'linear-gradient(135deg, #1a5d1a, #2e8b57)', borderRadius: '10px', color: 'white', fontSize: '18px', fontWeight: '700' },
 };

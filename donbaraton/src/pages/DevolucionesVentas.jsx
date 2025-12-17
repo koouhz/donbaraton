@@ -2,7 +2,8 @@
 import { useState, useEffect, useRef } from 'react';
 import {
     RotateCcw, Search, X, Loader2, CheckCircle, AlertCircle,
-    Package, Calendar, User, Receipt, Banknote, CreditCard, FileText
+    Package, Calendar, User, Receipt, Banknote, CreditCard, FileText,
+    Minus, Plus, Check
 } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
@@ -16,6 +17,7 @@ export default function DevolucionesVentas() {
     const [detallesVenta, setDetallesVenta] = useState([]);
     const [buscando, setBuscando] = useState(false);
     const [showConfirmModal, setShowConfirmModal] = useState(false);
+    const [cantidadesDevolver, setCantidadesDevolver] = useState({}); // { id_producto: cantidad }
 
     const [formData, setFormData] = useState({
         motivo: '',
@@ -54,7 +56,8 @@ export default function DevolucionesVentas() {
                     fecha: d.fecha,
                     motivo: d.motivo,
                     forma_reembolso: d.forma_reembolso,
-                    ventas: { total: d.total_venta },
+                    total_devuelto: d.total_devuelto || d.total_venta, // Usar total_devuelto si existe, sino total_venta
+                    total_venta: d.total_venta,
                     usuarios: { username: d.cliente }
                 }));
                 setDevoluciones(devolucionesTransformadas);
@@ -111,6 +114,12 @@ export default function DevolucionesVentas() {
             if (!detallesError) {
                 setVentaEncontrada(venta);
                 setDetallesVenta(detalles || []);
+                // Inicializar cantidades a devolver con 0
+                const cantidadesIniciales = {};
+                (detalles || []).forEach(det => {
+                    cantidadesIniciales[det.id_producto] = 0;
+                });
+                setCantidadesDevolver(cantidadesIniciales);
                 toast.success('Venta encontrada');
             }
         } catch (err) {
@@ -121,6 +130,46 @@ export default function DevolucionesVentas() {
         }
     };
 
+    // Funciones para manejar cantidades parciales
+    const cambiarCantidad = (idProducto, nuevaCantidad, maxCantidad) => {
+        const cantidad = Math.max(0, Math.min(nuevaCantidad, maxCantidad));
+        setCantidadesDevolver(prev => ({ ...prev, [idProducto]: cantidad }));
+    };
+
+    const toggleProductoCompleto = (idProducto, cantidadOriginal) => {
+        setCantidadesDevolver(prev => ({
+            ...prev,
+            [idProducto]: prev[idProducto] === cantidadOriginal ? 0 : cantidadOriginal
+        }));
+    };
+
+    const seleccionarTodos = () => {
+        const todas = {};
+        detallesVenta.forEach(det => {
+            todas[det.id_producto] = det.cantidad;
+        });
+        setCantidadesDevolver(todas);
+    };
+
+    const deseleccionarTodos = () => {
+        const ninguna = {};
+        detallesVenta.forEach(det => {
+            ninguna[det.id_producto] = 0;
+        });
+        setCantidadesDevolver(ninguna);
+    };
+
+    const calcularTotalDevolver = () => {
+        return detallesVenta.reduce((total, det) => {
+            const cantDevolver = cantidadesDevolver[det.id_producto] || 0;
+            return total + (cantDevolver * det.precio_unitario);
+        }, 0);
+    };
+
+    const hayProductosSeleccionados = () => {
+        return Object.values(cantidadesDevolver).some(c => c > 0);
+    };
+
     // Manejar Enter en búsqueda
     const handleSearchKeyDown = (e) => {
         if (e.key === 'Enter') {
@@ -129,7 +178,7 @@ export default function DevolucionesVentas() {
         }
     };
 
-    // Procesar devolución
+    // Procesar devolución parcial
     const procesarDevolucion = async () => {
         if (!ventaEncontrada) {
             toast.error('No hay venta seleccionada');
@@ -141,10 +190,23 @@ export default function DevolucionesVentas() {
             return;
         }
 
+        if (!hayProductosSeleccionados()) {
+            toast.error('Seleccione al menos un producto para devolver');
+            return;
+        }
+
         setProcessing(true);
         try {
-            const { data, error } = await supabase.rpc('fn_devolucion_venta', {
+            // Preparar detalles para devolución parcial
+            const detallesDevolucion = Object.entries(cantidadesDevolver)
+                .filter(([_, cantidad]) => cantidad > 0)
+                .map(([id_producto, cantidad]) => ({ id_producto, cantidad }));
+
+            const totalDevolver = calcularTotalDevolver();
+
+            const { data, error } = await supabase.rpc('fn_devolucion_venta_parcial', {
                 p_id_venta: ventaEncontrada.id_venta,
+                p_detalles: detallesDevolucion,
                 p_motivo: formData.motivo + (formData.observaciones ? ` - ${formData.observaciones}` : ''),
                 p_forma_reembolso: formData.forma_reembolso,
                 p_username: getUsername()
@@ -154,8 +216,8 @@ export default function DevolucionesVentas() {
                 console.error('Error:', error);
                 toast.error(error.message || 'Error al procesar devolución');
             } else {
-                toast.success(`Devolución ${data} procesada exitosamente`);
-                toast(`Reembolso: Bs ${ventaEncontrada.total?.toFixed(2)} en ${formData.forma_reembolso}`, {
+                toast.success(`Devolución procesada exitosamente`);
+                toast(`Reembolso: Bs ${totalDevolver.toFixed(2)} en ${formData.forma_reembolso}`, {
                     icon: '💰',
                     duration: 5000
                 });
@@ -165,6 +227,7 @@ export default function DevolucionesVentas() {
                 setVentaEncontrada(null);
                 setDetallesVenta([]);
                 setSearchTicket('');
+                setCantidadesDevolver({});
                 setFormData({ motivo: '', forma_reembolso: 'EFECTIVO', observaciones: '' });
                 cargarDevoluciones();
                 searchRef.current?.focus();
@@ -248,8 +311,13 @@ export default function DevolucionesVentas() {
                             </span>
                         </div>
                         <div style={styles.ventaTotal}>
-                            <span>Total a Devolver</span>
-                            <strong>{formatCurrency(ventaEncontrada.total)}</strong>
+                            <span>Total Seleccionado</span>
+                            <strong style={{ color: hayProductosSeleccionados() ? '#c62828' : '#999' }}>
+                                {formatCurrency(calcularTotalDevolver())}
+                            </strong>
+                            <span style={{ fontSize: '12px', color: '#6c757d' }}>
+                                de {formatCurrency(ventaEncontrada.total)}
+                            </span>
                         </div>
                     </div>
 
@@ -262,31 +330,102 @@ export default function DevolucionesVentas() {
 
                     {/* Detalles de productos */}
                     <div style={styles.detallesContainer}>
-                        <h4 style={styles.detallesTitle}>
-                            <Package size={16} />
-                            Productos a Devolver ({detallesVenta.length})
-                        </h4>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '15px' }}>
+                            <h4 style={{ ...styles.detallesTitle, margin: 0 }}>
+                                <Package size={16} />
+                                Productos a Devolver ({detallesVenta.length})
+                            </h4>
+                            <div style={{ display: 'flex', gap: '10px' }}>
+                                <button
+                                    onClick={seleccionarTodos}
+                                    style={styles.btnSelectAll}
+                                >
+                                    <Check size={14} /> Seleccionar Todo
+                                </button>
+                                <button
+                                    onClick={deseleccionarTodos}
+                                    style={styles.btnDeselectAll}
+                                >
+                                    <X size={14} /> Limpiar
+                                </button>
+                            </div>
+                        </div>
                         <table style={styles.detallesTable}>
                             <thead>
                                 <tr>
+                                    <th style={styles.detalleTh}>Seleccionar</th>
                                     <th style={styles.detalleTh}>Producto</th>
-                                    <th style={styles.detalleTh}>Cantidad</th>
+                                    <th style={styles.detalleTh}>Original</th>
+                                    <th style={styles.detalleTh}>Cantidad a Devolver</th>
                                     <th style={styles.detalleTh}>Precio Unit.</th>
-                                    <th style={styles.detalleTh}>Subtotal</th>
+                                    <th style={styles.detalleTh}>Subtotal a Devolver</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {detallesVenta.map((det, i) => (
-                                    <tr key={i}>
-                                        <td style={styles.detalleTd}>
-                                            <strong>{det.productos?.nombre}</strong>
-                                            <span style={styles.codigo}>{det.productos?.codigo_interno}</span>
-                                        </td>
-                                        <td style={styles.detalleTd}>{det.cantidad}</td>
-                                        <td style={styles.detalleTd}>{formatCurrency(det.precio_unitario)}</td>
-                                        <td style={styles.detalleTd}>{formatCurrency(det.subtotal)}</td>
-                                    </tr>
-                                ))}
+                                {detallesVenta.map((det, i) => {
+                                    const cantidadDevolver = cantidadesDevolver[det.id_producto] || 0;
+                                    const subtotalDevolver = cantidadDevolver * det.precio_unitario;
+                                    const isSelected = cantidadDevolver > 0;
+
+                                    return (
+                                        <tr key={i} style={{
+                                            ...styles.tr,
+                                            backgroundColor: isSelected ? '#e8f5e9' : 'transparent'
+                                        }}>
+                                            <td style={styles.detalleTd}>
+                                                <button
+                                                    onClick={() => toggleProductoCompleto(det.id_producto, det.cantidad)}
+                                                    style={{
+                                                        ...styles.checkBtn,
+                                                        backgroundColor: isSelected ? '#1a5d1a' : '#f5f5f5',
+                                                        color: isSelected ? 'white' : '#999'
+                                                    }}
+                                                >
+                                                    {isSelected ? <Check size={16} /> : <Plus size={16} />}
+                                                </button>
+                                            </td>
+                                            <td style={styles.detalleTd}>
+                                                <strong>{det.productos?.nombre}</strong>
+                                                <span style={styles.codigo}>{det.productos?.codigo_interno}</span>
+                                            </td>
+                                            <td style={styles.detalleTd}>
+                                                <span style={{ color: '#6c757d' }}>{det.cantidad} unid.</span>
+                                            </td>
+                                            <td style={styles.detalleTd}>
+                                                <div style={styles.cantidadControl}>
+                                                    <button
+                                                        onClick={() => cambiarCantidad(det.id_producto, cantidadDevolver - 1, det.cantidad)}
+                                                        style={styles.cantidadBtn}
+                                                        disabled={cantidadDevolver <= 0}
+                                                    >
+                                                        <Minus size={14} />
+                                                    </button>
+                                                    <input
+                                                        type="number"
+                                                        value={cantidadDevolver}
+                                                        onChange={(e) => cambiarCantidad(det.id_producto, parseInt(e.target.value) || 0, det.cantidad)}
+                                                        style={styles.cantidadInput}
+                                                        min={0}
+                                                        max={det.cantidad}
+                                                    />
+                                                    <button
+                                                        onClick={() => cambiarCantidad(det.id_producto, cantidadDevolver + 1, det.cantidad)}
+                                                        style={styles.cantidadBtn}
+                                                        disabled={cantidadDevolver >= det.cantidad}
+                                                    >
+                                                        <Plus size={14} />
+                                                    </button>
+                                                </div>
+                                            </td>
+                                            <td style={styles.detalleTd}>{formatCurrency(det.precio_unitario)}</td>
+                                            <td style={styles.detalleTd}>
+                                                <strong style={{ color: isSelected ? '#c62828' : '#999' }}>
+                                                    {formatCurrency(subtotalDevolver)}
+                                                </strong>
+                                            </td>
+                                        </tr>
+                                    );
+                                })}
                             </tbody>
                         </table>
                     </div>
@@ -357,12 +496,16 @@ export default function DevolucionesVentas() {
                         </div>
 
                         <button
-                            style={styles.btnProcesar}
+                            style={{
+                                ...styles.btnProcesar,
+                                opacity: (!formData.motivo || !hayProductosSeleccionados()) ? 0.5 : 1,
+                                cursor: (!formData.motivo || !hayProductosSeleccionados()) ? 'not-allowed' : 'pointer'
+                            }}
                             onClick={() => setShowConfirmModal(true)}
-                            disabled={!formData.motivo}
+                            disabled={!formData.motivo || !hayProductosSeleccionados()}
                         >
                             <RotateCcw size={18} />
-                            Procesar Devolución - {formatCurrency(ventaEncontrada.total)}
+                            Procesar Devolución Parcial - {formatCurrency(calcularTotalDevolver())}
                         </button>
                     </div>
                 </div>
@@ -393,7 +536,7 @@ export default function DevolucionesVentas() {
                                     <th style={styles.th}>Fecha</th>
                                     <th style={styles.th}>Motivo</th>
                                     <th style={styles.th}>Reembolso</th>
-                                    <th style={styles.th}>Total</th>
+                                    <th style={styles.th}>Monto Devuelto</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -419,7 +562,7 @@ export default function DevolucionesVentas() {
                                         </td>
                                         <td style={styles.td}>
                                             <strong style={{ color: '#c62828' }}>
-                                                {formatCurrency(dev.ventas?.total)}
+                                                {formatCurrency(dev.total_devuelto)}
                                             </strong>
                                         </td>
                                     </tr>
@@ -443,15 +586,15 @@ export default function DevolucionesVentas() {
                         <div style={styles.modalBody}>
                             <div style={styles.confirmInfo}>
                                 <AlertCircle size={48} style={{ color: '#e65100' }} />
-                                <p>¿Está seguro de procesar esta devolución?</p>
+                                <p>¿Está seguro de procesar esta devolución parcial?</p>
                                 <div style={styles.confirmDetails}>
                                     <div><strong>Venta:</strong> {ventaEncontrada.id_venta}</div>
-                                    <div><strong>Total a devolver:</strong> {formatCurrency(ventaEncontrada.total)}</div>
+                                    <div><strong>Total a devolver:</strong> <span style={{ color: '#c62828', fontWeight: 'bold' }}>{formatCurrency(calcularTotalDevolver())}</span></div>
                                     <div><strong>Forma de reembolso:</strong> {formData.forma_reembolso}</div>
-                                    <div><strong>Productos:</strong> {detallesVenta.length} items</div>
+                                    <div><strong>Productos seleccionados:</strong> {Object.values(cantidadesDevolver).filter(c => c > 0).length} de {detallesVenta.length}</div>
                                 </div>
                                 <p style={styles.warningText}>
-                                    ⚠️ Esta acción anulará la venta y devolverá los productos al inventario automáticamente.
+                                    ⚠️ Los productos seleccionados serán devueltos al inventario automáticamente.
                                 </p>
                             </div>
                         </div>
@@ -549,4 +692,12 @@ const styles = {
     modalFooter: { display: 'flex', justifyContent: 'flex-end', gap: '12px', padding: '20px 25px', background: '#f8f9fa' },
     btnCancel: { padding: '12px 20px', background: '#f5f5f5', color: '#333', border: '1px solid #ddd', borderRadius: '8px', cursor: 'pointer', fontWeight: '500' },
     btnConfirm: { display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: 'linear-gradient(135deg, #c62828, #e53935)', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '600' },
+
+    // Partial Return Controls
+    cantidadControl: { display: 'flex', alignItems: 'center', gap: '8px' },
+    cantidadBtn: { width: '32px', height: '32px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: '1px solid #ddd', borderRadius: '6px', background: 'white', cursor: 'pointer', color: '#333' },
+    cantidadInput: { width: '60px', height: '32px', textAlign: 'center', border: '1px solid #ddd', borderRadius: '6px', fontSize: '14px', fontWeight: '600' },
+    checkBtn: { width: '36px', height: '36px', display: 'flex', alignItems: 'center', justifyContent: 'center', border: 'none', borderRadius: '8px', cursor: 'pointer' },
+    btnSelectAll: { display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#1a5d1a', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' },
+    btnDeselectAll: { display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 16px', background: '#f5f5f5', color: '#666', border: '1px solid #ddd', borderRadius: '8px', cursor: 'pointer', fontSize: '13px', fontWeight: '500' },
 };
