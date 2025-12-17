@@ -121,8 +121,8 @@ export default function RolesYCargos() {
 
     setSaving(true);
     try {
-      const { data, error } = await supabase.rpc('fn_actualizar_rol', {
-        p_id: editingItem.id,
+      const { data, error } = await supabase.rpc('fn_editar_rol', {
+        p_id_rol: editingItem.id,
         p_nombre: roleForm.nombre.trim(),
         p_descripcion: roleForm.descripcion.trim() || null,
         p_usuario_auditoria: getUsername()
@@ -150,8 +150,8 @@ export default function RolesYCargos() {
     }
 
     try {
-      const { data, error } = await supabase.rpc('fn_eliminar_rol', {
-        p_id: id,
+      const { data, error } = await supabase.rpc('fn_desactivar_rol', {
+        p_id_rol: id,
         p_usuario_auditoria: getUsername()
       });
 
@@ -234,8 +234,8 @@ export default function RolesYCargos() {
 
     setSaving(true);
     try {
-      const { data, error } = await supabase.rpc('fn_actualizar_cargo', {
-        p_id: editingItem.id,
+      const { data, error } = await supabase.rpc('fn_editar_cargo', {
+        p_id_cargo: editingItem.id,
         p_nombre: cargoForm.nombre.trim(),
         p_descripcion: cargoForm.descripcion.trim() || null,
         p_usuario_auditoria: getUsername()
@@ -263,8 +263,8 @@ export default function RolesYCargos() {
     }
 
     try {
-      const { data, error } = await supabase.rpc('fn_eliminar_cargo', {
-        p_id: id,
+      const { data, error } = await supabase.rpc('fn_desactivar_cargo', {
+        p_id_cargo: id,
         p_usuario_auditoria: getUsername()
       });
 
