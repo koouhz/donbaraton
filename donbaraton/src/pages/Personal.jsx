@@ -161,7 +161,7 @@ export default function Personal() {
     setFormData({ ...formData, foto_url: '', fotoFile: null });
   };
 
-  // Buscar empleado existente por CI
+  // Buscar empleado existente por CI usando RPC
   const buscarEmpleadoPorCI = async (ci) => {
     if (!ci || ci.length < 5) {
       setExistingEmployee(null);
@@ -169,11 +169,9 @@ export default function Personal() {
     }
     setCheckingCI(true);
     try {
-      const { data, error } = await supabase
-        .from('empleados')
-        .select('*')
-        .eq('ci', ci.trim())
-        .maybeSingle();
+      const { data, error } = await supabase.rpc('fn_buscar_empleado_por_ci', {
+        p_ci: ci.trim()
+      });
 
       if (error) {
         console.error('Error buscando empleado:', error);
@@ -181,24 +179,27 @@ export default function Personal() {
         return;
       }
 
-      if (data) {
-        setExistingEmployee(data);
+      // El RPC retorna un array, tomamos el primer elemento si existe
+      const empleado = data && data.length > 0 ? data[0] : null;
+
+      if (empleado) {
+        setExistingEmployee(empleado);
         // Auto-completar formulario
         setFormData(prev => ({
           ...prev,
-          nombres: data.nombres || '',
-          paterno: data.apellido_paterno || '',
-          materno: data.apellido_materno || '',
-          fecha_nac: data.fecha_nacimiento || '',
-          sexo: data.sexo || 'M',
-          telefono: data.telefono || '',
-          email: data.email || '',
-          cargo_id: data.id_cargo || '',
-          salario: data.salario || '',
-          foto_url: data.foto_url || ''
+          nombres: empleado.nombres || '',
+          paterno: empleado.apellido_paterno || '',
+          materno: empleado.apellido_materno || '',
+          fecha_nac: empleado.fecha_nacimiento || '',
+          sexo: empleado.sexo || 'M',
+          telefono: empleado.telefono || '',
+          email: empleado.email || '',
+          cargo_id: empleado.id_cargo || '',
+          salario: empleado.salario || '',
+          foto_url: empleado.foto_url || ''
         }));
 
-        if (data.estado === 'ACTIVO') {
+        if (empleado.estado === 'ACTIVO') {
           toast.error('Este empleado ya está ACTIVO en el sistema');
         } else {
           toast.success('Empleado encontrado. Puede activarlo.');
