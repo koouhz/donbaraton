@@ -1,6 +1,6 @@
 // src/pages/MovimientosInventario.jsx
 import { useState, useEffect } from 'react';
-import { 
+import {
   History, ArrowUpCircle, ArrowDownCircle, Loader2,
   Calendar, Package, Filter
 } from 'lucide-react';
@@ -18,19 +18,24 @@ export default function MovimientosInventario() {
   const cargarMovimientos = async () => {
     setLoading(true);
     try {
-      // Consulta directa ya que no hay SP específico para movimientos
-      const { data, error } = await supabase
-        .from('movimientos_inventario')
-        .select('*, productos(nombre)')
-        .order('fecha', { ascending: false })
-        .limit(100);
+      // Usar función fn_leer_movimientos_inventario
+      const { data, error } = await supabase.rpc('fn_leer_movimientos_inventario');
 
       if (error) throw error;
-      setMovimientos(data || []);
+      // Mapear campos de la función a la estructura esperada
+      const movimientosTransformados = (data || []).map(m => ({
+        id: m.id,
+        fecha: m.fecha,
+        tipo: m.tipo,
+        cantidad: m.cantidad,
+        documento: m.documento,
+        motivo: m.motivo,
+        productos: { nombre: m.producto }
+      }));
+      setMovimientos(movimientosTransformados);
     } catch (err) {
       console.error('Error:', err);
-      // Fallback: mostrar mensaje informativo
-      toast.error('Cargando datos de ejemplo');
+      toast.error('Error al cargar movimientos');
       setMovimientos([]);
     } finally {
       setLoading(false);
@@ -40,7 +45,7 @@ export default function MovimientosInventario() {
   const getTipoStyle = (tipo) => {
     const entradas = ['ENTRADA', 'AJUSTE+', 'DEVOLUCION_VENTA'];
     const salidas = ['SALIDA', 'AJUSTE-', 'VENTA', 'MERMA', 'DEVOLUCION_PROVEEDOR'];
-    
+
     if (entradas.includes(tipo)) {
       return { bg: '#e8f5e9', color: '#2e7d32', icon: <ArrowUpCircle size={16} /> };
     }
@@ -52,7 +57,7 @@ export default function MovimientosInventario() {
   return (
     <div style={styles.container}>
       <Toaster position="top-right" />
-      
+
       <header style={styles.header}>
         <div>
           <h1 style={styles.title}>
@@ -69,7 +74,7 @@ export default function MovimientosInventario() {
       <div style={styles.infoCard}>
         <Package size={20} />
         <p>
-          Los movimientos se registran automáticamente al realizar ventas, recepciones de compra, 
+          Los movimientos se registran automáticamente al realizar ventas, recepciones de compra,
           devoluciones y ajustes de inventario.
         </p>
       </div>

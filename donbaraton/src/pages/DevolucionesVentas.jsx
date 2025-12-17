@@ -43,19 +43,21 @@ export default function DevolucionesVentas() {
     const cargarDevoluciones = async () => {
         setLoading(true);
         try {
-            // Cargar historial de devoluciones
-            const { data, error } = await supabase
-                .from('devoluciones_ventas')
-                .select(`
-          *,
-          ventas (id_venta, total, fecha_hora, tipo_comprobante),
-          usuarios (username)
-        `)
-                .order('fecha', { ascending: false })
-                .limit(50);
+            // Usar función fn_leer_devoluciones_ventas para historial
+            const { data, error } = await supabase.rpc('fn_leer_devoluciones_ventas');
 
             if (!error) {
-                setDevoluciones(data || []);
+                // Mapear campos de fn_leer_devoluciones_ventas
+                const devolucionesTransformadas = (data || []).map(d => ({
+                    id_devolucion_venta: d.id_devolucion,
+                    id_venta: d.id_venta,
+                    fecha: d.fecha,
+                    motivo: d.motivo,
+                    forma_reembolso: d.forma_reembolso,
+                    ventas: { total: d.total_venta },
+                    usuarios: { username: d.cliente }
+                }));
+                setDevoluciones(devolucionesTransformadas);
             }
         } catch (err) {
             console.error('Error:', err);

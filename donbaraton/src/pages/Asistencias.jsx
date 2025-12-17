@@ -70,20 +70,8 @@ export default function Asistencias() {
       const fechaSiguienteStr = fechaSiguiente.toISOString().split('T')[0];
 
       const [empRes, asistRes] = await Promise.all([
-        supabase
-          .from('empleados')
-          .select(`
-            id_empleado,
-            ci,
-            nombres,
-            apellido_paterno,
-            apellido_materno,
-            telefono,
-            estado,
-            cargos (nombre)
-          `)
-          .eq('estado', 'ACTIVO')
-          .order('nombres'),
+        // Usar función fn_listar_empleados
+        supabase.rpc('fn_listar_empleados'),
         // Consultar asistencias en un rango de 3 días para cubrir timezone
         supabase
           .from('asistencias')
@@ -95,10 +83,15 @@ export default function Asistencias() {
       if (empRes.error) console.error('Error empleados:', empRes.error);
       if (asistRes.error) console.error('Error asistencias:', asistRes.error);
 
+      // fn_listar_empleados devuelve: id_empleado, nombre_completo, cargo, estado
       const empleadosTransformados = (empRes.data || []).map(emp => ({
-        ...emp,
-        cargo: emp.cargos?.nombre || '-',
-        nombre_completo: `${emp.nombres || ''} ${emp.apellido_paterno || ''} ${emp.apellido_materno || ''}`.trim()
+        id_empleado: emp.id_empleado,
+        ci: emp.id_empleado, // Usar ID como CI temporal
+        nombres: emp.nombre_completo?.split(' ')[0] || '',
+        apellido_paterno: emp.nombre_completo?.split(' ').slice(1).join(' ') || '',
+        cargo: emp.cargo || '-',
+        nombre_completo: emp.nombre_completo || 'Sin nombre',
+        estado: emp.estado
       }));
 
       // Filtrar asistencias: priorizar la fecha seleccionada, luego fechas cercanas

@@ -1,6 +1,6 @@
 // src/pages/CuentasPorPagar.jsx
 import { useState, useEffect } from 'react';
-import { 
+import {
   Receipt, DollarSign, Loader2, Calendar,
   AlertCircle, CheckCircle, Clock
 } from 'lucide-react';
@@ -18,15 +18,21 @@ export default function CuentasPorPagar() {
   const cargarCuentas = async () => {
     setLoading(true);
     try {
-      // Consulta directa ya que no hay SP específico
-      const { data, error } = await supabase
-        .from('cuentas_por_pagar')
-        .select('*, proveedores(razon_social)')
-        .eq('estadoa', true)
-        .order('fecha_vencimiento', { ascending: true });
+      // Usar función fn_leer_cuentas_por_pagar
+      const { data, error } = await supabase.rpc('fn_leer_cuentas_por_pagar');
 
       if (error) throw error;
-      setCuentas(data || []);
+      // Mapear campos de la función a la estructura esperada
+      const cuentasTransformadas = (data || []).map(c => ({
+        id: c.id,
+        factura_nro: c.factura_nro,
+        fecha_vencimiento: c.fecha_vencimiento,
+        monto_total: c.monto_total,
+        saldo_pendiente: c.saldo_pendiente,
+        estado: c.estado,
+        proveedores: { razon_social: c.proveedor }
+      }));
+      setCuentas(cuentasTransformadas);
     } catch (err) {
       console.error('Error:', err);
       setCuentas([]);
@@ -58,7 +64,7 @@ export default function CuentasPorPagar() {
   return (
     <div style={styles.container}>
       <Toaster position="top-right" />
-      
+
       <header style={styles.header}>
         <div>
           <h1 style={styles.title}>
@@ -76,7 +82,7 @@ export default function CuentasPorPagar() {
         <div style={styles.summaryCard}>
           <DollarSign size={28} style={{ color: '#c62828' }} />
           <div>
-            <span style={{...styles.summaryValue, color: '#c62828'}}>{formatCurrency(totalPendiente)}</span>
+            <span style={{ ...styles.summaryValue, color: '#c62828' }}>{formatCurrency(totalPendiente)}</span>
             <span style={styles.summaryLabel}>Total Pendiente</span>
           </div>
         </div>
@@ -90,7 +96,7 @@ export default function CuentasPorPagar() {
         <div style={styles.summaryCard}>
           <AlertCircle size={28} style={{ color: '#e65100' }} />
           <div>
-            <span style={{...styles.summaryValue, color: '#e65100'}}>{vencidas}</span>
+            <span style={{ ...styles.summaryValue, color: '#e65100' }}>{vencidas}</span>
             <span style={styles.summaryLabel}>Vencidas</span>
           </div>
         </div>
@@ -133,7 +139,7 @@ export default function CuentasPorPagar() {
                     <td style={styles.td}>{cuenta.factura_nro || '-'}</td>
                     <td style={styles.td}>{formatDate(cuenta.fecha_vencimiento)}</td>
                     <td style={styles.td}>{formatCurrency(cuenta.monto_total)}</td>
-                    <td style={{...styles.td, fontWeight: '700', color: cuenta.saldo_pendiente > 0 ? '#c62828' : '#2e7d32'}}>
+                    <td style={{ ...styles.td, fontWeight: '700', color: cuenta.saldo_pendiente > 0 ? '#c62828' : '#2e7d32' }}>
                       {formatCurrency(cuenta.saldo_pendiente)}
                     </td>
                     <td style={styles.td}>

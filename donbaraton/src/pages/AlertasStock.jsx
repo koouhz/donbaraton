@@ -22,39 +22,29 @@ export default function AlertasStock() {
   const cargarAlertas = async () => {
     setLoading(true);
     try {
-      // Consultar productos con bajo stock directamente con más detalles
+      // Usar función fn_generar_alertas_stock_bajo
       const [stockRes, vencRes] = await Promise.all([
-        supabase
-          .from('productos')
-          .select(`
-            id_producto,
-            codigo_interno,
-            nombre,
-            marca,
-            stock_actual,
-            stock_minimo,
-            stock_maximo,
-            precio_venta,
-            unidad_medida,
-            categorias (nombre)
-          `)
-          .eq('estado', 'ACTIVO')
-          .order('stock_actual', { ascending: true }),
+        supabase.rpc('fn_generar_alertas_stock_bajo'),
         supabase.rpc('fn_alerta_vencimientos', { p_dias_anticipacion: 30 })
       ]);
 
       if (stockRes.error) {
         console.error('Error stock:', stockRes.error);
       } else {
-        // Filtrar productos donde stock_actual <= stock_minimo
-        const productosConBajoStock = (stockRes.data || [])
-          .filter(p => p.stock_actual <= p.stock_minimo)
-          .map(p => ({
-            ...p,
-            categoria: p.categorias?.nombre || 'Sin categoría',
-            faltante: Math.max(0, p.stock_minimo - p.stock_actual),
-            porcentaje_stock: p.stock_minimo > 0 ? Math.round((p.stock_actual / p.stock_minimo) * 100) : 0
-          }));
+        // La función ya devuelve productos con stock bajo
+        const productosConBajoStock = (stockRes.data || []).map(p => ({
+          id_producto: p.id_producto,
+          codigo_interno: p.id_producto, // Usar ID como código si no viene
+          nombre: p.nombre,
+          marca: null,
+          stock_actual: p.stock_actual,
+          stock_minimo: p.stock_minimo,
+          precio_venta: 0,
+          unidad_medida: 'UNIDAD',
+          categoria: p.proveedor || 'Sin categoría',
+          faltante: p.faltante,
+          porcentaje_stock: p.stock_minimo > 0 ? Math.round((p.stock_actual / p.stock_minimo) * 100) : 0
+        }));
         setAlertasStock(productosConBajoStock);
       }
 
