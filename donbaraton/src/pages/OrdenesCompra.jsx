@@ -25,6 +25,8 @@ export default function OrdenesCompra() {
   const [showDetalleModal, setShowDetalleModal] = useState(false);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [ordenSeleccionada, setOrdenSeleccionada] = useState(null);
+  const [detallesOrden, setDetallesOrden] = useState([]); // Productos de la orden seleccionada
+  const [cargandoDetalles, setCargandoDetalles] = useState(false);
   
   // Form para nueva orden
   const [formData, setFormData] = useState({
@@ -360,9 +362,29 @@ export default function OrdenesCompra() {
     setShowRecepcionModal(true);
   };
 
-  const openDetalleModal = (orden) => {
+  const openDetalleModal = async (orden) => {
     setOrdenSeleccionada(orden);
+    setDetallesOrden([]);
+    setCargandoDetalles(true);
     setShowDetalleModal(true);
+    
+    try {
+      // Cargar detalles de la orden usando SP
+      const { data, error } = await supabase.rpc('fn_leer_detalle_orden_compra', {
+        p_id_orden: orden.id || orden.id_orden
+      });
+      
+      if (error) {
+        console.error('Error cargando detalles:', error);
+        toast.error('Error al cargar detalles de la orden');
+      } else {
+        setDetallesOrden(data || []);
+      }
+    } catch (err) {
+      console.error('Error:', err);
+    } finally {
+      setCargandoDetalles(false);
+    }
   };
 
   const handleCancelarOrden = (orden) => {
@@ -786,7 +808,7 @@ export default function OrdenesCompra() {
       {/* Modal Detalle */}
       {showDetalleModal && ordenSeleccionada && (
         <div style={styles.modalOverlay} onClick={() => setShowDetalleModal(false)}>
-          <div style={styles.modal} onClick={(e) => e.stopPropagation()}>
+          <div style={styles.modalLarge} onClick={(e) => e.stopPropagation()}>
             <div style={styles.modalHeader}>
               <h2 style={styles.modalTitle}>
                 <Eye size={20} /> Detalle de Orden
@@ -802,9 +824,53 @@ export default function OrdenesCompra() {
                 <p><strong>Proveedor:</strong> {ordenSeleccionada.proveedor}</p>
                 <p><strong>Fecha Emisión:</strong> {formatDate(ordenSeleccionada.fecha_emision)}</p>
                 <p><strong>Fecha Entrega:</strong> {formatDate(ordenSeleccionada.fecha_entrega || '-')}</p>
-                <p><strong>Estado:</strong> {getEstadoBadge(ordenSeleccionada.estado)}</p>
                 <p style={styles.totalBig}><strong>Total:</strong> {formatCurrency(ordenSeleccionada.total)}</p>
               </div>
+
+              {/* Tabla de productos de la orden */}
+              <h4 style={{...styles.sectionTitle, marginTop: '20px'}}>
+                <Package size={18} /> Productos de la Orden
+              </h4>
+              
+              {cargandoDetalles ? (
+                <div style={styles.loadingState}>
+                  <Loader2 size={24} style={{ animation: 'spin 1s linear infinite', color: '#1a5d1a' }} />
+                  <p>Cargando productos...</p>
+                </div>
+              ) : detallesOrden.length === 0 ? (
+                <p style={{color: '#6c757d', textAlign: 'center', padding: '20px'}}>No hay productos registrados para esta orden</p>
+              ) : (
+                <table style={styles.table}>
+                  <thead>
+                    <tr>
+                      <th style={styles.th}>Producto</th>
+                      <th style={{...styles.th, textAlign: 'center'}}>Cantidad</th>
+                      <th style={{...styles.th, textAlign: 'right'}}>Precio Unit.</th>
+                      <th style={{...styles.th, textAlign: 'right'}}>Subtotal</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {detallesOrden.map((item, idx) => (
+                      <tr key={idx} style={styles.tr}>
+                        <td style={styles.td}><strong>{item.producto || item.nombre || 'Producto'}</strong></td>
+                        <td style={{...styles.td, textAlign: 'center'}}>{item.cantidad}</td>
+                        <td style={{...styles.td, textAlign: 'right'}}>{formatCurrency(item.precio_unitario)}</td>
+                        <td style={{...styles.td, textAlign: 'right', fontWeight: '600'}}>
+                          {formatCurrency(item.cantidad * item.precio_unitario)}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                  <tfoot>
+                    <tr style={{background: '#e8f5e9'}}>
+                      <td colSpan="3" style={{...styles.td, textAlign: 'right', fontWeight: '600'}}>TOTAL:</td>
+                      <td style={{...styles.td, textAlign: 'right', fontWeight: '700', color: '#1a5d1a', fontSize: '16px'}}>
+                        {formatCurrency(ordenSeleccionada.total)}
+                      </td>
+                    </tr>
+                  </tfoot>
+                </table>
+              )}
             </div>
 
             <div style={styles.modalFooter}>
