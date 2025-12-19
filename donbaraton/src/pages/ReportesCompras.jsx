@@ -20,9 +20,13 @@ export default function ReportesCompras() {
   
   // Filtros
   const [filtros, setFiltros] = useState({
-    periodo: 'todos', // todos, hoy, semana, mes
-    fechaInicio: '',
-    fechaFin: '',
+    periodo: 'mes', // hoy, semana, mes
+    fechaInicio: (() => {
+      const d = new Date();
+      d.setDate(1);
+      return d.toISOString().split('T')[0];
+    })(),
+    fechaFin: new Date().toISOString().split('T')[0],
     proveedor: ''
   });
 
@@ -31,22 +35,24 @@ export default function ReportesCompras() {
     totalCompras: 0,
     cantidadOrdenes: 0,
     ordenesRecibidas: 0,
-    ordenesPendientes: 0
+    ordenesPendientes: 0,
+    totalDevoluciones: 0,
+    comprasNetas: 0
   });
 
   useEffect(() => {
     cargarDatos();
-  }, []);
+  }, [filtros.fechaInicio, filtros.fechaFin]);
 
   const cargarDatos = async () => {
     setLoading(true);
     try {
-      // Cargar órdenes usando SP completo (sin SQL directo)
+      // Cargar órdenes usando SP completo CON FILTROS DE FECHA
       const ordenesRes = await supabase.rpc('fn_leer_ordenes_compra_completo', {
         p_estado: null,
-        p_fecha_inicio: null,
-        p_fecha_fin: null,
-        p_id_proveedor: null
+        p_fecha_inicio: filtros.fechaInicio || null,
+        p_fecha_fin: filtros.fechaFin || null,
+        p_id_proveedor: filtros.proveedor || null
       });
       
       if (ordenesRes.error) {
@@ -63,19 +69,23 @@ export default function ReportesCompras() {
           estado: o.estado
         }));
         setOrdenes(ordenesFormateadas);
-        calcularEstadisticas(ordenesFormateadas);
-      }
 
-      // Cargar proveedores usando SP
-      const provRes = await supabase.rpc('fn_listar_proveedores');
-      if (!provRes.error) {
-        setProveedores(provRes.data || []);
-      }
-      
-      // Cargar devoluciones a proveedores
-      const devRes = await supabase.rpc('fn_leer_devoluciones_proveedor');
-      if (!devRes.error) {
-        setDevoluciones(devRes.data || []);
+        // Cargar proveedores usando SP
+        const provRes = await supabase.rpc('fn_listar_proveedores');
+        if (!provRes.error) {
+          setProveedores(provRes.data || []);
+        }
+        
+        // Cargar devoluciones a proveedores CON FILTROS DE FECHA
+        const devRes = await supabase.rpc('fn_leer_devoluciones_proveedor', {
+          p_fecha_inicio: filtros.fechaInicio || null,
+          p_fecha_fin: filtros.fechaFin || null
+        });
+        const devolucionesData = devRes.error ? [] : (devRes.data || []);
+        setDevoluciones(devolucionesData);
+        
+        // Calcular estadisticas con devoluciones
+        calcularEstadisticas(ordenesFormateadas, devolucionesData);
       }
     } catch (err) {
       toast.error('Error al cargar datos');
@@ -84,12 +94,17 @@ export default function ReportesCompras() {
     }
   };
 
-  const calcularEstadisticas = (data) => {
+  const calcularEstadisticas = (data, devolucionesData = []) => {
+    const totalCompras = data.reduce((sum, o) => sum + parseFloat(o.total || 0), 0);
+    const totalDev = devolucionesData.reduce((sum, d) => sum + parseFloat(d.total || 0), 0);
+    
     setStats({
-      totalCompras: data.reduce((sum, o) => sum + parseFloat(o.total || 0), 0),
+      totalCompras,
       cantidadOrdenes: data.length,
       ordenesRecibidas: data.filter(o => o.estado === 'RECIBIDA').length,
-      ordenesPendientes: data.filter(o => o.estado === 'PENDIENTE').length
+      ordenesPendientes: data.filter(o => o.estado === 'PENDIENTE').length,
+      totalDevoluciones: totalDev,
+      comprasNetas: totalCompras - totalDev
     });
   };
 
@@ -149,10 +164,27 @@ export default function ReportesCompras() {
       return ordenAscendente ? idA - idB : idB - idA;
     });
 
+  // Filtrar devoluciones por las mismas fechas
+  const devolucionesFiltradas = devoluciones.filter(dev => {
+    const fechaDev = new Date(dev.fecha);
+    
+    // Filtro por período predefinido
+    if (filtros.periodo !== 'todos' && filtros.periodo !== 'personalizado') {
+      const rango = aplicarFiltrosPeriodo();
+      if (rango && (fechaDev < rango.inicio || fechaDev > new Date(rango.fin.getTime() + 86399999))) return false;
+    }
+    
+    // Filtro por fechas personalizadas
+    if (filtros.fechaInicio && fechaDev < new Date(filtros.fechaInicio + 'T00:00:00')) return false;
+    if (filtros.fechaFin && fechaDev > new Date(filtros.fechaFin + 'T23:59:59')) return false;
+
+    return true;
+  });
+
   // Recalcular stats cuando cambian filtros
   useEffect(() => {
-    calcularEstadisticas(ordenesFiltradas);
-  }, [filtros, ordenes]);
+    calcularEstadisticas(ordenesFiltradas, devolucionesFiltradas);
+  }, [filtros, ordenes, devoluciones]);
 
   // Validar rango de fechas
   useEffect(() => {
@@ -166,7 +198,28 @@ export default function ReportesCompras() {
   }, [filtros.fechaInicio, filtros.fechaFin]);
 
   const limpiarFiltros = () => {
-    setFiltros({ periodo: 'todos', fechaInicio: '', fechaFin: '', proveedor: '' });
+    const hoy = new Date();
+    const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    setFiltros({ 
+      periodo: 'mes', 
+      fechaInicio: inicioMes.toISOString().split('T')[0], 
+      fechaFin: hoy.toISOString().split('T')[0], 
+      proveedor: '' 
+    });
+  };
+
+  // Función para obtener texto del período con fechas reales
+  const obtenerTextoPeriodo = () => {
+    const opciones = { day: '2-digit', month: 'long', year: 'numeric' };
+    if (filtros.fechaInicio && filtros.fechaFin) {
+      const fechaInicioFormateada = new Date(filtros.fechaInicio + 'T00:00:00').toLocaleDateString('es-BO', opciones);
+      const fechaFinFormateada = new Date(filtros.fechaFin + 'T00:00:00').toLocaleDateString('es-BO', opciones);
+      if (filtros.fechaInicio === filtros.fechaFin) {
+        return fechaInicioFormateada;
+      }
+      return `${fechaInicioFormateada} - ${fechaFinFormateada}`;
+    }
+    return 'Todas las fechas';
   };
 
   const openDetalleModal = (orden) => {
@@ -178,15 +231,12 @@ export default function ReportesCompras() {
   const exportarPDF = async () => {
     setExportando(true);
     try {
-      const periodoTexto = {
-        'todos': 'Todas las fechas',
-        'hoy': 'Hoy',
-        'semana': 'Esta semana',
-        'mes': 'Este mes',
-        'personalizado': `${filtros.fechaInicio || 'Inicio'} - ${filtros.fechaFin || 'Fin'}`
-      }[filtros.periodo] || 'Personalizado';
+      // Usar fechas reales en el PDF
+      const periodoTexto = obtenerTextoPeriodo();
 
       const totalFiltrado = ordenesFiltradas.reduce((sum, o) => sum + parseFloat(o.total || 0), 0);
+      const totalDevoluciones = devolucionesFiltradas.reduce((sum, d) => sum + parseFloat(d.total || 0), 0);
+      const comprasNetas = totalFiltrado - totalDevoluciones;
 
       // Crear contenido HTML para el PDF con diseño profesional
       const contenidoHTML = `
@@ -349,17 +399,18 @@ export default function ReportesCompras() {
               </div>
               <div class="stat">
                 <div class="stat-value">Bs ${totalFiltrado.toFixed(2)}</div>
-                <div class="stat-label">Total en Compras</div>
+                <div class="stat-label">Total Bruto</div>
               </div>
-              <div class="stat">
-                <div class="stat-value">${ordenesFiltradas.filter(o => o.estado === 'RECIBIDA').length}</div>
-                <div class="stat-label">Recibidas</div>
+              <div class="stat" style="border-left-color: #c62828;">
+                <div class="stat-value" style="color: #c62828;">- Bs ${totalDevoluciones.toFixed(2)}</div>
+                <div class="stat-label">Devoluciones (${devolucionesFiltradas.length})</div>
               </div>
-              <div class="stat">
-                <div class="stat-value" style="color:${devoluciones.length > 0 ? '#c62828' : '#1a5d1a'}">${devoluciones.length}</div>
-                <div class="stat-label">Devoluciones</div>
+              <div class="stat" style="border-left-color: #1565c0;">
+                <div class="stat-value" style="color: #1565c0;">Bs ${comprasNetas.toFixed(2)}</div>
+                <div class="stat-label">Compras Netas</div>
               </div>
             </div>
+
 
             <div class="seccion">
               <div class="seccion-titulo">Órdenes de Compra</div>
@@ -393,9 +444,9 @@ export default function ReportesCompras() {
               </table>
             </div>
 
-            ${devoluciones.length > 0 ? `
+            ${devolucionesFiltradas.length > 0 ? `
             <div class="seccion">
-              <div class="seccion-titulo devolucion">Devoluciones a Proveedores</div>
+              <div class="seccion-titulo devolucion">Devoluciones a Proveedores (${devolucionesFiltradas.length} registros)</div>
               <table>
                 <thead>
                   <tr>
@@ -404,22 +455,50 @@ export default function ReportesCompras() {
                     <th class="devolucion">Producto</th>
                     <th class="devolucion" style="text-align:center">Cantidad</th>
                     <th class="devolucion">Motivo</th>
+                    <th class="devolucion" style="text-align:right">Total</th>
                   </tr>
                 </thead>
                 <tbody>
-                  ${devoluciones.map(dev => `
+                  ${devolucionesFiltradas.map(dev => `
                     <tr style="background:#fff5f5">
-                      <td><strong>${dev.id}</strong></td>
+                      <td><strong>${dev.id_devolucion}</strong></td>
                       <td>${formatDate(dev.fecha)}</td>
                       <td>${dev.producto || 'Sin producto'}</td>
                       <td style="text-align:center;color:#c62828;font-weight:700">${dev.cantidad}</td>
                       <td>${dev.motivo || '-'}</td>
+                      <td style="text-align:right;color:#c62828;font-weight:700">- Bs ${parseFloat(dev.total || 0).toFixed(2)}</td>
                     </tr>
                   `).join('')}
                 </tbody>
+                <tfoot>
+                  <tr style="background:#ffebee">
+                    <td colspan="5" style="text-align:right"><strong>TOTAL DEVOLUCIONES:</strong></td>
+                    <td style="text-align:right;color:#c62828;font-weight:700"><strong>- Bs ${totalDevoluciones.toFixed(2)}</strong></td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
             ` : ''}
+
+            <div class="seccion" style="border: 2px solid #1565c0; background: #e3f2fd;">
+              <div class="seccion-titulo" style="color: #1565c0; border-bottom-color: #bbdefb;">Resumen Financiero del Período</div>
+              <table>
+                <tbody>
+                  <tr>
+                    <td style="text-align:right; font-size:12px; padding:8px;">Total Compras (Bruto):</td>
+                    <td style="text-align:right; font-weight:bold; font-size:12px; width:150px;">Bs ${totalFiltrado.toFixed(2)}</td>
+                  </tr>
+                  <tr>
+                    <td style="text-align:right; font-size:12px; padding:8px; color:#c62828;">(-) Devoluciones:</td>
+                    <td style="text-align:right; font-weight:bold; font-size:12px; color:#c62828;">- Bs ${totalDevoluciones.toFixed(2)}</td>
+                  </tr>
+                  <tr style="border-top: 2px solid #1565c0;">
+                    <td style="text-align:right; font-size:14px; padding:12px; font-weight:bold; color:#1565c0;">TOTAL COMPRAS NETAS:</td>
+                    <td style="text-align:right; font-weight:bold; font-size:16px; color:#1565c0;">Bs ${comprasNetas.toFixed(2)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
 
             <div class="footer">
               <p class="brand">Don Baraton - Sistema de Gestión de Supermercado</p>
@@ -521,21 +600,21 @@ export default function ReportesCompras() {
           <DollarSign size={32} style={{ color: '#2e7d32' }} />
           <div>
             <span style={{...styles.statValue, color: '#2e7d32'}}>{formatCurrency(stats.totalCompras)}</span>
-            <span style={styles.statLabel}>Total en Compras</span>
+            <span style={styles.statLabel}>Total Bruto</span>
+          </div>
+        </div>
+        <div style={{...styles.statCard, borderTop: '4px solid #c62828'}}>
+          <RotateCcw size={32} style={{ color: '#c62828' }} />
+          <div>
+            <span style={{...styles.statValue, color: '#c62828'}}>- {formatCurrency(stats.totalDevoluciones)}</span>
+            <span style={styles.statLabel}>Devoluciones</span>
           </div>
         </div>
         <div style={{...styles.statCard, borderTop: '4px solid #1565c0'}}>
-          <Package size={32} style={{ color: '#1565c0' }} />
+          <DollarSign size={32} style={{ color: '#1565c0' }} />
           <div>
-            <span style={{...styles.statValue, color: '#1565c0'}}>{stats.ordenesRecibidas}</span>
-            <span style={styles.statLabel}>Recibidas</span>
-          </div>
-        </div>
-        <div style={{...styles.statCard, borderTop: '4px solid #e65100'}}>
-          <TrendingUp size={32} style={{ color: '#e65100' }} />
-          <div>
-            <span style={{...styles.statValue, color: '#e65100'}}>{stats.ordenesPendientes}</span>
-            <span style={styles.statLabel}>Pendientes</span>
+            <span style={{...styles.statValue, color: '#1565c0', fontSize: '28px'}}>{formatCurrency(stats.comprasNetas)}</span>
+            <span style={styles.statLabel}>COMPRAS NETAS</span>
           </div>
         </div>
       </div>
@@ -548,7 +627,6 @@ export default function ReportesCompras() {
         <div style={styles.filtersRow}>
           <div style={styles.periodButtons}>
             {[
-              { key: 'todos', label: 'Todos' },
               { key: 'hoy', label: 'Hoy' },
               { key: 'semana', label: 'Esta Semana' },
               { key: 'mes', label: 'Este Mes' }
@@ -559,7 +637,28 @@ export default function ReportesCompras() {
                   ...styles.periodButton,
                   ...(filtros.periodo === p.key ? styles.periodButtonActive : {})
                 }}
-                onClick={() => setFiltros({ ...filtros, periodo: p.key, fechaInicio: '', fechaFin: '' })}
+                onClick={() => {
+                  const hoy = new Date();
+                  let inicio, fin;
+                  switch(p.key) {
+                    case 'hoy':
+                      inicio = fin = hoy.toISOString().split('T')[0];
+                      break;
+                    case 'semana':
+                      const inicioSemana = new Date(hoy);
+                      inicioSemana.setDate(hoy.getDate() - hoy.getDay());
+                      inicio = inicioSemana.toISOString().split('T')[0];
+                      fin = hoy.toISOString().split('T')[0];
+                      break;
+                    case 'mes':
+                      inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
+                      fin = hoy.toISOString().split('T')[0];
+                      break;
+                    default:
+                      inicio = fin = hoy.toISOString().split('T')[0];
+                  }
+                  setFiltros({ ...filtros, periodo: p.key, fechaInicio: inicio, fechaFin: fin });
+                }}
               >
                 {p.label}
               </button>
@@ -614,6 +713,9 @@ export default function ReportesCompras() {
           <button style={styles.clearButton} onClick={limpiarFiltros}>
             Limpiar
           </button>
+        </div>
+        <div style={{marginTop: '10px', fontSize: '13px', color: '#1a5d1a', fontWeight: '500'}}>
+          📅 Período: {obtenerTextoPeriodo()}
         </div>
       </div>
 
@@ -686,13 +788,13 @@ export default function ReportesCompras() {
         )}
       </div>
 
-      {/* Sección Devoluciones a Proveedores */}
+      {/* Sección Devoluciones a Proveedores - Con campos mejorados */}
       {devoluciones.length > 0 && (
         <div style={{...styles.tableContainer, borderTop: '4px solid #c62828', marginTop: '25px'}}>
           <div style={styles.tableHeader}>
             <h3 style={{...styles.tableTitle, color: '#c62828'}}>
               <RotateCcw size={18} style={{ marginRight: '8px' }} />
-              Devoluciones a Proveedores ({devoluciones.length} registros)
+              Devoluciones a Proveedores ({devoluciones.length} registros) - Total: {formatCurrency(stats.totalDevoluciones)}
             </h3>
           </div>
           <table style={styles.table}>
@@ -700,22 +802,46 @@ export default function ReportesCompras() {
               <tr>
                 <th style={{...styles.th, background: '#c62828'}}>ID</th>
                 <th style={{...styles.th, background: '#c62828'}}>Fecha</th>
+                <th style={{...styles.th, background: '#c62828'}}>Proveedor</th>
                 <th style={{...styles.th, background: '#c62828'}}>Producto</th>
                 <th style={{...styles.th, background: '#c62828', textAlign: 'center'}}>Cantidad</th>
                 <th style={{...styles.th, background: '#c62828'}}>Motivo</th>
+                <th style={{...styles.th, background: '#c62828'}}>Observaciones</th>
+                <th style={{...styles.th, background: '#c62828', textAlign: 'right'}}>Total</th>
               </tr>
             </thead>
             <tbody>
               {devoluciones.map((dev, index) => (
                 <tr key={`dev-${index}`} style={{...styles.tr, background: '#fff5f5'}}>
-                  <td style={styles.td}><strong>{dev.id}</strong></td>
+                  <td style={styles.td}><strong>{dev.id_devolucion}</strong></td>
                   <td style={styles.td}>{formatDate(dev.fecha)}</td>
-                  <td style={styles.td}>{dev.producto || 'Sin producto'}</td>
-                  <td style={{...styles.td, textAlign: 'center', color: '#c62828', fontWeight: '700'}}>{dev.cantidad}</td>
-                  <td style={styles.td}>{dev.motivo || '-'}</td>
+                  <td style={styles.td}>{dev.proveedor || 'Sin proveedor'}</td>
+                  <td style={styles.td}>{dev.producto || '-'}</td>
+                  <td style={{...styles.td, textAlign: 'center'}}>
+                    {dev.cantidad || 0}
+                  </td>
+                  <td style={styles.td}>
+                    <span style={{...styles.badge, background: '#ffebee', color: '#c62828'}}>
+                      {dev.motivo || '-'}
+                    </span>
+                  </td>
+                  <td style={styles.td}>{dev.observaciones || '-'}</td>
+                  <td style={{...styles.td, textAlign: 'right', color: '#c62828', fontWeight: '700'}}>
+                    - {formatCurrency(dev.total || 0)}
+                  </td>
                 </tr>
               ))}
             </tbody>
+            <tfoot>
+              <tr style={{background: '#ffebee'}}>
+                <td colSpan="7" style={{...styles.td, textAlign: 'right', fontWeight: '600', color: '#c62828'}}>
+                  Total Devoluciones:
+                </td>
+                <td style={{...styles.td, fontWeight: '700', color: '#c62828', fontSize: '16px', textAlign: 'right'}}>
+                  - {formatCurrency(stats.totalDevoluciones)}
+                </td>
+              </tr>
+            </tfoot>
           </table>
         </div>
       )}
