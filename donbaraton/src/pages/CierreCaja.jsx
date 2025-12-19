@@ -3,10 +3,13 @@ import { useState, useEffect } from 'react';
 import {
   Calculator, DollarSign, Loader2, X, Save,
   CheckCircle, AlertTriangle, Clock, FileText, CreditCard, Smartphone,
-  Wallet, Calendar
+  Wallet, Calendar, User
 } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
+
+// Roles que pueden ver todos los cierres de caja
+const ROLES_VER_TODO = ['administrador', 'gerente', 'admin', 'supervisor'];
 
 export default function CierreCaja() {
   const [cierres, setCierres] = useState([]);
@@ -17,6 +20,28 @@ export default function CierreCaja() {
   const [efectivoFisico, setEfectivoFisico] = useState('');
   const [observaciones, setObservaciones] = useState('');
   const [filterFecha, setFilterFecha] = useState('');
+  const [userInfo, setUserInfo] = useState(null);
+
+  // Obtener información completa del usuario logueado
+  const getUserInfo = () => {
+    try {
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        return JSON.parse(userData);
+      }
+    } catch (e) {
+      console.error('Error al obtener usuario:', e);
+    }
+    return null;
+  };
+
+  // Verificar si el usuario puede ver todos los cierres
+  const puedeVerTodo = () => {
+    const user = getUserInfo();
+    if (!user) return false;
+    const rol = (user.rol || user.roles?.nombre || user.cargo || '').toLowerCase();
+    return ROLES_VER_TODO.includes(rol);
+  };
 
   const getUser = () => {
     const user = localStorage.getItem('user');
@@ -30,20 +55,41 @@ export default function CierreCaja() {
   };
 
   useEffect(() => {
+    const user = getUserInfo();
+    setUserInfo(user);
     cargarDatos();
   }, [filterFecha]);
 
   const cargarDatos = async () => {
     setLoading(true);
     try {
-      // Cargar cierres con filtro de fecha y resumen de caja del día
+      const user = getUserInfo();
+      const verTodo = puedeVerTodo();
+      // Usar UTC explícitamente como en Caja.jsx
+      const fechaHoy = new Date().toISOString().split('T')[0];
+
+      // Construir parámetros para cierres
+      const paramsCierres = {
+        p_fecha: filterFecha || null,
+        p_id_usuario: null
+      };
+
+      // Construir parámetros para resumen
+      const paramsResumen = {
+        p_fecha: fechaHoy,
+        p_id_usuario: null
+      };
+
+      // Si es cajero, filtrar por su ID
+      if (!verTodo && user?.usuario_id) {
+        paramsCierres.p_id_usuario = user.usuario_id;
+        paramsResumen.p_id_usuario = user.usuario_id;
+      }
+
+      // Cargar cierres con filtro y resumen de caja del día
       const [cierresRes, resumenRes] = await Promise.all([
-        supabase.rpc('fn_leer_cierres_caja', {
-          p_fecha: filterFecha || null
-        }),
-        supabase.rpc('fn_resumen_caja', {
-          p_fecha: new Date().toISOString().split('T')[0]
-        })
+        supabase.rpc('fn_leer_cierres_caja_cajero', paramsCierres),
+        supabase.rpc('fn_resumen_caja_cajero', paramsResumen)
       ]);
 
       if (cierresRes.error) console.error('Error cierres:', cierresRes.error);
@@ -111,10 +157,11 @@ export default function CierreCaja() {
 
   const formatCurrency = (value) => `Bs ${parseFloat(value || 0).toFixed(2)}`;
 
+  // Convertir hora UTC a hora local
   const formatFechaHora = (fecha, hora) => {
     if (!fecha) return '--';
     const opciones = { day: '2-digit', month: 'short', year: 'numeric' };
-    const fechaFormateada = new Date(fecha).toLocaleDateString('es-BO', opciones);
+    const fechaFormateada = new Date(fecha + 'T00:00:00').toLocaleDateString('es-BO', opciones);
     const horaFormateada = hora?.substring(0, 5) || '';
     return horaFormateada ? `${fechaFormateada} - ${horaFormateada}` : fechaFormateada;
   };
@@ -133,7 +180,10 @@ export default function CierreCaja() {
             Cierre de Caja
           </h1>
           <p style={styles.subtitle}>
-            Cuadre de efectivo diario - {new Date().toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
+            {puedeVerTodo()
+              ? 'Cuadre de efectivo diario - Todos los cierres'
+              : `Mis cierres de caja${userInfo?.nombres ? ` - ${userInfo.nombres}` : ''}`
+            } - {new Date().toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
         <button style={styles.primaryButton} onClick={() => setShowModal(true)}>

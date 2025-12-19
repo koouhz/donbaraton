@@ -252,7 +252,7 @@ export default function Ventas() {
         p_medio_pago: medioPago,
         p_monto_total: total,
         p_monto_recibido: medioPago === 'EFECTIVO' ? parseFloat(montoRecibido) : total,
-        p_username: user.id,
+        p_username: user.username,
         p_nit_cliente: tipoComprobante === 'FACTURA' ? facturaDatos.nit : null,
         p_razon_social: tipoComprobante === 'FACTURA' ? facturaDatos.razon_social : null,
         p_direccion_factura: tipoComprobante === 'FACTURA' ? facturaDatos.direccion : null
