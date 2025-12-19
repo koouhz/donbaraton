@@ -97,29 +97,40 @@ BEGIN
         -- Calcular total de devolución
         v_total_devolucion := v_total_devolucion + (v_cantidad * COALESCE(v_precio_unitario, 0));
         
-        -- IMPORTANTE: Crear movimiento de inventario tipo ENTRADA para devolver stock
-        -- NOTA: El trigger trg_actualizar_stock actualiza automáticamente el stock
-        -- cuando se inserta en movimientos_inventario, por lo que NO debemos
-        -- hacer un UPDATE manual a productos (evita duplicación)
-        INSERT INTO public.movimientos_inventario (
-            id_movimiento,
-            id_producto,
-            tipo,
-            cantidad,
-            documento,
-            motivo,
-            id_usuario,
-            fecha_hora
-        ) VALUES (
-            'MOV-' || LPAD(nextval('movimientos_seq')::VARCHAR, 3, '0'),
-            v_id_producto,
-            'ENTRADA',
-            v_cantidad,
-            v_id_devolucion,
-            'DEVOLUCION_VENTA',
-            v_id_usuario,
-            CURRENT_TIMESTAMP
-        );
+        -- IMPORTANTE: Crear movimiento de inventario según el motivo de devolución
+        -- El trigger trg_actualizar_stock maneja automáticamente:
+        -- - ENTRADA: suma al stock (para Error de compra)
+        -- - DAÑO: resta del stock (para productos dañados - no vuelve al inventario vendible)
+        -- - MERMA: resta del stock (para productos vencidos - no vuelve al inventario vendible)
+        
+        -- Determinar tipo de movimiento según motivo
+        IF UPPER(p_motivo) LIKE '%ERROR%' THEN
+            -- Error de compra: el producto vuelve al stock vendible
+            INSERT INTO public.movimientos_inventario (
+                id_movimiento, id_producto, tipo, cantidad, documento, motivo, id_usuario, fecha_hora
+            ) VALUES (
+                'MOV-' || LPAD(nextval('movimientos_seq')::VARCHAR, 3, '0'),
+                v_id_producto, 'ENTRADA', v_cantidad, v_id_devolucion, 
+                'DEVOLUCION_VENTA', v_id_usuario, CURRENT_TIMESTAMP
+            );
+        ELSIF UPPER(p_motivo) LIKE '%DAÑA%' OR UPPER(p_motivo) LIKE '%DAÑO%' THEN
+            -- Producto dañado: NO vuelve al stock vendible
+            -- NO crear movimiento - el stock ya se restó en la venta original
+            NULL; -- Solo se registrará en stock_no_vendible (ver stock_no_vendible_setup.sql)
+        ELSIF UPPER(p_motivo) LIKE '%VENCIDO%' THEN
+            -- Producto vencido: NO vuelve al stock vendible
+            -- NO crear movimiento - el stock ya se restó en la venta original
+            NULL; -- Solo se registrará en stock_no_vendible (ver stock_no_vendible_setup.sql)
+        ELSE
+            -- Otros motivos: por defecto vuelve al stock (comportamiento original)
+            INSERT INTO public.movimientos_inventario (
+                id_movimiento, id_producto, tipo, cantidad, documento, motivo, id_usuario, fecha_hora
+            ) VALUES (
+                'MOV-' || LPAD(nextval('movimientos_seq')::VARCHAR, 3, '0'),
+                v_id_producto, 'ENTRADA', v_cantidad, v_id_devolucion, 
+                'DEVOLUCION_VENTA', v_id_usuario, CURRENT_TIMESTAMP
+            );
+        END IF;
         
         -- NO HACER UPDATE MANUAL - El trigger ya lo hace automáticamente
         

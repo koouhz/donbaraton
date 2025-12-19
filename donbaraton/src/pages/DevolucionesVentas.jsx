@@ -98,7 +98,7 @@ export default function DevolucionesVentas() {
             }
 
             if (venta.estado === 'ANULADO') {
-                toast.error('Esta venta ya fue anulada/devuelta');
+                toast.error('Esta venta ya fue anulada/devuelta completamente');
                 return;
             }
 
@@ -111,17 +111,39 @@ export default function DevolucionesVentas() {
         `)
                 .eq('id_venta', venta.id_venta);
 
-            if (!detallesError) {
-                setVentaEncontrada(venta);
-                setDetallesVenta(detalles || []);
-                // Inicializar cantidades a devolver con 0
-                const cantidadesIniciales = {};
-                (detalles || []).forEach(det => {
-                    cantidadesIniciales[det.id_producto] = 0;
-                });
-                setCantidadesDevolver(cantidadesIniciales);
-                toast.success('Venta encontrada');
+            if (detallesError) {
+                toast.error('Error al obtener detalles de la venta');
+                return;
             }
+
+            // Verificar si ya existe alguna devolución para esta venta
+            const { data: devVentas } = await supabase
+                .from('devoluciones_ventas')
+                .select('id_devolucion_venta')
+                .eq('id_venta', venta.id_venta)
+                .limit(1);
+
+            if (devVentas && devVentas.length > 0) {
+                toast.error('Esta venta ya tiene una devolución registrada. No se permiten devoluciones adicionales.');
+                return;
+            }
+
+            // Si no hay devoluciones previas, mostrar todos los productos disponibles
+            setVentaEncontrada(venta);
+            setDetallesVenta(detalles.map(det => ({
+                ...det,
+                cantidad_original: det.cantidad,
+                cantidad_disponible: det.cantidad,
+                cantidad_devuelta: 0
+            })));
+
+            // Inicializar cantidades a devolver con 0
+            const cantidadesIniciales = {};
+            detalles.forEach(det => {
+                cantidadesIniciales[det.id_producto] = 0;
+            });
+            setCantidadesDevolver(cantidadesIniciales);
+            toast.success('Venta encontrada');
         } catch (err) {
             console.error('Error:', err);
             toast.error('Error al buscar la venta');
@@ -146,7 +168,7 @@ export default function DevolucionesVentas() {
     const seleccionarTodos = () => {
         const todas = {};
         detallesVenta.forEach(det => {
-            todas[det.id_producto] = det.cantidad;
+            todas[det.id_producto] = det.cantidad_disponible || det.cantidad;
         });
         setCantidadesDevolver(todas);
     };
@@ -374,7 +396,7 @@ export default function DevolucionesVentas() {
                                         }}>
                                             <td style={styles.detalleTd}>
                                                 <button
-                                                    onClick={() => toggleProductoCompleto(det.id_producto, det.cantidad)}
+                                                    onClick={() => toggleProductoCompleto(det.id_producto, det.cantidad_disponible || det.cantidad)}
                                                     style={{
                                                         ...styles.checkBtn,
                                                         backgroundColor: isSelected ? '#1a5d1a' : '#f5f5f5',
@@ -389,12 +411,19 @@ export default function DevolucionesVentas() {
                                                 <span style={styles.codigo}>{det.productos?.codigo_interno}</span>
                                             </td>
                                             <td style={styles.detalleTd}>
-                                                <span style={{ color: '#6c757d' }}>{det.cantidad} unid.</span>
+                                                <span style={{ color: '#6c757d' }}>
+                                                    {det.cantidad_disponible || det.cantidad} de {det.cantidad_original || det.cantidad} unid.
+                                                    {det.cantidad_devuelta > 0 && (
+                                                        <small style={{ color: '#c62828', marginLeft: '5px' }}>
+                                                            ({det.cantidad_devuelta} ya devueltas)
+                                                        </small>
+                                                    )}
+                                                </span>
                                             </td>
                                             <td style={styles.detalleTd}>
                                                 <div style={styles.cantidadControl}>
                                                     <button
-                                                        onClick={() => cambiarCantidad(det.id_producto, cantidadDevolver - 1, det.cantidad)}
+                                                        onClick={() => cambiarCantidad(det.id_producto, cantidadDevolver - 1, det.cantidad_disponible || det.cantidad)}
                                                         style={styles.cantidadBtn}
                                                         disabled={cantidadDevolver <= 0}
                                                     >
@@ -403,15 +432,15 @@ export default function DevolucionesVentas() {
                                                     <input
                                                         type="number"
                                                         value={cantidadDevolver}
-                                                        onChange={(e) => cambiarCantidad(det.id_producto, parseInt(e.target.value) || 0, det.cantidad)}
+                                                        onChange={(e) => cambiarCantidad(det.id_producto, parseInt(e.target.value) || 0, det.cantidad_disponible || det.cantidad)}
                                                         style={styles.cantidadInput}
                                                         min={0}
-                                                        max={det.cantidad}
+                                                        max={det.cantidad_disponible || det.cantidad}
                                                     />
                                                     <button
-                                                        onClick={() => cambiarCantidad(det.id_producto, cantidadDevolver + 1, det.cantidad)}
+                                                        onClick={() => cambiarCantidad(det.id_producto, cantidadDevolver + 1, det.cantidad_disponible || det.cantidad)}
                                                         style={styles.cantidadBtn}
-                                                        disabled={cantidadDevolver >= det.cantidad}
+                                                        disabled={cantidadDevolver >= (det.cantidad_disponible || det.cantidad)}
                                                     >
                                                         <Plus size={14} />
                                                     </button>
@@ -441,11 +470,9 @@ export default function DevolucionesVentas() {
                                     onChange={(e) => setFormData({ ...formData, motivo: e.target.value })}
                                 >
                                     <option value="">-- Seleccione motivo --</option>
-                                    <option value="PRODUCTO_DEFECTUOSO">Producto defectuoso</option>
-                                    <option value="CAMBIO_PRODUCTO">Cambio de producto</option>
-                                    <option value="CLIENTE_INSATISFECHO">Cliente insatisfecho</option>
-                                    <option value="ERROR_VENTA">Error en la venta</option>
-                                    <option value="OTRO">Otro motivo</option>
+                                    <option value="ERROR_COMPRA">Error de compra (vuelve a stock)</option>
+                                    <option value="DAÑADO">Producto dañado (no vuelve a stock)</option>
+                                    <option value="VENCIDO">Producto vencido (no vuelve a stock)</option>
                                 </select>
                             </div>
                             <div style={styles.formGroup}>

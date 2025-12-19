@@ -158,6 +158,13 @@ const MENU_CONFIG = [
     roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_ALMACEN, ROLES.GERENTE],
     description: "Control de stock"
   },
+  {
+    label: "Stock No Vendible",
+    icon: AlertCircle,
+    path: "/stock-no-vendible",
+    roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_ALMACEN],
+    description: "Productos dañados y vencidos"
+  },
 
   // SECCIÓN: VENTAS
   {

@@ -18,6 +18,7 @@ const Categorias = lazy(() => import("./pages/Categorias"));
 const Inventario = lazy(() => import("./pages/Inventario"));
 const MovimientosInventario = lazy(() => import("./pages/MovimientosInventario"));
 const AlertasStock = lazy(() => import("./pages/AlertasStock"));
+const StockNoVendible = lazy(() => import("./pages/StockNoVendible"));
 
 // Ventas
 const Ventas = lazy(() => import("./pages/Ventas"));
@@ -145,6 +146,7 @@ function App() {
               <Route path="inventario" element={<Inventario />} />
               <Route path="movimientos-inventario" element={<MovimientosInventario />} />
               <Route path="alertas-stock" element={<AlertasStock />} />
+              <Route path="stock-no-vendible" element={<StockNoVendible />} />
 
               {/* Ventas */}
               <Route path="ventas" element={<Ventas />} />
