@@ -155,12 +155,78 @@ export default function ReportesVentas() {
     setFiltros({ ...filtros, periodo, fechaInicio: inicio, fechaFin: fin });
   };
 
-  // Ordenar ventas
-  const ventasFiltradas = [...ventas].sort((a, b) => {
-    const fechaA = new Date(a.fecha);
-    const fechaB = new Date(b.fecha);
-    return ordenAscendente ? fechaA - fechaB : fechaB - fechaA;
+  // Ordenar y filtrar ventas localmente
+  const ventasFiltradas = ventas
+    .filter(venta => {
+      // Filtro por cajero (si ya se filtró en DB, esto es redundante pero seguro)
+      if (cajeroFiltro && venta.cajero_id !== cajeroFiltro && venta.id_usuario !== cajeroFiltro) {
+        // Nota: depende de cómo venga el ID del cajero en la respuesta RPC. 
+        // fn_leer_ventas_cajero devuelve: id, fecha, cliente, cajero (nombre), id_usuario...
+        // Si no tenemos id_usuario en la respuesta, solo confiamos en el filtrado de DB o lo omitimos aquí.
+        // Asumiremos que el filtrado DB es principal, pero si tenemos el campo lo usamos.
+        return true; 
+      }
+
+      const fechaVenta = new Date(venta.fecha);
+      
+      // Filtro por período predefinido
+      if (filtros.periodo !== 'todos' && filtros.periodo !== 'personalizado') {
+        const hoy = new Date();
+        let inicio, fin;
+        if (filtros.periodo === 'hoy') {
+            inicio = new Date(hoy.setHours(0,0,0,0));
+            fin = new Date(hoy.setHours(23,59,59,999));
+        } else if (filtros.periodo === 'semana') {
+            const i = new Date(hoy); i.setDate(hoy.getDate() - hoy.getDay()); i.setHours(0,0,0,0);
+            inicio = i;
+            fin = new Date();
+        } else if (filtros.periodo === 'mes') {
+            inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1); 
+            fin = new Date();
+        }
+        
+        if (inicio && fin && (fechaVenta < inicio || fechaVenta > fin)) return false;
+      }
+      
+      // Filtro por fechas personalizadas
+      if (filtros.periodo === 'personalizado' || filtros.fechaInicio || filtros.fechaFin) {
+        if (filtros.fechaInicio && fechaVenta < new Date(filtros.fechaInicio + 'T00:00:00')) return false;
+        if (filtros.fechaFin && fechaVenta > new Date(filtros.fechaFin + 'T23:59:59')) return false;
+      }
+
+      return true;
+    })
+    .sort((a, b) => {
+      const fechaA = new Date(a.fecha);
+      const fechaB = new Date(b.fecha);
+      return ordenAscendente ? fechaA - fechaB : fechaB - fechaA;
+    });
+
+  // Filtrar devoluciones localmente
+  const devolucionesFiltradas = devoluciones.filter(dev => {
+    // Filtro por cajero
+    // fn_leer_devoluciones_ventas devuelve: id_usuario (quien hizo la devolución)
+    if (cajeroFiltro && dev.id_usuario !== cajeroFiltro) {
+       // Si queremos ver devoluciones hechas por el cajero seleccionado
+       // O si queremos ver devoluciones de ventas hechas por ese cajero (diferente lógica)
+       // Por consistencia con el RPC que recibe p_id_usuario, asumimos que filtra por quien hizo la acción o la venta relacionada.
+       // El RPC usa p_id_usuario para filtrar.
+       return true; // Confiamos en el RPC si los campos no coinciden exáctamente
+    }
+
+    const fechaDev = new Date(dev.fecha);
+    
+    // Filtro por fechas personalizadas
+    if (filtros.fechaInicio && fechaDev < new Date(filtros.fechaInicio + 'T00:00:00')) return false;
+    if (filtros.fechaFin && fechaDev > new Date(filtros.fechaFin + 'T23:59:59')) return false;
+
+    return true;
   });
+
+  // Recalcular stats cuando cambian datos filtrados
+  useEffect(() => {
+    calcularEstadisticas(ventasFiltradas, devolucionesFiltradas);
+  }, [ventas, devoluciones, filtros, cajeroFiltro]);
 
   const limpiarFiltros = () => {
     const hoy = new Date();
@@ -213,6 +279,8 @@ export default function ReportesVentas() {
       const periodoTexto = obtenerTextoPeriodo();
 
       const totalFiltrado = ventasFiltradas.reduce((sum, v) => sum + parseFloat(v.total || 0), 0);
+      const totalDevoluciones = devolucionesFiltradas.reduce((sum, d) => sum + parseFloat(d.total_devuelto || d.total_venta || 0), 0);
+      const ventasNetas = totalFiltrado - totalDevoluciones;
 
       // Cargar detalles de cada venta (máximo 50 para no sobrecargar)
       toast.loading('Cargando detalles de productos...');
@@ -244,108 +312,257 @@ export default function ReportesVentas() {
           <meta charset="utf-8">
           <title>Reporte de Ventas - Don Baraton</title>
           <style>
+            @page { size: A4 portrait; margin: 15mm; }
             * { margin: 0; padding: 0; box-sizing: border-box; }
-            body { font-family: 'Segoe UI', Arial, sans-serif; padding: 40px; background: #fff; color: #333; }
-            .header { display: flex; align-items: center; margin-bottom: 30px; padding-bottom: 20px; border-bottom: 3px solid #1a5d1a; }
-            .logo { width: 80px; height: 80px; margin-right: 20px; border-radius: 10px; }
-            .empresa { flex: 1; }
-            .empresa h1 { color: #1a5d1a; font-size: 28px; margin-bottom: 5px; }
-            .empresa p { color: #666; font-size: 14px; }
-            .titulo-reporte { background: linear-gradient(135deg, #1a5d1a, #2e8b57); color: white; padding: 15px 25px; border-radius: 10px; margin-bottom: 25px; }
-            .titulo-reporte h2 { font-size: 20px; margin-bottom: 5px; }
-            .titulo-reporte p { font-size: 12px; opacity: 0.9; }
-            .stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 15px; margin-bottom: 25px; }
-            .stat { background: #f8f9fa; padding: 15px; border-radius: 10px; text-align: center; border-left: 4px solid #1a5d1a; }
-            .stat-value { font-size: 24px; font-weight: bold; color: #1a5d1a; }
-            .stat-label { font-size: 12px; color: #666; margin-top: 5px; }
-            .venta-card { background: #f8f9fa; border-radius: 10px; padding: 15px; margin-bottom: 15px; border-left: 4px solid #1a5d1a; page-break-inside: avoid; }
-            .venta-header { display: flex; justify-content: space-between; margin-bottom: 10px; }
-            .venta-id { font-weight: bold; color: #1a5d1a; }
-            .venta-total { font-weight: bold; color: #2e7d32; font-size: 16px; }
-            .venta-info { font-size: 12px; color: #666; margin-bottom: 10px; }
-            .productos-table { width: 100%; border-collapse: collapse; font-size: 11px; }
-            .productos-table th { background: #e8f5e9; padding: 8px; text-align: left; }
-            .productos-table td { padding: 8px; border-bottom: 1px solid #e9ecef; }
-            .footer { margin-top: 30px; padding-top: 20px; border-top: 1px solid #e9ecef; font-size: 11px; color: #666; text-align: center; }
-            .top-productos { margin-top: 30px; page-break-before: always; }
-            .top-productos h3 { margin-bottom: 15px; color: #1a5d1a; }
-            table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-            th { background: #1a5d1a; color: white; padding: 10px; text-align: left; font-size: 12px; }
-            td { padding: 10px; border-bottom: 1px solid #e9ecef; font-size: 11px; }
+            body { 
+              font-family: 'Segoe UI', Tahoma, Arial, sans-serif; 
+              background: #fff; 
+              color: #333; 
+              font-size: 11px;
+              line-height: 1.4;
+            }
+            .container { max-width: 800px; margin: 0 auto; padding: 20px; }
+            
+            /* Header Premium */
+            .header { 
+              display: flex; 
+              align-items: center; 
+              justify-content: space-between;
+              margin-bottom: 25px; 
+              padding-bottom: 20px; 
+              border-bottom: 3px solid #1a5d1a;
+            }
+            .header-left { display: flex; align-items: center; gap: 15px; }
+            .logo { width: 70px; height: 70px; border-radius: 10px; object-fit: cover; }
+            .empresa h1 { color: #1a5d1a; font-size: 24px; margin-bottom: 3px; }
+            .empresa p { color: #666; font-size: 11px; }
+            .header-right { text-align: right; }
+            .header-right p { font-size: 10px; color: #666; margin-bottom: 2px; }
+            
+            /* Título */
+            .titulo-reporte { 
+              background: linear-gradient(135deg, #1a5d1a 0%, #2e8b57 100%); 
+              color: white; 
+              padding: 18px 25px; 
+              border-radius: 12px; 
+              margin-bottom: 25px;
+              box-shadow: 0 4px 15px rgba(26, 93, 26, 0.3);
+            }
+            .titulo-reporte h2 { font-size: 18px; margin-bottom: 5px; font-weight: 700; }
+            .titulo-reporte p { font-size: 11px; opacity: 0.9; }
+            
+            /* Stats Grid */
+            .stats { 
+              display: grid; 
+              grid-template-columns: repeat(4, 1fr); 
+              gap: 12px; 
+              margin-bottom: 25px; 
+            }
+            .stat { 
+              background: linear-gradient(145deg, #f8f9fa, #ffffff);
+              padding: 18px; 
+              border-radius: 12px; 
+              text-align: center; 
+              border-left: 4px solid #1a5d1a;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            }
+            .stat-value { font-size: 22px; font-weight: 700; color: #1a5d1a; }
+            .stat-label { font-size: 10px; color: #666; margin-top: 5px; text-transform: uppercase; letter-spacing: 0.5px; }
+            
+            /* Secciones */
+            .seccion {
+              background: #fff;
+              border-radius: 12px;
+              padding: 20px;
+              margin-bottom: 15px;
+              border: 1px solid #e9ecef;
+              box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+              page-break-inside: avoid;
+            }
+            .seccion-titulo {
+              font-size: 14px;
+              font-weight: 700;
+              color: #1a5d1a;
+              margin-bottom: 15px;
+              padding-bottom: 10px;
+              border-bottom: 2px solid #e8f5e9;
+              display: flex;
+              justify-content: space-between;
+              align-items: center;
+            }
+            .seccion-titulo.devolucion { color: #c62828; border-bottom-color: #ffebee; }
+            
+            /* Tablas */
+            table { width: 100%; border-collapse: collapse; }
+            th { 
+              background: linear-gradient(135deg, #1a5d1a, #2e8b57); 
+              color: white; 
+              padding: 10px; 
+              text-align: left; 
+              font-size: 10px; 
+              font-weight: 600;
+              text-transform: uppercase;
+              letter-spacing: 0.3px;
+            }
+            th.devolucion { background: linear-gradient(135deg, #c62828, #e53935); }
+            th:first-child { border-radius: 6px 0 0 0; }
+            th:last-child { border-radius: 0 6px 0 0; }
+            td { 
+              padding: 8px 10px; 
+              border-bottom: 1px solid #e9ecef; 
+              font-size: 10px; 
+            }
+            tr:nth-child(even) { background: #f8f9fa; }
+            tr:hover { background: #e8f5e9; }
+            
+            /* Footer */
+            .footer { 
+              margin-top: 30px; 
+              padding-top: 20px; 
+              border-top: 2px solid #e9ecef; 
+              text-align: center;
+            }
+            .footer p { font-size: 9px; color: #999; margin-bottom: 2px; }
+            .footer .brand { color: #1a5d1a; font-weight: 600; font-size: 10px; }
           </style>
         </head>
         <body>
-          <div class="header">
-            <img src="${logo}" class="logo" alt="Logo">
-            <div class="empresa">
-              <h1>Don Baraton</h1>
-              <p>Supermercado - Sistema de Gestión</p>
-            </div>
-          </div>
-          
-          <div class="titulo-reporte">
-            <h2>Reporte Detallado de Ventas</h2>
-            <p>Período: ${periodoTexto} | Generado: ${new Date().toLocaleDateString('es-BO')} ${new Date().toLocaleTimeString('es-BO')}</p>
-          </div>
-
-          <div class="stats">
-            <div class="stat">
-              <div class="stat-value">${ventasFiltradas.length}</div>
-              <div class="stat-label">Tickets Emitidos</div>
-            </div>
-            <div class="stat">
-              <div class="stat-value">Bs ${totalFiltrado.toFixed(2)}</div>
-              <div class="stat-label">Total Bruto</div>
-            </div>
-            <div class="stat" style="border-left-color: #c62828;">
-              <div class="stat-value" style="color: #c62828;">- Bs ${stats.totalDevoluciones.toFixed(2)}</div>
-              <div class="stat-label">Devoluciones</div>
-            </div>
-            <div class="stat" style="border-left-color: #1565c0;">
-              <div class="stat-value" style="color: #1565c0; font-size: 28px;">Bs ${stats.ventasNetas.toFixed(2)}</div>
-              <div class="stat-label">VENTAS NETAS</div>
-            </div>
-          </div>
-
-          <h3 style="margin-bottom: 15px;">Detalle de Ventas (${ventasConDetalle.length} de ${ventasFiltradas.length})</h3>
-          
-          ${ventasConDetalle.map(v => `
-            <div class="venta-card">
-              <div class="venta-header">
-                <span class="venta-id">${v.id || '-'}</span>
-                <span class="venta-total">Bs ${parseFloat(v.total || 0).toFixed(2)}</span>
+          <div class="container">
+            <div class="header">
+              <div class="header-left">
+                <img src="${logo}" class="logo" alt="Logo">
+                <div class="empresa">
+                  <h1>Don Baraton</h1>
+                  <p>Supermercado - Sistema de Gestión</p>
+                </div>
               </div>
-              <div class="venta-info">
-                Fecha: ${formatDateTime(v.fecha)} | Cliente: ${v.cliente || 'Cliente General'} | Cajero: ${v.cajero || 'Sin asignar'} | ${v.comprobante || 'TICKET'}
+              <div class="header-right">
+                <p>NIT: 123456789</p>
+                <p>Tel: +591 XXX XXXX</p>
+                <p>Dirección: La Paz, Bolivia</p>
               </div>
-              ${v.productos && v.productos.length > 0 ? `
-                <table class="productos-table">
-                  <thead>
-                    <tr>
-                      <th>Producto</th>
-                      <th style="text-align:center">Cant.</th>
-                      <th style="text-align:right">Precio</th>
-                      <th style="text-align:right">Subtotal</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    ${v.productos.map(p => `
+            </div>
+            
+            <div class="titulo-reporte">
+              <h2>Reporte de Ventas</h2>
+              <p>Período: ${periodoTexto} • Generado: ${new Date().toLocaleDateString('es-BO')} ${new Date().toLocaleTimeString('es-BO')}</p>
+            </div>
+
+            <div class="stats">
+              <div class="stat">
+                <div class="stat-value">${ventasFiltradas.length}</div>
+                <div class="stat-label">Tickets Emitidos</div>
+              </div>
+              <div class="stat">
+                <div class="stat-value">Bs ${totalFiltrado.toFixed(2)}</div>
+                <div class="stat-label">Total Bruto</div>
+              </div>
+              <div class="stat" style="border-left-color: #c62828;">
+                <div class="stat-value" style="color: #c62828;">- Bs ${totalDevoluciones.toFixed(2)}</div>
+                <div class="stat-label">Devoluciones (${devolucionesFiltradas.length})</div>
+              </div>
+              <div class="stat" style="border-left-color: #1565c0;">
+                <div class="stat-value" style="color: #1565c0;">Bs ${ventasNetas.toFixed(2)}</div>
+                <div class="stat-label">Ventas Netas</div>
+              </div>
+            </div>
+
+            <div style="margin-bottom: 20px;">
+              <h3 style="color: #1a5d1a; font-size: 16px; margin-bottom: 15px; border-left: 4px solid #1a5d1a; padding-left: 10px;">
+                Detalle de Ventas (${ventasConDetalle.length} registros mostrados)
+              </h3>
+            </div>
+            
+            ${ventasConDetalle.map(v => `
+              <div class="seccion">
+                <div class="seccion-titulo">
+                  <span>Venta #${v.id || '-'} <span style="font-weight:400; color:#666; font-size:11px; margin-left:10px;">${formatDateTime(v.fecha)}</span></span>
+                  <span style="font-size:12px;">Total: <span style="color:#1a5d1a; font-size:14px;">Bs ${parseFloat(v.total || 0).toFixed(2)}</span></span>
+                </div>
+                <div style="display:flex; gap:20px; margin-bottom:10px; font-size:10px; color:#555; background:#f8f9fa; padding:8px; border-radius:6px;">
+                  <span><strong>Cliente:</strong> ${v.cliente || 'Consumidor Final'}</span>
+                  <span><strong>Cajero/a:</strong> ${v.cajero || 'Sin asignar'}</span>
+                  <span><strong>Comprobante:</strong> ${v.comprobante || 'TICKET'}</span>
+                </div>
+                
+                ${v.productos && v.productos.length > 0 ? `
+                  <table>
+                    <thead>
                       <tr>
-                        <td>${p.nombre || 'Producto'}</td>
-                        <td style="text-align:center">${p.cantidad}</td>
-                        <td style="text-align:right">Bs ${parseFloat(p.precio_unitario || 0).toFixed(2)}</td>
-                        <td style="text-align:right">Bs ${parseFloat(p.subtotal || 0).toFixed(2)}</td>
+                        <th style="padding:6px 10px; font-size:9px;">Producto</th>
+                        <th style="padding:6px 10px; text-align:center; width:60px; font-size:9px;">Cant.</th>
+                        <th style="padding:6px 10px; text-align:right; width:80px; font-size:9px;">Precio</th>
+                        <th style="padding:6px 10px; text-align:right; width:80px; font-size:9px;">Subtotal</th>
                       </tr>
-                    `).join('')}
-                  </tbody>
-                </table>
-              ` : '<p style="font-size:11px; color:#999;">Sin detalle de productos</p>'}
-            </div>
-          `).join('')}
+                    </thead>
+                    <tbody>
+                      ${v.productos.map(p => `
+                        <tr>
+                          <td style="padding:6px 10px;">${p.nombre || 'Producto'}</td>
+                          <td style="text-align:center; padding:6px 10px;">${p.cantidad}</td>
+                          <td style="text-align:right; padding:6px 10px;">Bs ${parseFloat(p.precio_unitario || 0).toFixed(2)}</td>
+                          <td style="text-align:right; padding:6px 10px;">Bs ${parseFloat(p.subtotal || 0).toFixed(2)}</td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                ` : '<p style="font-size:10px; color:#999; text-align:center; padding:10px;">Sin detalle de productos</p>'}
+              </div>
+            `).join('')}
 
-          <div class="footer">
-            <p>Don Baraton - Sistema de Gestión de Supermercado</p>
-            <p>Reporte generado automáticamente el ${new Date().toLocaleDateString('es-BO')}</p>
+            ${devolucionesFiltradas.length > 0 ? `
+            <div class="seccion" style="margin-top: 30px;">
+              <div class="seccion-titulo devolucion">Devoluciones de Ventas (${devolucionesFiltradas.length} registros)</div>
+              <table>
+                <thead>
+                  <tr>
+                    <th class="devolucion">ID</th>
+                    <th class="devolucion">Fecha</th>
+                    <th class="devolucion">Venta Orig.</th>
+                    <th class="devolucion">Motivo</th>
+                    <th class="devolucion" style="text-align:right">Monto</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  ${devolucionesFiltradas.map(d => `
+                    <tr style="background:#fff5f5">
+                      <td><strong>${d.id_devolucion}</strong></td>
+                      <td>${formatDateTime(d.fecha)}</td>
+                      <td>${d.id_venta}</td>
+                      <td>${d.motivo || '-'}</td>
+                      <td style="text-align:right; font-weight:700; color:#c62828">- Bs ${parseFloat(d.total_devuelto || d.total_venta || 0).toFixed(2)}</td>
+                    </tr>
+                  `).join('')}
+                </tbody>
+              </table>
+            </div>
+            ` : ''}
+
+            <div class="seccion" style="border: 2px solid #1565c0; background: #e3f2fd; margin-top: 20px;">
+              <div class="seccion-titulo" style="color: #1565c0; border-bottom-color: #bbdefb;">Resumen Financiero del Período</div>
+              <table>
+                <tbody>
+                  <tr>
+                    <td style="text-align:right; padding:8px;">Total Ventas (Bruto):</td>
+                    <td style="text-align:right; font-weight:bold; width:150px;">Bs ${totalFiltrado.toFixed(2)}</td>
+                  </tr>
+                  <tr>
+                    <td style="text-align:right; padding:8px; color:#c62828;">(-) Devoluciones:</td>
+                    <td style="text-align:right; font-weight:bold; color:#c62828;">- Bs ${totalDevoluciones.toFixed(2)}</td>
+                  </tr>
+                  <tr style="border-top: 2px solid #1565c0;">
+                    <td style="text-align:right; padding:12px; font-weight:bold; color:#1565c0; font-size:12px;">TOTAL VENTAS NETAS:</td>
+                    <td style="text-align:right; font-weight:bold; font-size:14px; color:#1565c0;">Bs ${ventasNetas.toFixed(2)}</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <div class="footer">
+              <p class="brand">Don Baraton - Sistema de Gestión de Supermercado</p>
+              <p>Reporte generado automáticamente • ${new Date().toLocaleDateString('es-BO')} ${new Date().toLocaleTimeString('es-BO')}</p>
+              <p>Este documento es para uso interno</p>
+            </div>
           </div>
         </body>
         </html>
@@ -666,12 +883,12 @@ export default function ReportesVentas() {
       </div>
 
       {/* Sección Devoluciones de Ventas - Con campos mejorados */}
-      {devoluciones.length > 0 && (
+      {devolucionesFiltradas.length > 0 && (
         <div style={{...styles.tableContainer, borderTop: '4px solid #c62828', marginTop: '25px'}}>
           <div style={styles.tableHeader}>
             <h3 style={{...styles.tableTitle, color: '#c62828'}}>
               <RotateCcw size={18} style={{ marginRight: '8px' }} />
-              Devoluciones de Ventas ({devoluciones.length} registros) - Total: {formatCurrency(stats.totalDevoluciones)}
+              Devoluciones de Ventas ({devolucionesFiltradas.length} registros) - Total: {formatCurrency(stats.totalDevoluciones)}
             </h3>
           </div>
           <table style={styles.table}>
@@ -688,7 +905,7 @@ export default function ReportesVentas() {
               </tr>
             </thead>
             <tbody>
-              {devoluciones.map((dev, index) => (
+              {devolucionesFiltradas.map((dev, index) => (
                 <tr key={`dev-${index}`} style={{...styles.tr, background: '#fff5f5'}}>
                   <td style={styles.td}><strong>{dev.id_devolucion}</strong></td>
                   <td style={styles.td}>{dev.id_venta}</td>

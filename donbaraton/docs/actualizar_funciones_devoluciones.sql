@@ -70,3 +70,85 @@ $function$;
 
 -- Verificación:
 -- SELECT * FROM fn_leer_devoluciones_ventas('2024-01-01', '2024-12-31', 'USR-001');
+
+-- =======================================================
+-- FUNCIÓN: Leer devoluciones a proveedores (CON TOTALES)
+-- =======================================================
+DROP FUNCTION IF EXISTS public.fn_leer_devoluciones_proveedor();
+DROP FUNCTION IF EXISTS public.fn_leer_devoluciones_proveedor(date);
+DROP FUNCTION IF EXISTS public.fn_leer_devoluciones_proveedor(date, date);
+
+CREATE OR REPLACE FUNCTION public.fn_leer_devoluciones_proveedor(
+    p_fecha_inicio date DEFAULT NULL::date, 
+    p_fecha_fin date DEFAULT NULL::date
+)
+RETURNS TABLE(
+    id_devolucion character varying,
+    id_recepcion character varying,
+    fecha timestamp without time zone,
+    producto text,
+    cantidad integer,
+    proveedor text,
+    motivo character varying,
+    observaciones text,
+    precio_unitario numeric,
+    total numeric
+)
+LANGUAGE plpgsql
+AS $function$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        dp.id_devolucion,
+        dp.id_recepcion,
+        dp.fecha,
+        -- Obtener producto desde movimientos_inventario
+        COALESCE(
+            (SELECT pr.nombre FROM public.movimientos_inventario mi 
+             JOIN public.productos pr ON mi.id_producto = pr.id_producto 
+             WHERE mi.documento = dp.id_devolucion LIMIT 1),
+            'Producto'
+        )::TEXT AS producto,
+        dp.cantidad,
+        -- Obtener proveedor desde recepción
+        COALESCE(
+            (SELECT prov.razon_social 
+             FROM public.recepciones rec 
+             JOIN public.ordenes_compra oc ON rec.id_orden = oc.id_orden
+             JOIN public.proveedores prov ON oc.id_proveedor = prov.id_proveedor
+             WHERE rec.id_recepcion = dp.id_recepcion),
+            'Proveedor'
+        )::TEXT AS proveedor,
+        dp.motivo,
+        dp.observaciones,
+        -- Obtener precio unitario desde detalle_orden_compra
+        COALESCE(
+            (SELECT doc.precio_unitario 
+             FROM public.recepciones rec 
+             JOIN public.ordenes_compra oc ON rec.id_orden = oc.id_orden
+             JOIN public.detalle_orden_compra doc ON doc.id_orden = oc.id_orden
+             JOIN public.movimientos_inventario mi ON mi.documento = dp.id_devolucion AND mi.id_producto = doc.id_producto
+             WHERE rec.id_recepcion = dp.id_recepcion
+             LIMIT 1),
+            0
+        )::NUMERIC AS precio_unitario,
+        -- Calcular total
+        COALESCE(
+            (SELECT dp.cantidad * doc.precio_unitario 
+             FROM public.recepciones rec 
+             JOIN public.ordenes_compra oc ON rec.id_orden = oc.id_orden
+             JOIN public.detalle_orden_compra doc ON doc.id_orden = oc.id_orden
+             JOIN public.movimientos_inventario mi ON mi.documento = dp.id_devolucion AND mi.id_producto = doc.id_producto
+             WHERE rec.id_recepcion = dp.id_recepcion
+             LIMIT 1),
+            0
+        )::NUMERIC AS total
+    FROM public.devoluciones_proveedor dp
+    WHERE (p_fecha_inicio IS NULL OR DATE(dp.fecha) >= p_fecha_inicio)
+      AND (p_fecha_fin IS NULL OR DATE(dp.fecha) <= p_fecha_fin)
+    ORDER BY dp.fecha DESC;
+END;
+$function$;
+
+-- TEST:
+-- SELECT * FROM fn_leer_devoluciones_proveedor();
