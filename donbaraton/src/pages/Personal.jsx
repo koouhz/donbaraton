@@ -546,6 +546,7 @@ export default function Personal() {
           style={styles.selectFilter}
         >
           <option value="">Todos los Cargos</option>
+
           {cargos.map(c => (
             <option key={c.id} value={c.id}>{c.nombre}</option>
           ))}

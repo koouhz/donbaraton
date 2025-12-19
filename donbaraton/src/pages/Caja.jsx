@@ -9,6 +9,9 @@ import { toast, Toaster } from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
 import { useNavigate } from 'react-router-dom';
 
+// Roles que pueden ver todas las ventas
+const ROLES_VER_TODO = ['administrador', 'gerente', 'admin'];
+
 export default function Caja() {
   const navigate = useNavigate();
   const [ventas, setVentas] = useState([]);
@@ -18,21 +21,80 @@ export default function Caja() {
   const [ventaSeleccionada, setVentaSeleccionada] = useState(null);
   const [detallesVenta, setDetallesVenta] = useState([]);
   const [loadingDetalles, setLoadingDetalles] = useState(false);
+  const [userInfo, setUserInfo] = useState(null);
+  // NOTA: PostgreSQL guarda timestamps en UTC, por lo que usamos fecha UTC
+  // para que coincida con las ventas guardadas en la base de datos.
+  // Después de las 20:00 hora Bolivia (-4), la fecha UTC ya es del día siguiente.
   const hoy = new Date().toISOString().split('T')[0];
 
+  // Obtener información del usuario logueado
+  const getUserInfo = () => {
+    try {
+      const userData = localStorage.getItem('user');
+      if (userData) {
+        return JSON.parse(userData);
+      }
+    } catch (e) {
+      console.error('Error al obtener usuario:', e);
+    }
+    return null;
+  };
+
+  // Verificar si el usuario puede ver todas las ventas
+  const puedeVerTodo = () => {
+    const user = getUserInfo();
+    if (!user) return false;
+
+    // Obtener el rol del usuario (puede estar en diferentes propiedades)
+    const rol = (user.rol || user.roles?.nombre || user.cargo || '').toLowerCase();
+    return ROLES_VER_TODO.includes(rol);
+  };
+
   useEffect(() => {
+    const user = getUserInfo();
+    setUserInfo(user);
     cargarVentasHoy();
   }, []);
 
   const cargarVentasHoy = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase.rpc('fn_leer_ventas', {
-        p_fecha_inicio: hoy,
-        p_fecha_fin: hoy
-      });
+      const user = getUserInfo();
+      const verTodo = puedeVerTodo();
 
-      if (error) throw error;
+      // DEBUG: Ver qué datos tenemos del usuario
+      console.log('=== DEBUG CAJA ===');
+      console.log('Usuario completo:', user);
+      console.log('Rol detectado:', user?.rol || user?.roles?.nombre || user?.cargo);
+      console.log('¿Puede ver todo?:', verTodo);
+      console.log('Usuario ID:', user?.usuario_id);
+
+      // Si es cajero, filtrar por su ID de usuario
+      const params = {
+        p_fecha_inicio: hoy,
+        p_fecha_fin: hoy,
+        p_id_usuario: null // Por defecto null = ver todas
+      };
+
+      console.log('Fecha enviada (hoy):', hoy);
+
+      // Si NO puede ver todo (es cajero), agregar filtro por usuario
+      if (!verTodo && user?.usuario_id) {
+        params.p_id_usuario = user.usuario_id;
+        console.log('Filtrando ventas por usuario:', user.usuario_id);
+      } else {
+        console.log('Mostrando TODAS las ventas (rol admin/gerente)');
+      }
+
+      // Usar la nueva función que soporta filtro por usuario
+      const { data, error } = await supabase.rpc('fn_leer_ventas_cajero', params);
+
+      if (error) {
+        console.error('Error RPC fn_leer_ventas_cajero:', error);
+        throw error;
+      }
+
+      console.log('Ventas recibidas:', data?.length || 0);
 
       const ventasActivas = (data || []).filter(v => v.estado);
       setVentas(ventasActivas);
@@ -46,8 +108,24 @@ export default function Caja() {
   };
 
   const formatCurrency = (value) => `Bs ${parseFloat(value || 0).toFixed(2)}`;
-  const formatTime = (date) => new Date(date).toLocaleTimeString('es-BO', { hour: '2-digit', minute: '2-digit' });
-  const formatDate = (date) => new Date(date).toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+
+  // Convertir hora UTC de la base de datos a hora local
+  const formatTime = (date) => {
+    if (!date) return '--:--';
+    // Añadir 'Z' si no tiene para indicar que es UTC
+    const utcDate = date.toString().includes('Z') ? date : date + 'Z';
+    return new Date(utcDate).toLocaleTimeString('es-BO', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    });
+  };
+
+  const formatDate = (date) => {
+    if (!date) return '--/--/----';
+    const utcDate = date.toString().includes('Z') ? date : date + 'Z';
+    return new Date(utcDate).toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+  };
 
   const verDetalles = async (venta) => {
     setVentaSeleccionada(venta);
@@ -85,7 +163,10 @@ export default function Caja() {
             Caja
           </h1>
           <p style={styles.subtitle}>
-            Resumen de operaciones del día
+            {puedeVerTodo()
+              ? 'Resumen de todas las operaciones del día'
+              : `Mis ventas del día${userInfo?.nombres ? ` - ${userInfo.nombres}` : ''}`
+            }
           </p>
         </div>
         <div style={styles.headerActions}>
@@ -157,6 +238,13 @@ export default function Caja() {
                 <div style={styles.ventaCliente}>
                   {venta.cliente || 'Cliente General'}
                 </div>
+                {/* Mostrar cajero solo para admin/gerente */}
+                {puedeVerTodo() && (
+                  <div style={styles.ventaCajero}>
+                    <User size={14} style={{ marginRight: '4px' }} />
+                    {venta.cajero || 'Sin asignar'}
+                  </div>
+                )}
                 <div style={styles.ventaComprobante}>
                   {venta.comprobante}
                 </div>
@@ -294,9 +382,10 @@ const styles = {
   section: { background: 'white', borderRadius: '16px', padding: '25px', marginBottom: '25px', boxShadow: '0 2px 12px rgba(0,0,0,0.05)' },
   sectionTitle: { display: 'flex', alignItems: 'center', gap: '10px', margin: '0 0 20px 0', fontSize: '18px', fontWeight: '600', color: '#333' },
   ventasList: { display: 'flex', flexDirection: 'column', gap: '10px' },
-  ventaCard: { display: 'grid', gridTemplateColumns: '100px 1fr 120px 120px auto', alignItems: 'center', gap: '15px', padding: '15px 20px', background: '#f8f9fa', borderRadius: '10px' },
+  ventaCard: { display: 'grid', gridTemplateColumns: '100px 1fr 130px 120px 100px auto', alignItems: 'center', gap: '15px', padding: '15px 20px', background: '#f8f9fa', borderRadius: '10px' },
   ventaTime: { display: 'flex', alignItems: 'center', gap: '8px', color: '#6c757d', fontSize: '14px' },
   ventaCliente: { fontWeight: '500', color: '#333' },
+  ventaCajero: { display: 'flex', alignItems: 'center', fontSize: '13px', color: '#1565c0', background: '#e3f2fd', padding: '4px 10px', borderRadius: '6px', fontWeight: '500' },
   ventaComprobante: { fontSize: '13px', color: '#6c757d' },
   ventaTotal: { fontWeight: '700', color: '#1a5d1a', textAlign: 'right', fontSize: '16px' },
   detalleButton: { display: 'flex', alignItems: 'center', gap: '6px', padding: '8px 14px', background: '#e8f5e9', border: 'none', borderRadius: '8px', cursor: 'pointer', color: '#1a5d1a', fontSize: '13px', fontWeight: '500' },
