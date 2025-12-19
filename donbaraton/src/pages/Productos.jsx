@@ -5,7 +5,8 @@ import {
   X, Save, Loader2, Filter, AlertTriangle,
   CheckCircle, AlertCircle, TrendingUp,
   Sparkles, ShoppingBag, RefreshCw,
-  Camera, Upload, Image as ImageIcon
+  Camera, Upload, Image as ImageIcon,
+  Tag, Scale, Check
 } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
@@ -14,6 +15,8 @@ export default function Productos() {
   const [productos, setProductos] = useState([]);
   const [categorias, setCategorias] = useState([]);
   const [proveedores, setProveedores] = useState([]);
+  const [marcas, setMarcas] = useState([]);
+  const [unidadesMedida, setUnidadesMedida] = useState([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -22,18 +25,27 @@ export default function Productos() {
   const [filterCategoria, setFilterCategoria] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
+
+  // Estados para agregar marca/unidad inline
+  const [showAddMarca, setShowAddMarca] = useState(false);
+  const [showAddUnidad, setShowAddUnidad] = useState(false);
+  const [newMarca, setNewMarca] = useState({ nombre: '', descripcion: '' });
+  const [newUnidad, setNewUnidad] = useState({ nombre: '', abreviatura: '' });
+  const [savingMarca, setSavingMarca] = useState(false);
+  const [savingUnidad, setSavingUnidad] = useState(false);
+
   const [formData, setFormData] = useState({
     codigo_interno: '',
     codigo_barras: '',
     nombre: '',
     categoria_id: '',
-    marca: '',
+    id_marca: '',
+    id_unidad: '',
     proveedor_id: '',
     precio_costo: '',
     precio_venta: '',
     stock_minimo: 10,
     stock_maximo: 100,
-    unidad_medida: 'UNIDAD',
     presentacion: '',
     controla_vencimiento: false,
     foto_url: '',
@@ -49,52 +61,185 @@ export default function Productos() {
     return 'USR-001';
   };
 
-  // Lista de marcas bolivianas populares
-  const marcasBolivianas = [
-    // Alimentos y Bebidas
-    { nombre: 'PIL Andina', categoria: 'Lácteos' },
-    { nombre: 'Delizia', categoria: 'Lácteos' },
-    { nombre: 'Pil Tarija', categoria: 'Lácteos' },
-    { nombre: 'Ilva', categoria: 'Lácteos' },
-    { nombre: 'Ceibo', categoria: 'Cacao/Chocolate' },
-    { nombre: 'Para Ti', categoria: 'Chocolate' },
-    { nombre: 'Breick', categoria: 'Snacks' },
-    { nombre: 'Lucana', categoria: 'Snacks' },
-    { nombre: 'Monopol', categoria: 'Galletas' },
-    { nombre: 'Cereales Andinos', categoria: 'Cereales' },
-    { nombre: 'Quinua Real', categoria: 'Cereales' },
-    { nombre: 'INI', categoria: 'Cereales' },
-    { nombre: 'Coronilla', categoria: 'Fideos' },
-    { nombre: 'Carozzi', categoria: 'Fideos' },
-    { nombre: 'Diana', categoria: 'Aceites' },
-    { nombre: 'Fino', categoria: 'Aceites' },
-    { nombre: 'Rico Pollo', categoria: 'Cárnicos' },
-    { nombre: 'Sofía', categoria: 'Cárnicos' },
-    { nombre: 'Stege', categoria: 'Embutidos' },
-    { nombre: 'Fridosa', categoria: 'Cárnicos' },
-    // Bebidas
-    { nombre: 'CBN (Huari, Paceña)', categoria: 'Bebidas' },
-    { nombre: 'Taquiña', categoria: 'Bebidas' },
-    { nombre: 'Coca-Cola Bolivia', categoria: 'Bebidas' },
-    { nombre: 'Cascada', categoria: 'Aguas' },
-    { nombre: 'Vital', categoria: 'Aguas' },
-    { nombre: 'Naturagua', categoria: 'Aguas' },
-    { nombre: 'Mendocina', categoria: 'Bebidas' },
-    { nombre: 'Tampico', categoria: 'Jugos' },
-    // Limpieza y Hogar
-    { nombre: 'Punto Azul', categoria: 'Limpieza' },
-    { nombre: 'Fabuloso', categoria: 'Limpieza' },
-    { nombre: 'Wiñay', categoria: 'Limpieza' },
-    { nombre: 'Boliviana de Detergentes', categoria: 'Limpieza' },
-    { nombre: 'Ypfb', categoria: 'Combustibles' },
-    // Higiene Personal
-    { nombre: 'Copacabana', categoria: 'Higiene' },
-    { nombre: 'Suavitel Bolivia', categoria: 'Higiene' },
-    // Otros
-    { nombre: 'Otras', categoria: 'General' },
-    { nombre: 'Importado', categoria: 'General' },
-    { nombre: 'Sin marca', categoria: 'General' }
-  ];
+  // Función para crear nueva marca inline
+  const handleCreateMarca = async () => {
+    if (!newMarca.nombre.trim()) {
+      toast.error('El nombre de la marca es obligatorio');
+      return;
+    }
+    setSavingMarca(true);
+    try {
+      const { data, error } = await supabase.rpc('fn_crear_marca', {
+        p_nombre: newMarca.nombre.trim(),
+        p_descripcion: newMarca.descripcion.trim() || null,
+        p_usuario_auditoria: getUsername()
+      });
+      if (error) throw error;
+      toast.success('Marca creada exitosamente');
+      // Recargar marcas y seleccionar la nueva
+      const { data: marcasData } = await supabase.rpc('fn_leer_marcas');
+      setMarcas(marcasData || []);
+      setFormData({ ...formData, id_marca: data });
+      setNewMarca({ nombre: '', descripcion: '' });
+      setShowAddMarca(false);
+    } catch (err) {
+      console.error('Error:', err);
+      toast.error(err.message || 'Error al crear marca');
+    } finally {
+      setSavingMarca(false);
+    }
+  };
+
+  // Función para crear nueva unidad de medida inline
+  const handleCreateUnidad = async () => {
+    if (!newUnidad.nombre.trim()) {
+      toast.error('El nombre de la unidad es obligatorio');
+      return;
+    }
+    setSavingUnidad(true);
+    try {
+      const { data, error } = await supabase.rpc('fn_crear_unidad_medida', {
+        p_nombre: newUnidad.nombre.trim(),
+        p_abreviatura: newUnidad.abreviatura.trim() || null,
+        p_descripcion: null,
+        p_usuario_auditoria: getUsername()
+      });
+      if (error) throw error;
+      toast.success('Unidad de medida creada exitosamente');
+      // Recargar unidades y seleccionar la nueva
+      const { data: unidadesData } = await supabase.rpc('fn_leer_unidades_medida');
+      setUnidadesMedida(unidadesData || []);
+      setFormData({ ...formData, id_unidad: data });
+      setNewUnidad({ nombre: '', abreviatura: '' });
+      setShowAddUnidad(false);
+    } catch (err) {
+      console.error('Error:', err);
+      toast.error(err.message || 'Error al crear unidad');
+    } finally {
+      setSavingUnidad(false);
+    }
+  };
+
+  // Estados para edición de marca/unidad
+  const [editingMarca, setEditingMarca] = useState(null);
+  const [editingUnidad, setEditingUnidad] = useState(null);
+
+  // Función para actualizar marca
+  const handleUpdateMarca = async () => {
+    if (!newMarca.nombre.trim()) {
+      toast.error('El nombre de la marca es obligatorio');
+      return;
+    }
+    setSavingMarca(true);
+    try {
+      const { error } = await supabase.rpc('fn_actualizar_marca', {
+        p_id_marca: editingMarca,
+        p_nombre: newMarca.nombre.trim(),
+        p_descripcion: newMarca.descripcion?.trim() || null,
+        p_usuario_auditoria: getUsername()
+      });
+      if (error) throw error;
+      toast.success('Marca actualizada exitosamente');
+      const { data: marcasData } = await supabase.rpc('fn_leer_marcas');
+      setMarcas(marcasData || []);
+      setNewMarca({ nombre: '', descripcion: '' });
+      setShowAddMarca(false);
+      setEditingMarca(null);
+    } catch (err) {
+      console.error('Error:', err);
+      toast.error(err.message || 'Error al actualizar marca');
+    } finally {
+      setSavingMarca(false);
+    }
+  };
+
+  // Función para eliminar marca (lógico)
+  const handleDeleteMarca = async (idMarca, nombreMarca) => {
+    if (!window.confirm(`¿Estás seguro de eliminar la marca "${nombreMarca}"?`)) return;
+    try {
+      const { error } = await supabase.rpc('fn_desactivar_marca', {
+        p_id_marca: idMarca,
+        p_usuario_auditoria: getUsername()
+      });
+      if (error) throw error;
+      toast.success('Marca eliminada exitosamente');
+      const { data: marcasData } = await supabase.rpc('fn_leer_marcas');
+      setMarcas(marcasData || []);
+      // Si la marca eliminada estaba seleccionada, limpiar
+      if (formData.id_marca === idMarca) {
+        setFormData({ ...formData, id_marca: '' });
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      toast.error(err.message || 'Error al eliminar marca');
+    }
+  };
+
+  // Función para actualizar unidad
+  const handleUpdateUnidad = async () => {
+    if (!newUnidad.nombre.trim()) {
+      toast.error('El nombre de la unidad es obligatorio');
+      return;
+    }
+    setSavingUnidad(true);
+    try {
+      const { error } = await supabase.rpc('fn_actualizar_unidad_medida', {
+        p_id_unidad: editingUnidad,
+        p_nombre: newUnidad.nombre.trim(),
+        p_abreviatura: newUnidad.abreviatura?.trim() || null,
+        p_descripcion: null,
+        p_usuario_auditoria: getUsername()
+      });
+      if (error) throw error;
+      toast.success('Unidad actualizada exitosamente');
+      const { data: unidadesData } = await supabase.rpc('fn_leer_unidades_medida');
+      setUnidadesMedida(unidadesData || []);
+      setNewUnidad({ nombre: '', abreviatura: '' });
+      setShowAddUnidad(false);
+      setEditingUnidad(null);
+    } catch (err) {
+      console.error('Error:', err);
+      toast.error(err.message || 'Error al actualizar unidad');
+    } finally {
+      setSavingUnidad(false);
+    }
+  };
+
+  // Función para eliminar unidad (lógico)
+  const handleDeleteUnidad = async (idUnidad, nombreUnidad) => {
+    if (!window.confirm(`¿Estás seguro de eliminar la unidad "${nombreUnidad}"?`)) return;
+    try {
+      const { error } = await supabase.rpc('fn_desactivar_unidad_medida', {
+        p_id_unidad: idUnidad,
+        p_usuario_auditoria: getUsername()
+      });
+      if (error) throw error;
+      toast.success('Unidad eliminada exitosamente');
+      const { data: unidadesData } = await supabase.rpc('fn_leer_unidades_medida');
+      setUnidadesMedida(unidadesData || []);
+      // Si la unidad eliminada estaba seleccionada, limpiar
+      if (formData.id_unidad === idUnidad) {
+        setFormData({ ...formData, id_unidad: '' });
+      }
+    } catch (err) {
+      console.error('Error:', err);
+      toast.error(err.message || 'Error al eliminar unidad');
+    }
+  };
+
+  // Abrir edit para marca
+  const openEditMarca = (marca) => {
+    setEditingMarca(marca.id_marca);
+    setNewMarca({ nombre: marca.nombre, descripcion: marca.descripcion || '' });
+    setShowAddMarca(true);
+  };
+
+  // Abrir edit para unidad
+  const openEditUnidad = (unidad) => {
+    setEditingUnidad(unidad.id_unidad);
+    setNewUnidad({ nombre: unidad.nombre, abreviatura: unidad.abreviatura || '' });
+    setShowAddUnidad(true);
+  };
 
   // Generar código interno automáticamente
   const generarCodigoInterno = () => {
@@ -126,14 +271,14 @@ export default function Productos() {
   // Subir imagen a Supabase Storage
   const subirFoto = async (file) => {
     if (!file) return null;
-    
+
     setUploading(true);
     try {
       // Generar nombre único para el archivo
       const fileExt = file.name.split('.').pop();
       const fileName = `producto_${Date.now()}.${fileExt}`;
       const filePath = `${fileName}`;
-      
+
       // Subir a Supabase Storage
       const { data, error } = await supabase.storage
         .from('productos')
@@ -141,14 +286,14 @@ export default function Productos() {
           cacheControl: '3600',
           upsert: false
         });
-      
+
       if (error) throw error;
-      
+
       // Obtener URL pública
       const { data: urlData } = supabase.storage
         .from('productos')
         .getPublicUrl(filePath);
-      
+
       return urlData.publicUrl;
     } catch (err) {
       console.error('Error subiendo foto:', err);
@@ -195,23 +340,29 @@ export default function Productos() {
   const cargarDatos = async () => {
     setLoading(true);
     try {
-      // Cargar productos, categorías y proveedores en paralelo
-      const [prodRes, catRes, provRes] = await Promise.all([
+      // Cargar productos, categorías, proveedores, marcas y unidades en paralelo
+      const [prodRes, catRes, provRes, marcasRes, unidadesRes] = await Promise.all([
         supabase.rpc('fn_leer_productos', {
           p_buscar: searchTerm || null,
           p_categoria_id: filterCategoria ? parseInt(filterCategoria) : null
         }),
         supabase.rpc('fn_leer_categorias'),
-        supabase.rpc('fn_leer_proveedores', { p_buscar_texto: null })
+        supabase.rpc('fn_leer_proveedores', { p_buscar_texto: null }),
+        supabase.rpc('fn_leer_marcas'),
+        supabase.rpc('fn_leer_unidades_medida')
       ]);
 
       if (prodRes.error) throw prodRes.error;
       if (catRes.error) throw catRes.error;
       if (provRes.error) throw provRes.error;
+      if (marcasRes.error) console.warn('Marcas no disponibles:', marcasRes.error);
+      if (unidadesRes.error) console.warn('Unidades no disponibles:', unidadesRes.error);
 
       setProductos(prodRes.data || []);
       setCategorias(catRes.data || []);
       setProveedores(provRes.data || []);
+      setMarcas(marcasRes.data || []);
+      setUnidadesMedida(unidadesRes.data || []);
     } catch (err) {
       console.error('Error:', err);
       toast.error('Error al cargar datos');
@@ -258,17 +409,17 @@ export default function Productos() {
 
     setSaving(true);
     try {
-      const { data, error } = await supabase.rpc('fn_crear_producto', {
+      const { data, error } = await supabase.rpc('fn_crear_producto_v2', {
         p_codigo_interno: formData.codigo_interno.trim(),
         p_codigo_barras: formData.codigo_barras.trim() || null,
         p_nombre: formData.nombre.trim(),
-        p_id_categoria: formData.categoria_id,  // Corregido: p_id_categoria (string)
-        p_marca: formData.marca || null,
+        p_id_categoria: formData.categoria_id,
+        p_id_marca: formData.id_marca || null,
+        p_id_unidad: formData.id_unidad || null,
         p_precio_costo: parseFloat(formData.precio_costo) || 0,
         p_precio_venta: parseFloat(formData.precio_venta),
         p_stock_minimo: parseInt(formData.stock_minimo) || 10,
         p_stock_maximo: parseInt(formData.stock_maximo) || 100,
-        p_unidad_medida: formData.unidad_medida,
         p_controla_vencimiento: formData.controla_vencimiento,
         p_usuario_auditoria: getUsername()
       });
@@ -291,7 +442,7 @@ export default function Productos() {
             });
           }
         }
-        
+
         // Si hay proveedor seleccionado, asociar el producto con el proveedor
         if (formData.proveedor_id && data) {
           try {
@@ -301,7 +452,7 @@ export default function Productos() {
               p_precio_compra: parseFloat(formData.precio_costo) || 0,
               p_usuario_auditoria: getUsername()
             });
-            
+
             if (errorAsociacion) {
               console.error('Error al asociar proveedor:', errorAsociacion);
               toast.success('Producto creado, pero hubo un error al asociar proveedor');
@@ -336,12 +487,13 @@ export default function Productos() {
 
     setSaving(true);
     try {
-      const { error } = await supabase.rpc('fn_actualizar_producto', {
+      const { error } = await supabase.rpc('fn_actualizar_producto_v2', {
         p_id: editingItem.id,
         p_codigo_barras: formData.codigo_barras.trim() || null,
         p_nombre: formData.nombre.trim(),
-        p_categoria_id: parseInt(formData.categoria_id),
-        p_marca: formData.marca.trim() || null,
+        p_categoria_id: formData.categoria_id,
+        p_id_marca: formData.id_marca || null,
+        p_id_unidad: formData.id_unidad || null,
         p_precio_costo: parseFloat(formData.precio_costo) || 0,
         p_precio_venta: parseFloat(formData.precio_venta),
         p_stock_minimo: parseInt(formData.stock_minimo) || 10,
@@ -363,7 +515,7 @@ export default function Productos() {
             });
           }
         }
-        
+
         // Si hay proveedor seleccionado, actualizar/crear la asociación
         if (formData.proveedor_id) {
           try {
@@ -373,7 +525,7 @@ export default function Productos() {
               p_precio_compra: parseFloat(formData.precio_costo) || 0,
               p_usuario_auditoria: getUsername()
             });
-            
+
             if (errorAsociacion) {
               console.error('Error al asociar proveedor:', errorAsociacion);
             }
@@ -436,13 +588,13 @@ export default function Productos() {
           codigo_barras: p.codigo_barras || '',
           nombre: p.nombre || '',
           categoria_id: p.categoria_id || '',
-          marca: p.marca || '',
+          id_marca: p.id_marca || '',
+          id_unidad: p.id_unidad || '',
           proveedor_id: p.proveedor_id || '',
           precio_costo: p.precio_costo || '',
           precio_venta: p.precio_venta || '',
           stock_minimo: p.stock_minimo || 10,
           stock_maximo: p.stock_maximo || 100,
-          unidad_medida: p.unidad_medida || 'UNIDAD',
           presentacion: p.presentacion || '',
           controla_vencimiento: p.controla_vencimiento || false,
           foto_url: p.foto_url || '',
@@ -455,13 +607,13 @@ export default function Productos() {
           codigo_barras: producto.codigo_barras || '',
           nombre: producto.nombre || '',
           categoria_id: '',
-          marca: producto.marca || '',
+          id_marca: producto.id_marca || '',
+          id_unidad: producto.id_unidad || '',
           proveedor_id: '',
           precio_costo: '',
           precio_venta: producto.precio_venta || '',
           stock_minimo: producto.stock_minimo || 10,
           stock_maximo: 100,
-          unidad_medida: 'UNIDAD',
           presentacion: '',
           controla_vencimiento: false,
           foto_url: producto.foto_url || '',
@@ -483,13 +635,13 @@ export default function Productos() {
       codigo_barras: generarCodigoBarras(),
       nombre: '',
       categoria_id: '',
-      marca: '',
+      id_marca: '',
+      id_unidad: '',
       proveedor_id: '',
       precio_costo: '',
       precio_venta: '',
       stock_minimo: 10,
       stock_maximo: 100,
-      unidad_medida: 'UNIDAD',
       presentacion: '',
       controla_vencimiento: false,
       foto_url: '',
@@ -501,10 +653,10 @@ export default function Productos() {
   const resetForm = () => {
     setFormData({
       codigo_interno: '', codigo_barras: '', nombre: '',
-      categoria_id: '', marca: '', proveedor_id: '',
+      categoria_id: '', id_marca: '', id_unidad: '', proveedor_id: '',
       precio_costo: '', precio_venta: '',
       stock_minimo: 10, stock_maximo: 100,
-      unidad_medida: 'UNIDAD', presentacion: '',
+      presentacion: '',
       controla_vencimiento: false,
       foto_url: '', fotoFile: null
     });
@@ -642,8 +794,8 @@ export default function Productos() {
                   <tr key={prod.id} style={styles.tr}>
                     <td style={styles.td}>
                       {prod.foto_url ? (
-                        <img 
-                          src={prod.foto_url} 
+                        <img
+                          src={prod.foto_url}
                           alt={prod.nombre}
                           style={styles.tableFotoImg}
                         />
@@ -811,61 +963,103 @@ export default function Productos() {
                 </div>
                 <div style={styles.formGroup}>
                   <label style={styles.label}>
-                    <ShoppingBag size={16} />
+                    <Tag size={16} />
                     Marca
                   </label>
-                  <select
-                    value={formData.marca}
-                    onChange={(e) => setFormData({ ...formData, marca: e.target.value })}
-                    style={styles.input}
-                  >
-                    <option value="">Seleccione marca...</option>
-                    <optgroup label="— Lácteos —">
-                      {marcasBolivianas.filter(m => m.categoria === 'Lácteos').map(m => (
-                        <option key={m.nombre} value={m.nombre}>{m.nombre}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="— Chocolate/Cacao —">
-                      {marcasBolivianas.filter(m => m.categoria.includes('Chocolate') || m.categoria.includes('Cacao')).map(m => (
-                        <option key={m.nombre} value={m.nombre}>{m.nombre}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="— Snacks/Galletas —">
-                      {marcasBolivianas.filter(m => m.categoria === 'Snacks' || m.categoria === 'Galletas').map(m => (
-                        <option key={m.nombre} value={m.nombre}>{m.nombre}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="— Cereales/Fideos —">
-                      {marcasBolivianas.filter(m => m.categoria === 'Cereales' || m.categoria === 'Fideos').map(m => (
-                        <option key={m.nombre} value={m.nombre}>{m.nombre}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="— Cárnicos/Embutidos —">
-                      {marcasBolivianas.filter(m => m.categoria === 'Cárnicos' || m.categoria === 'Embutidos').map(m => (
-                        <option key={m.nombre} value={m.nombre}>{m.nombre}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="— Aceites —">
-                      {marcasBolivianas.filter(m => m.categoria === 'Aceites').map(m => (
-                        <option key={m.nombre} value={m.nombre}>{m.nombre}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="— Bebidas/Aguas/Jugos —">
-                      {marcasBolivianas.filter(m => ['Bebidas', 'Aguas', 'Jugos'].includes(m.categoria)).map(m => (
-                        <option key={m.nombre} value={m.nombre}>{m.nombre}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="— Limpieza/Higiene —">
-                      {marcasBolivianas.filter(m => m.categoria === 'Limpieza' || m.categoria === 'Higiene').map(m => (
-                        <option key={m.nombre} value={m.nombre}>{m.nombre}</option>
-                      ))}
-                    </optgroup>
-                    <optgroup label="— Otros —">
-                      {marcasBolivianas.filter(m => m.categoria === 'General').map(m => (
-                        <option key={m.nombre} value={m.nombre}>{m.nombre}</option>
-                      ))}
-                    </optgroup>
-                  </select>
+                  {!showAddMarca ? (
+                    <div style={styles.selectWithActions}>
+                      <div style={styles.selectWithButton}>
+                        <select
+                          value={formData.id_marca}
+                          onChange={(e) => setFormData({ ...formData, id_marca: e.target.value })}
+                          style={{ ...styles.input, flex: 1, borderRadius: '10px 0 0 10px' }}
+                        >
+                          <option value="">Seleccione marca...</option>
+                          {marcas.map(m => (
+                            <option key={m.id_marca} value={m.id_marca}>{m.nombre}</option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingMarca(null);
+                            setNewMarca({ nombre: '', descripcion: '' });
+                            setShowAddMarca(true);
+                          }}
+                          style={styles.addNewButton}
+                          title="Agregar nueva marca"
+                        >
+                          <Plus size={18} />
+                        </button>
+                      </div>
+                      {formData.id_marca && (
+                        <div style={styles.itemActions}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const marca = marcas.find(m => m.id_marca === formData.id_marca);
+                              if (marca) openEditMarca(marca);
+                            }}
+                            style={styles.iconButton}
+                            title="Editar marca"
+                          >
+                            <Edit size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const marca = marcas.find(m => m.id_marca === formData.id_marca);
+                              if (marca) handleDeleteMarca(marca.id_marca, marca.nombre);
+                            }}
+                            style={styles.iconButtonDanger}
+                            title="Eliminar marca"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={styles.inlineAddForm}>
+                      <div style={styles.inlineAddHeader}>
+                        <Tag size={16} style={{ color: '#1a5d1a' }} />
+                        <span style={styles.inlineAddTitle}>
+                          {editingMarca ? 'Editar Marca' : 'Nueva Marca'}
+                        </span>
+                      </div>
+                      <input
+                        type="text"
+                        value={newMarca.nombre}
+                        onChange={(e) => setNewMarca({ ...newMarca, nombre: e.target.value })}
+                        style={{ ...styles.input, marginBottom: '10px' }}
+                        placeholder="Nombre de la marca"
+                        autoFocus
+                      />
+                      <div style={styles.inlineAddActions}>
+                        <button
+                          type="button"
+                          onClick={editingMarca ? handleUpdateMarca : handleCreateMarca}
+                          disabled={savingMarca}
+                          style={styles.inlineAddButton}
+                        >
+                          {savingMarca ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Check size={14} />}
+                          {editingMarca ? 'Actualizar' : 'Guardar'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowAddMarca(false);
+                            setEditingMarca(null);
+                            setNewMarca({ nombre: '', descripcion: '' });
+                          }}
+                          style={styles.inlineCancelButton}
+                        >
+                          <X size={14} />
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -938,19 +1132,115 @@ export default function Productos() {
                   />
                 </div>
                 <div style={styles.formGroup}>
-                  <label style={styles.label}>Unidad de Medida</label>
-                  <select
-                    value={formData.unidad_medida}
-                    onChange={(e) => setFormData({ ...formData, unidad_medida: e.target.value })}
-                    style={styles.input}
-                  >
-                    <option value="UNIDAD">Unidad</option>
-                    <option value="KG">Kilogramo</option>
-                    <option value="LT">Litro</option>
-                    <option value="PAQUETE">Paquete</option>
-                    <option value="CAJA">Caja</option>
-                    <option value="DOCENA">Docena</option>
-                  </select>
+                  <label style={styles.label}>
+                    <Scale size={16} />
+                    Unidad de Medida
+                  </label>
+                  {!showAddUnidad ? (
+                    <div style={styles.selectWithActions}>
+                      <div style={styles.selectWithButton}>
+                        <select
+                          value={formData.id_unidad}
+                          onChange={(e) => setFormData({ ...formData, id_unidad: e.target.value })}
+                          style={{ ...styles.input, flex: 1, borderRadius: '10px 0 0 10px' }}
+                        >
+                          <option value="">Seleccione unidad...</option>
+                          {unidadesMedida.map(u => (
+                            <option key={u.id_unidad} value={u.id_unidad}>
+                              {u.nombre} {u.abreviatura && `(${u.abreviatura})`}
+                            </option>
+                          ))}
+                        </select>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingUnidad(null);
+                            setNewUnidad({ nombre: '', abreviatura: '' });
+                            setShowAddUnidad(true);
+                          }}
+                          style={styles.addNewButton}
+                          title="Agregar nueva unidad"
+                        >
+                          <Plus size={18} />
+                        </button>
+                      </div>
+                      {formData.id_unidad && (
+                        <div style={styles.itemActions}>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const unidad = unidadesMedida.find(u => u.id_unidad === formData.id_unidad);
+                              if (unidad) openEditUnidad(unidad);
+                            }}
+                            style={styles.iconButton}
+                            title="Editar unidad"
+                          >
+                            <Edit size={14} />
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => {
+                              const unidad = unidadesMedida.find(u => u.id_unidad === formData.id_unidad);
+                              if (unidad) handleDeleteUnidad(unidad.id_unidad, unidad.nombre);
+                            }}
+                            style={styles.iconButtonDanger}
+                            title="Eliminar unidad"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div style={styles.inlineAddForm}>
+                      <div style={styles.inlineAddHeader}>
+                        <Scale size={16} style={{ color: '#1a5d1a' }} />
+                        <span style={styles.inlineAddTitle}>
+                          {editingUnidad ? 'Editar Unidad' : 'Nueva Unidad de Medida'}
+                        </span>
+                      </div>
+                      <div style={styles.inlineAddFieldsRow}>
+                        <input
+                          type="text"
+                          value={newUnidad.nombre}
+                          onChange={(e) => setNewUnidad({ ...newUnidad, nombre: e.target.value })}
+                          style={{ ...styles.input, flex: 2, minWidth: '120px' }}
+                          placeholder="Nombre (ej: GRAMO)"
+                          autoFocus
+                        />
+                        <input
+                          type="text"
+                          value={newUnidad.abreviatura}
+                          onChange={(e) => setNewUnidad({ ...newUnidad, abreviatura: e.target.value })}
+                          style={{ ...styles.input, flex: 1, minWidth: '80px' }}
+                          placeholder="Abrev. (ej: GR)"
+                        />
+                      </div>
+                      <div style={styles.inlineAddActions}>
+                        <button
+                          type="button"
+                          onClick={editingUnidad ? handleUpdateUnidad : handleCreateUnidad}
+                          disabled={savingUnidad}
+                          style={styles.inlineAddButton}
+                        >
+                          {savingUnidad ? <Loader2 size={14} style={{ animation: 'spin 1s linear infinite' }} /> : <Check size={14} />}
+                          {editingUnidad ? 'Actualizar' : 'Guardar'}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setShowAddUnidad(false);
+                            setEditingUnidad(null);
+                            setNewUnidad({ nombre: '', abreviatura: '' });
+                          }}
+                          style={styles.inlineCancelButton}
+                        >
+                          <X size={14} />
+                          Cancelar
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -989,9 +1279,9 @@ export default function Productos() {
                     {/* Vista previa */}
                     <div style={styles.fotoPreview}>
                       {(fotoPreview || formData.foto_url) ? (
-                        <img 
-                          src={fotoPreview || formData.foto_url} 
-                          alt="Preview" 
+                        <img
+                          src={fotoPreview || formData.foto_url}
+                          alt="Preview"
                           style={styles.fotoImage}
                         />
                       ) : (
@@ -1015,7 +1305,7 @@ export default function Productos() {
                         {uploading ? 'Subiendo...' : 'Seleccionar Imagen'}
                       </label>
                       {(fotoPreview || formData.foto_url) && (
-                        <button 
+                        <button
                           type="button"
                           style={styles.removeFotoButton}
                           onClick={quitarFoto}
@@ -1114,23 +1404,140 @@ const styles = {
   removeFotoButton: { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: '#ffebee', color: '#c62828', border: 'none', borderRadius: '8px', cursor: 'pointer', fontSize: '14px' },
   fotoHelp: { fontSize: '12px', color: '#6c757d' },
   // Estilos para imagen en tabla
-  tableFotoImg: { 
-    width: '50px', 
-    height: '50px', 
-    borderRadius: '10px', 
+  tableFotoImg: {
+    width: '50px',
+    height: '50px',
+    borderRadius: '10px',
     objectFit: 'cover',
     border: '2px solid #e8f5e9',
     boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
     background: 'linear-gradient(135deg, #f8f9fa, #e8f5e9)'
   },
-  tableFotoPlaceholder: { 
-    width: '50px', 
-    height: '50px', 
-    background: 'linear-gradient(135deg, #f8f9fa, #e9ecef)', 
-    borderRadius: '10px', 
-    display: 'flex', 
-    alignItems: 'center', 
+  tableFotoPlaceholder: {
+    width: '50px',
+    height: '50px',
+    background: 'linear-gradient(135deg, #f8f9fa, #e9ecef)',
+    borderRadius: '10px',
+    display: 'flex',
+    alignItems: 'center',
     justifyContent: 'center',
     border: '2px dashed #dee2e6'
+  },
+  // Estilos para formularios inline de agregar marca/unidad
+  selectWithButton: {
+    display: 'flex',
+    alignItems: 'stretch'
+  },
+  addNewButton: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '0 14px',
+    background: 'linear-gradient(135deg, #1a5d1a, #2e8b57)',
+    color: 'white',
+    border: 'none',
+    borderTopRightRadius: '10px',
+    borderBottomRightRadius: '10px',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    boxShadow: '0 2px 8px rgba(26, 93, 26, 0.2)'
+  },
+  inlineAddForm: {
+    padding: '14px',
+    background: 'linear-gradient(135deg, #f8fdf8, #e8f5e9)',
+    borderRadius: '12px',
+    border: '2px solid #a5d6a7',
+    boxShadow: '0 4px 12px rgba(26, 93, 26, 0.1)'
+  },
+  inlineAddHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    marginBottom: '12px',
+    paddingBottom: '10px',
+    borderBottom: '1px solid #c8e6c9'
+  },
+  inlineAddTitle: {
+    fontSize: '14px',
+    fontWeight: '600',
+    color: '#1a5d1a'
+  },
+  inlineAddFieldsRow: {
+    display: 'flex',
+    gap: '10px',
+    marginBottom: '12px'
+  },
+  inlineAddActions: {
+    display: 'flex',
+    gap: '10px',
+    justifyContent: 'flex-end'
+  },
+  inlineAddButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '10px 18px',
+    background: 'linear-gradient(135deg, #1a5d1a, #2e8b57)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '13px',
+    fontWeight: '600',
+    cursor: 'pointer',
+    boxShadow: '0 2px 8px rgba(26, 93, 26, 0.25)',
+    transition: 'all 0.2s ease'
+  },
+  inlineCancelButton: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px',
+    padding: '10px 18px',
+    background: 'white',
+    color: '#6c757d',
+    border: '1px solid #dee2e6',
+    borderRadius: '8px',
+    fontSize: '13px',
+    fontWeight: '500',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease'
+  },
+  // Estilos para select con acciones (edit/delete)
+  selectWithActions: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+  itemActions: {
+    display: 'flex',
+    gap: '6px',
+    flexWrap: 'wrap'
+  },
+  iconButton: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '8px 12px',
+    background: '#e3f2fd',
+    color: '#1976d2',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '12px',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    gap: '4px'
+  },
+  iconButtonDanger: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '8px 12px',
+    background: '#ffebee',
+    color: '#d32f2f',
+    border: 'none',
+    borderRadius: '8px',
+    fontSize: '12px',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
+    gap: '4px'
   },
 };
