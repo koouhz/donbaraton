@@ -3,7 +3,7 @@ import { useState, useEffect } from 'react';
 import {
   Calculator, DollarSign, Loader2, X, Save,
   CheckCircle, AlertTriangle, Clock, FileText, CreditCard, Smartphone,
-  Wallet, Calendar, User
+  Wallet, Calendar, User, Eye
 } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
@@ -16,11 +16,12 @@ export default function CierreCaja() {
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [resumenCaja, setResumenCaja] = useState(null);
-  const [showModal, setShowModal] = useState(false);
+  const [userInfo, setUserInfo] = useState(null);
+  const [vistaAdmin, setVistaAdmin] = useState('GLOBAL'); // 'GLOBAL' | 'PERSONAL'
   const [efectivoFisico, setEfectivoFisico] = useState('');
   const [observaciones, setObservaciones] = useState('');
   const [filterFecha, setFilterFecha] = useState('');
-  const [userInfo, setUserInfo] = useState(null);
+  const [showModal, setShowModal] = useState(false); // Mantener showModal ya que se usa en el JSX
 
   // Obtener información completa del usuario logueado
   const getUserInfo = () => {
@@ -58,13 +59,14 @@ export default function CierreCaja() {
     const user = getUserInfo();
     setUserInfo(user);
     cargarDatos();
-  }, [filterFecha]);
+  }, [filterFecha, vistaAdmin]);
 
   const cargarDatos = async () => {
     setLoading(true);
     try {
       const user = getUserInfo();
-      const verTodo = puedeVerTodo();
+      const esAdmin = puedeVerTodo();
+      const verTodo = esAdmin && vistaAdmin === 'GLOBAL'; // Solo ver todo si es admin Y está en modo global
       // Usar UTC explícitamente como en Caja.jsx
       const fechaHoy = new Date().toISOString().split('T')[0];
 
@@ -115,7 +117,7 @@ export default function CierreCaja() {
     try {
       const user = getUser();
       const efectivoNum = parseFloat(efectivoFisico);
-      const totalSistema = resumenCaja?.total_efectivo || 0;
+      const totalSistema = resumenCaja?.total_recaudado || 0;
       const diferencia = efectivoNum - totalSistema;
 
       // Obtener hora y fecha del dispositivo
@@ -166,8 +168,9 @@ export default function CierreCaja() {
     return horaFormateada ? `${fechaFormateada} - ${horaFormateada}` : fechaFormateada;
   };
 
-  const efectivoSistema = resumenCaja?.total_efectivo || 0;
-  const diferencia = parseFloat(efectivoFisico || 0) - efectivoSistema;
+  // Calcular diferencia en tiempo real (Comparando con TOTAL RECAUDADO)
+  const totalRecaudadoSistema = resumenCaja?.total_recaudado || 0;
+  const diferencia = efectivoFisico ? parseFloat(efectivoFisico) - totalRecaudadoSistema : 0;
 
   return (
     <div style={styles.container}>
@@ -186,11 +189,36 @@ export default function CierreCaja() {
             } - {new Date().toLocaleDateString('es-BO', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
           </p>
         </div>
-        <button style={styles.primaryButton} onClick={() => setShowModal(true)}>
-          <DollarSign size={18} />
-          Nuevo Cierre
-        </button>
-      </header>
+
+
+        {
+          puedeVerTodo() && (
+            <div style={styles.switchContainer}>
+              <button
+                style={{ ...styles.switchButton, ...(vistaAdmin === 'GLOBAL' ? styles.switchActive : styles.switchInactive) }}
+                onClick={() => setVistaAdmin('GLOBAL')}
+              >
+                <Eye size={16} /> Supervisión
+              </button>
+              <button
+                style={{ ...styles.switchButton, ...(vistaAdmin === 'PERSONAL' ? styles.switchActive : styles.switchInactive) }}
+                onClick={() => setVistaAdmin('PERSONAL')}
+              >
+                <User size={16} /> Mi Caja
+              </button>
+            </div>
+          )
+        }
+
+        {
+          (vistaAdmin === 'PERSONAL' || !puedeVerTodo()) && (
+            <button style={styles.primaryButton} onClick={() => setShowModal(true)}>
+              <DollarSign size={18} />
+              Nuevo Cierre
+            </button>
+          )
+        }
+      </header >
 
       {/* Resumen del día con desglose */}
       <div style={styles.summarySection}>
@@ -215,7 +243,7 @@ export default function CierreCaja() {
           <div style={styles.summaryCard}>
             <div style={{ ...styles.cardIcon, background: '#e3f2fd' }}><CreditCard size={24} color="#1565c0" /></div>
             <div>
-              <span style={styles.cardLabel}>Tarjeta</span>
+              <span style={styles.cardLabel}>Tarjeta ({resumenCaja?.cant_tarjeta || 0})</span>
               <span style={styles.cardValue}>{formatCurrency(resumenCaja?.total_tarjeta)}</span>
             </div>
           </div>
@@ -223,7 +251,7 @@ export default function CierreCaja() {
           <div style={styles.summaryCard}>
             <div style={{ ...styles.cardIcon, background: '#fff3e0' }}><Smartphone size={24} color="#e65100" /></div>
             <div>
-              <span style={styles.cardLabel}>QR</span>
+              <span style={styles.cardLabel}>QR ({resumenCaja?.cant_qr || 0})</span>
               <span style={styles.cardValue}>{formatCurrency(resumenCaja?.total_qr)}</span>
             </div>
           </div>
@@ -236,10 +264,10 @@ export default function CierreCaja() {
             </div>
           </div>
         </div>
-      </div>
+      </div >
 
       {/* Historial de cierres */}
-      <div style={styles.section}>
+      < div style={styles.section} >
         <div style={styles.sectionHeader}>
           <h2 style={styles.sectionTitleAlt}>📋 Historial de Cierres</h2>
           <input
@@ -250,164 +278,169 @@ export default function CierreCaja() {
           />
         </div>
 
-        {loading ? (
-          <div style={styles.loadingState}>
-            <Loader2 size={40} style={{ animation: 'spin 1s linear infinite', color: '#1a5d1a' }} />
-          </div>
-        ) : cierres.length === 0 ? (
-          <div style={styles.emptyState}>
-            <FileText size={48} style={{ color: '#ccc' }} />
-            <p>No hay cierres de caja registrados</p>
-          </div>
-        ) : (
-          <div style={styles.tableContainer}>
-            <table style={styles.table}>
-              <thead>
-                <tr>
-                  <th style={styles.th}>Fecha y Hora</th>
-                  <th style={styles.th}>Usuario</th>
-                  <th style={{ ...styles.th, textAlign: 'right' }}>Efectivo</th>
-                  <th style={{ ...styles.th, textAlign: 'right' }}>Diferencia</th>
-                  <th style={{ ...styles.th, textAlign: 'center' }}>Estado</th>
-                  <th style={styles.th}>Observaciones</th>
-                </tr>
-              </thead>
-              <tbody>
-                {cierres.map((cierre, i) => (
-                  <tr key={cierre.id || i} style={styles.tr}>
-                    <td style={styles.td}>
-                      <div style={styles.fechaCell}>
-                        <Calendar size={16} style={{ color: '#6c757d' }} />
-                        <span style={styles.fechaText}>{formatFechaHora(cierre.fecha, cierre.hora)}</span>
-                      </div>
-                    </td>
-                    <td style={styles.td}>{cierre.usuario || 'Usuario'}</td>
-                    <td style={{ ...styles.td, textAlign: 'right', fontWeight: '600' }}>
-                      {formatCurrency(cierre.efectivo)}
-                    </td>
-                    <td style={{
-                      ...styles.td,
-                      textAlign: 'right',
-                      fontWeight: '600',
-                      color: cierre.diferencia === 0 ? '#2e7d32' :
-                        cierre.diferencia > 0 ? '#1565c0' : '#c62828'
-                    }}>
-                      {cierre.diferencia >= 0 ? '+' : ''}{formatCurrency(cierre.diferencia)}
-                    </td>
-                    <td style={{ ...styles.td, textAlign: 'center' }}>
-                      {cierre.diferencia === 0 ? (
-                        <span style={styles.badgeSuccess}><CheckCircle size={14} /> Cuadrado</span>
-                      ) : cierre.diferencia > 0 ? (
-                        <span style={styles.badgeInfo}><AlertTriangle size={14} /> Sobrante</span>
-                      ) : (
-                        <span style={styles.badgeDanger}><AlertTriangle size={14} /> Faltante</span>
-                      )}
-                    </td>
-                    <td style={{ ...styles.td, color: '#6c757d', fontSize: '13px' }}>
-                      {cierre.observaciones || '-'}
-                    </td>
+        {
+          loading ? (
+            <div style={styles.loadingState}>
+              <Loader2 size={40} style={{ animation: 'spin 1s linear infinite', color: '#1a5d1a' }} />
+            </div>
+          ) : cierres.length === 0 ? (
+            <div style={styles.emptyState}>
+              <FileText size={48} style={{ color: '#ccc' }} />
+              <p>No hay cierres de caja registrados</p>
+            </div>
+          ) : (
+            <div style={styles.tableContainer}>
+              <table style={styles.table}>
+                <thead>
+                  <tr>
+                    <th style={styles.th}>Fecha y Hora</th>
+                    <th style={styles.th}>Usuario</th>
+                    <th style={{ ...styles.th, textAlign: 'right' }}>Efectivo</th>
+                    <th style={{ ...styles.th, textAlign: 'right' }}>Diferencia</th>
+                    <th style={{ ...styles.th, textAlign: 'center' }}>Estado</th>
+                    <th style={styles.th}>Observaciones</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                </thead>
+                <tbody>
+                  {cierres.map((cierre, i) => (
+                    <tr key={cierre.id || i} style={styles.tr}>
+                      <td style={styles.td}>
+                        <div style={styles.fechaCell}>
+                          <Calendar size={16} style={{ color: '#6c757d' }} />
+                          <span style={styles.fechaText}>{formatFechaHora(cierre.fecha, cierre.hora)}</span>
+                        </div>
+                      </td>
+                      <td style={styles.td}>{cierre.usuario || 'Usuario'}</td>
+                      <td style={{ ...styles.td, textAlign: 'right', fontWeight: '600' }}>
+                        {formatCurrency(cierre.efectivo)}
+                      </td>
+                      <td style={{
+                        ...styles.td,
+                        textAlign: 'right',
+                        fontWeight: '600',
+                        color: cierre.diferencia === 0 ? '#2e7d32' :
+                          cierre.diferencia > 0 ? '#1565c0' : '#c62828'
+                      }}>
+                        {cierre.diferencia >= 0 ? '+' : ''}{formatCurrency(cierre.diferencia)}
+                      </td>
+                      <td style={{ ...styles.td, textAlign: 'center' }}>
+                        {cierre.diferencia === 0 ? (
+                          <span style={styles.badgeSuccess}><CheckCircle size={14} /> Cuadrado</span>
+                        ) : cierre.diferencia > 0 ? (
+                          <span style={styles.badgeInfo}><AlertTriangle size={14} /> Sobrante</span>
+                        ) : (
+                          <span style={styles.badgeDanger}><AlertTriangle size={14} /> Faltante</span>
+                        )}
+                      </td>
+                      <td style={{ ...styles.td, color: '#6c757d', fontSize: '13px' }}>
+                        {cierre.observaciones || '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )
+        }
+      </div >
 
       {/* Modal de nuevo cierre */}
-      {showModal && (
-        <div style={styles.modalOverlay} onClick={() => setShowModal(false)}>
-          <div style={styles.modal} onClick={e => e.stopPropagation()}>
-            <div style={styles.modalHeader}>
-              <h2 style={styles.modalTitle}>Nuevo Cierre de Caja</h2>
-              <button style={styles.closeButton} onClick={() => setShowModal(false)}>
-                <X size={20} />
-              </button>
-            </div>
-
-            <div style={styles.modalBody}>
-              {/* Resumen claro del sistema */}
-              <div style={styles.sistemaBox}>
-                <div>
-                  <span style={styles.sistemaLabel}>Efectivo según ventas del día</span>
-                  <p style={styles.sistemaHint}>(Solo pagos en efectivo)</p>
-                </div>
-                <span style={styles.sistemaValue}>{formatCurrency(efectivoSistema)}</span>
+      {
+        showModal && (
+          <div style={styles.modalOverlay} onClick={() => setShowModal(false)}>
+            <div style={styles.modal} onClick={e => e.stopPropagation()}>
+              <div style={styles.modalHeader}>
+                <h2 style={styles.modalTitle}>Nuevo Cierre de Caja</h2>
+                <button style={styles.closeButton} onClick={() => setShowModal(false)}>
+                  <X size={20} />
+                </button>
               </div>
 
-              <div style={styles.formGroup}>
-                <label style={styles.label}>¿Cuánto efectivo hay en caja? (Bs)</label>
-                <input
-                  type="number"
-                  value={efectivoFisico}
-                  onChange={e => setEfectivoFisico(e.target.value)}
-                  style={styles.montoInput}
-                  placeholder="0.00"
-                  step="0.5"
-                  min="0"
-                  autoFocus
-                />
-              </div>
-
-              {efectivoFisico && (
-                <div style={{
-                  ...styles.diferenciaBox,
-                  background: diferencia === 0 ? '#e8f5e9' :
-                    diferencia > 0 ? '#e3f2fd' : '#ffebee',
-                  borderColor: diferencia === 0 ? '#a5d6a7' :
-                    diferencia > 0 ? '#90caf9' : '#ef9a9a'
-                }}>
-                  <div style={styles.diferenciaLabel}>
-                    {diferencia === 0 ? (
-                      <><CheckCircle size={20} color="#2e7d32" /> <span style={{ color: '#2e7d32' }}>¡Cuadre Perfecto!</span></>
-                    ) : diferencia > 0 ? (
-                      <><AlertTriangle size={20} color="#1565c0" /> <span style={{ color: '#1565c0' }}>Hay un sobrante</span></>
-                    ) : (
-                      <><AlertTriangle size={20} color="#c62828" /> <span style={{ color: '#c62828' }}>Hay un faltante</span></>
-                    )}
+              <div style={styles.modalBody}>
+                {/* Resumen claro del sistema */}
+                <div style={styles.sistemaBox}>
+                  <div>
+                    <span style={styles.sistemaLabel}>Total Recaudado según sistema</span>
+                    <p style={styles.sistemaHint}>(Efectivo + Tarjeta + QR)</p>
                   </div>
-                  <span style={{
-                    ...styles.diferenciaValue,
-                    color: diferencia === 0 ? '#2e7d32' :
-                      diferencia > 0 ? '#1565c0' : '#c62828'
-                  }}>
-                    {diferencia >= 0 ? '+' : ''}{formatCurrency(diferencia)}
-                  </span>
+                  <span style={styles.sistemaValue}>{formatCurrency(totalRecaudadoSistema)}</span>
                 </div>
-              )}
 
-              <div style={styles.formGroup}>
-                <label style={styles.label}>Observaciones (opcional)</label>
-                <textarea
-                  value={observaciones}
-                  onChange={e => setObservaciones(e.target.value)}
-                  style={styles.textarea}
-                  placeholder="Ej: Faltante debido a error en cambio..."
-                  rows={2}
-                />
-              </div>
-            </div>
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Total Declarado (Efectivo y Comprobantes)</label>
+                  <input
+                    type="number"
+                    value={efectivoFisico}
+                    onChange={e => setEfectivoFisico(e.target.value)}
+                    style={styles.montoInput}
+                    placeholder="0.00"
+                    step="0.5"
+                    min="0"
+                    autoFocus
+                  />
+                </div>
 
-            <div style={styles.modalFooter}>
-              <button style={styles.cancelButton} onClick={() => setShowModal(false)} disabled={saving}>
-                Cancelar
-              </button>
-              <button style={styles.saveButton} onClick={handleCierre} disabled={saving || !efectivoFisico}>
-                {saving ? (
-                  <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Guardando...</>
-                ) : (
-                  <><Save size={16} /> Registrar Cierre</>
+                {efectivoFisico && (
+                  <div style={{
+                    ...styles.diferenciaBox,
+                    background: diferencia === 0 ? '#e8f5e9' :
+                      diferencia > 0 ? '#e3f2fd' : '#ffebee',
+                    borderColor: diferencia === 0 ? '#a5d6a7' :
+                      diferencia > 0 ? '#90caf9' : '#ef9a9a'
+                  }}>
+                    <div style={styles.diferenciaLabel}>
+                      {diferencia === 0 ? (
+                        <><CheckCircle size={20} color="#2e7d32" /> <span style={{ color: '#2e7d32' }}>¡Cuadre Perfecto!</span></>
+                      ) : diferencia > 0 ? (
+                        <><AlertTriangle size={20} color="#1565c0" /> <span style={{ color: '#1565c0' }}>Hay un sobrante</span></>
+                      ) : (
+                        <><AlertTriangle size={20} color="#c62828" /> <span style={{ color: '#c62828' }}>Hay un faltante</span></>
+                      )}
+                    </div>
+                    <span style={{
+                      ...styles.diferenciaValue,
+                      color: diferencia === 0 ? '#2e7d32' :
+                        diferencia > 0 ? '#1565c0' : '#c62828'
+                    }}>
+                      {diferencia >= 0 ? '+' : ''}{formatCurrency(diferencia)}
+                    </span>
+                  </div>
                 )}
-              </button>
+
+                <div style={styles.formGroup}>
+                  <label style={styles.label}>Observaciones (opcional)</label>
+                  <textarea
+                    value={observaciones}
+                    onChange={e => setObservaciones(e.target.value)}
+                    style={styles.textarea}
+                    placeholder="Ej: Faltante debido a error en cambio..."
+                    rows={2}
+                  />
+                </div>
+              </div>
+
+              <div style={styles.modalFooter}>
+                <button style={styles.cancelButton} onClick={() => setShowModal(false)} disabled={saving}>
+                  Cancelar
+                </button>
+                <button style={styles.saveButton} onClick={handleCierre} disabled={saving || !efectivoFisico}>
+                  {saving ? (
+                    <><Loader2 size={16} style={{ animation: 'spin 1s linear infinite' }} /> Guardando...</>
+                  ) : (
+                    <><Save size={16} /> Registrar Cierre</>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
-        </div>
-      )}
+        )
+      }
 
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
-    </div>
+    </div >
   );
 }
+
 
 const styles = {
   container: { padding: '20px', maxWidth: '1200px', margin: '0 auto' },
@@ -415,6 +448,12 @@ const styles = {
   title: { margin: 0, fontSize: '28px', fontWeight: '700', color: '#1a5d1a', display: 'flex', alignItems: 'center' },
   subtitle: { margin: '8px 0 0 0', color: '#6c757d', fontSize: '14px' },
   primaryButton: { display: 'flex', alignItems: 'center', gap: '8px', padding: '12px 20px', background: 'linear-gradient(135deg, #1a5d1a, #2e8b57)', color: 'white', border: 'none', borderRadius: '10px', fontSize: '14px', fontWeight: '600', cursor: 'pointer', boxShadow: '0 4px 12px rgba(26,93,26,0.3)' },
+
+  // Switch Admin
+  switchContainer: { display: 'flex', background: '#e9ecef', borderRadius: '20px', padding: '4px', gap: '4px', marginLeft: 'auto', marginRight: '15px' },
+  switchButton: { padding: '8px 16px', borderRadius: '16px', border: 'none', cursor: 'pointer', fontSize: '13px', fontWeight: '600', transition: 'all 0.2s', display: 'flex', alignItems: 'center', gap: '6px' },
+  switchActive: { background: 'white', color: '#1a5d1a', boxShadow: '0 2px 4px rgba(0,0,0,0.1)' },
+  switchInactive: { background: 'transparent', color: '#6c757d' },
 
   // Resumen Section
   summarySection: { marginBottom: '25px' },

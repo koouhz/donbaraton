@@ -3,6 +3,7 @@ import { useState, useEffect, lazy, Suspense } from "react";
 import { Routes, Route, Navigate } from "react-router-dom";
 import Layout from "./layout/Layout";
 import Login from "./pages/Login";
+import ProtectedRoute from "./components/ProtectedRoute";
 
 // Lazy loading para mejor rendimiento - carga las páginas solo cuando se necesitan
 const Dashboard = lazy(() => import("./pages/Dashboard"));
@@ -123,6 +124,11 @@ function App() {
     );
   }
 
+  // Componente helper para proteger rutas
+  const Protected = ({ children }) => (
+    <ProtectedRoute user={user}>{children}</ProtectedRoute>
+  );
+
   return (
     <>
       {!user ? (
@@ -132,48 +138,48 @@ function App() {
           <Routes>
             <Route path="/" element={<Layout onLogout={handleLogout} user={user} />}>
               {/* Panel Principal */}
-              <Route index element={<Dashboard />} />
-              <Route path="dashboard" element={<Dashboard />} />
+              <Route index element={<Protected><Dashboard /></Protected>} />
+              <Route path="dashboard" element={<Protected><Dashboard /></Protected>} />
 
               {/* Gestión de Personal y Roles */}
-              <Route path="roles-cargos" element={<RolesYCargos />} />
-              <Route path="personal" element={<Personal />} />
-              <Route path="asistencias" element={<Asistencias />} />
+              <Route path="roles-cargos" element={<Protected><RolesYCargos /></Protected>} />
+              <Route path="personal" element={<Protected><Personal /></Protected>} />
+              <Route path="asistencias" element={<Protected><Asistencias /></Protected>} />
 
               {/* Inventario y Productos */}
-              <Route path="productos" element={<Productos />} />
-              <Route path="categorias" element={<Categorias />} />
-              <Route path="inventario" element={<Inventario />} />
-              <Route path="movimientos-inventario" element={<MovimientosInventario />} />
-              <Route path="alertas-stock" element={<AlertasStock />} />
-              <Route path="stock-no-vendible" element={<StockNoVendible />} />
+              <Route path="productos" element={<Protected><Productos /></Protected>} />
+              <Route path="categorias" element={<Protected><Categorias /></Protected>} />
+              <Route path="inventario" element={<Protected><Inventario /></Protected>} />
+              <Route path="movimientos-inventario" element={<Protected><MovimientosInventario /></Protected>} />
+              <Route path="alertas-stock" element={<Protected><AlertasStock /></Protected>} />
+              <Route path="stock-no-vendible" element={<Protected><StockNoVendible /></Protected>} />
 
               {/* Ventas */}
-              <Route path="ventas" element={<Ventas />} />
-              <Route path="caja" element={<Caja />} />
-              <Route path="cierre-caja" element={<CierreCaja />} />
-              <Route path="devoluciones" element={<Devoluciones />} />
-              <Route path="devoluciones-ventas" element={<DevolucionesVentas />} />
-              <Route path="reportes-ventas" element={<ReportesVentas />} />
+              <Route path="ventas" element={<Protected><Ventas /></Protected>} />
+              <Route path="caja" element={<Protected><Caja /></Protected>} />
+              <Route path="cierre-caja" element={<Protected><CierreCaja /></Protected>} />
+              <Route path="devoluciones" element={<Protected><Devoluciones /></Protected>} />
+              <Route path="devoluciones-ventas" element={<Protected><DevolucionesVentas /></Protected>} />
+              <Route path="reportes-ventas" element={<Protected><ReportesVentas /></Protected>} />
 
               {/* Compras */}
-              <Route path="compras" element={<Compra />} />
-              <Route path="ordenes-compra" element={<OrdenesCompra />} />
-              <Route path="proveedores" element={<Proveedores />} />
-              <Route path="reportes-compras" element={<ReportesCompras />} />
+              <Route path="compras" element={<Protected><Compra /></Protected>} />
+              <Route path="ordenes-compra" element={<Protected><OrdenesCompra /></Protected>} />
+              <Route path="proveedores" element={<Protected><Proveedores /></Protected>} />
+              <Route path="reportes-compras" element={<Protected><ReportesCompras /></Protected>} />
 
               {/* Clientes */}
-              <Route path="clientes" element={<Clientes />} />
-              <Route path="cuentas-por-pagar" element={<CuentasPorPagar />} />
+              <Route path="clientes" element={<Protected><Clientes /></Protected>} />
+              <Route path="cuentas-por-pagar" element={<Protected><CuentasPorPagar /></Protected>} />
 
               {/* Reportes y Administración */}
-              <Route path="reportes" element={<Reportes />} />
-              <Route path="reportes-rentabilidad" element={<ReportesRentabilidad />} />
-              <Route path="reportes-inventario" element={<ReportesInventario />} />
-              <Route path="balance-general" element={<BalanceGeneral />} />
-              <Route path="backups" element={<Backups />} />
-              <Route path="configuracion" element={<Configuracion />} />
-              <Route path="cajeros" element={<Cajeros />} />
+              <Route path="reportes" element={<Protected><Reportes /></Protected>} />
+              <Route path="reportes-rentabilidad" element={<Protected><ReportesRentabilidad /></Protected>} />
+              <Route path="reportes-inventario" element={<Protected><ReportesInventario /></Protected>} />
+              <Route path="balance-general" element={<Protected><BalanceGeneral /></Protected>} />
+              <Route path="backups" element={<Protected><Backups /></Protected>} />
+              <Route path="configuracion" element={<Protected><Configuracion /></Protected>} />
+              <Route path="cajeros" element={<Protected><Cajeros /></Protected>} />
 
               {/* Redirigir cualquier ruta desconocida al dashboard */}
               <Route path="*" element={<Navigate to="/dashboard" replace />} />
