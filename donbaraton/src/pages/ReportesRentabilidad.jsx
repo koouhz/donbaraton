@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { 
   TrendingUp, Calendar, DollarSign, Package, FileDown,
-  Loader2, ArrowUp, ArrowDown, Percent, ShoppingBag
+  Loader2, ArrowUp, ArrowDown, ShoppingBag
 } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
@@ -27,7 +27,6 @@ export default function ReportesRentabilidad() {
   const [stats, setStats] = useState({
     totalProductos: 0,
     gananciaTotal: 0,
-    margenPromedio: 0,
     unidadesVendidas: 0
   });
 
@@ -69,14 +68,10 @@ export default function ReportesRentabilidad() {
   const calcularEstadisticas = (data) => {
     const gananciaTotal = data.reduce((sum, p) => sum + parseFloat(p.ganancia_total || 0), 0);
     const unidadesVendidas = data.reduce((sum, p) => sum + parseInt(p.cantidad_vendida || 0), 0);
-    const margenPromedio = data.length > 0 
-      ? data.reduce((sum, p) => sum + parseFloat(p.margen_unitario || 0), 0) / data.length 
-      : 0;
     
     setStats({
       totalProductos: data.length,
       gananciaTotal,
-      margenPromedio,
       unidadesVendidas
     });
   };
@@ -99,15 +94,23 @@ export default function ReportesRentabilidad() {
         inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
         fin = hoy.toISOString().split('T')[0];
         break;
-      case 'todos':
-        inicio = '2024-01-01';
-        fin = hoy.toISOString().split('T')[0];
-        break;
       default:
         return;
     }
     
     setFiltros({ ...filtros, periodo, fechaInicio: inicio, fechaFin: fin });
+  };
+
+  // Función para obtener texto del período con fechas reales
+  const obtenerTextoPeriodo = () => {
+    const opciones = { day: '2-digit', month: 'long', year: 'numeric' };
+    const fechaInicioFormateada = new Date(filtros.fechaInicio + 'T00:00:00').toLocaleDateString('es-BO', opciones);
+    const fechaFinFormateada = new Date(filtros.fechaFin + 'T00:00:00').toLocaleDateString('es-BO', opciones);
+    
+    if (filtros.fechaInicio === filtros.fechaFin) {
+      return fechaInicioFormateada;
+    }
+    return `${fechaInicioFormateada} - ${fechaFinFormateada}`;
   };
 
   const productosFiltrados = [...productos].sort((a, b) => {
@@ -129,12 +132,8 @@ export default function ReportesRentabilidad() {
   const exportarPDF = async () => {
     setExportando(true);
     try {
-      const periodoTexto = {
-        'todos': 'Todas las fechas',
-        'hoy': 'Hoy',
-        'semana': 'Esta semana',
-        'mes': 'Este mes'
-      }[filtros.periodo] || `${filtros.fechaInicio} - ${filtros.fechaFin}`;
+      // Usar fechas reales en el PDF
+      const periodoTexto = obtenerTextoPeriodo();
 
       const contenidoHTML = `
         <!DOCTYPE html>
@@ -189,11 +188,7 @@ export default function ReportesRentabilidad() {
               <div class="stat-label">Unidades Vendidas</div>
             </div>
             <div class="stat">
-              <div class="stat-value">Bs ${stats.margenPromedio.toFixed(2)}</div>
-              <div class="stat-label">Margen Promedio</div>
-            </div>
-            <div class="stat">
-              <div class="stat-value">Bs ${stats.gananciaTotal.toFixed(2)}</div>
+              <div class="stat-value" style="color:#2e7d32">Bs ${stats.gananciaTotal.toFixed(2)}</div>
               <div class="stat-label">Ganancia Total</div>
             </div>
           </div>
@@ -308,13 +303,7 @@ export default function ReportesRentabilidad() {
             <span style={styles.statLabel}>Unidades Vendidas</span>
           </div>
         </div>
-        <div style={{...styles.statCard, borderTop: '4px solid #e65100'}}>
-          <Percent size={32} style={{ color: '#e65100' }} />
-          <div>
-            <span style={{...styles.statValue, color: '#e65100'}}>{formatCurrency(stats.margenPromedio)}</span>
-            <span style={styles.statLabel}>Margen Promedio</span>
-          </div>
-        </div>
+
         <div style={{...styles.statCard, borderTop: '4px solid #2e7d32'}}>
           <DollarSign size={32} style={{ color: '#2e7d32' }} />
           <div>
@@ -334,8 +323,7 @@ export default function ReportesRentabilidad() {
             {[
               { key: 'hoy', label: 'Hoy' },
               { key: 'semana', label: 'Esta Semana' },
-              { key: 'mes', label: 'Este Mes' },
-              { key: 'todos', label: 'Todos' }
+              { key: 'mes', label: 'Este Mes' }
             ].map(p => (
               <button
                 key={p.key}
@@ -381,6 +369,9 @@ export default function ReportesRentabilidad() {
           <button style={styles.clearButton} onClick={limpiarFiltros}>
             Limpiar
           </button>
+        </div>
+        <div style={{marginTop: '10px', fontSize: '13px', color: '#1a5d1a', fontWeight: '500'}}>
+          📅 Período: {obtenerTextoPeriodo()}
         </div>
       </div>
 
