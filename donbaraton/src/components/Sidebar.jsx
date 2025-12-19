@@ -146,7 +146,7 @@ const MENU_CONFIG = [
     label: "Compras",
     icon: ShoppingBag,
     path: "/compras",
-    roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_COMPRAS],
+    roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_COMPRAS, ROLES.ENCARGADO_ALMACEN, ROLES.GERENTE],
     description: "Órdenes de compra"
   },
 
@@ -178,7 +178,7 @@ const MENU_CONFIG = [
     label: "Caja",
     icon: Receipt,
     path: "/caja",
-    roles: [ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.SUPERVISOR_CAJA],
+    roles: [ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.SUPERVISOR_CAJA, ROLES.GERENTE],
     description: "Operaciones de caja"
   },
   {

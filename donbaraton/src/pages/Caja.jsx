@@ -264,22 +264,6 @@ export default function Caja() {
         )}
       </div>
 
-      {/* Acciones rápidas */}
-      <div style={styles.actionsGrid}>
-        <button style={styles.actionCard} onClick={() => navigate('/ventas')}>
-          <ShoppingCart size={28} style={{ color: '#1a5d1a' }} />
-          <span>Punto de Venta</span>
-        </button>
-        <button style={styles.actionCard} onClick={() => navigate('/cierre-caja')}>
-          <Wallet size={28} style={{ color: '#e65100' }} />
-          <span>Cierre de Caja</span>
-        </button>
-        <button style={styles.actionCard} onClick={() => navigate('/reportes-ventas')}>
-          <TrendingUp size={28} style={{ color: '#1565c0' }} />
-          <span>Reportes</span>
-        </button>
-      </div>
-
       {/* Modal de Detalles de Venta */}
       {showDetalleModal && ventaSeleccionada && (
         <div style={styles.modalOverlay} onClick={() => setShowDetalleModal(false)}>
