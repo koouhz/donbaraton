@@ -155,10 +155,61 @@ export default function Ventas() {
   ).slice(0, 20);
 
   // Agregar producto al carrito
-  const agregarAlCarrito = (producto) => {
+  const agregarAlCarrito = async (producto) => {
     if (producto.stock_actual <= 0) {
       toast.error('Producto sin stock');
       return;
+    }
+
+    // Verificar si el producto tiene lotes vencidos o próximos a vencer
+    try {
+      const { data: vencimientoInfo, error } = await supabase.rpc('fn_verificar_producto_vencido', {
+        p_id_producto: producto.id_producto
+      });
+
+      if (!error && vencimientoInfo && vencimientoInfo.length > 0) {
+        const info = vencimientoInfo[0];
+        
+        // Si tiene lotes vencidos, BLOQUEAR LA VENTA (PROD-05: Evitar venta de productos vencidos)
+        if (info.tiene_vencidos) {
+          toast.error(
+            `🚫 VENTA BLOQUEADA: Este producto tiene ${info.lotes_vencidos} lote(s) VENCIDO(s). No se puede vender.`,
+            { 
+              duration: 6000,
+              style: {
+                background: '#ffebee',
+                border: '3px solid #c62828',
+                fontWeight: 'bold',
+                fontSize: '14px'
+              },
+              icon: '🚫'
+            }
+          );
+          // NO agregar al carrito - retornar aquí
+          return;
+        }
+        // Si tiene lotes próximos a vencer, mostrar advertencia AMARILLA pero permitir venta
+        else if (info.tiene_proximos) {
+          const diasTexto = info.dias_hasta_vencimiento === 1 
+            ? '1 día' 
+            : `${info.dias_hasta_vencimiento} días`;
+          toast(
+            `⏰ ATENCIÓN: Este producto vence en ${diasTexto}. Considere descuento.`,
+            { 
+              duration: 5000,
+              style: {
+                background: '#fff8e1',
+                border: '2px solid #f57f17',
+                fontWeight: '600'
+              },
+              icon: '⚠️'
+            }
+          );
+        }
+      }
+    } catch (err) {
+      // Si falla la verificación, continuar normalmente
+      console.warn('No se pudo verificar vencimiento:', err);
     }
 
     const existente = carrito.find(item => item.producto_id === producto.id_producto);
@@ -999,7 +1050,7 @@ const styles = {
   montoInput: { width: '100%', padding: '15px', fontSize: '24px', textAlign: 'center', border: '2px solid #e9ecef', borderRadius: '12px', marginTop: '10px', boxSizing: 'border-box' },
   vueltoBox: { display: 'flex', justifyContent: 'space-between', padding: '15px', background: '#e8f5e9', borderRadius: '10px', marginTop: '15px' },
   vueltoValue: { fontSize: '20px', fontWeight: '700', color: '#1a5d1a' },
-  confirmPayBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', width: '100%', padding: '18px', background: 'linear-gradient(135deg, #1a5d1a, #2e8b57)', color: 'white', border: 'none', borderRadius: '12px', fontSize: '18px', fontWeight: '600', cursor: 'pointer' },
+  confirmPayBtn: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '10px', width: '100%', minHeight: '56px', padding: '18px 24px', background: 'linear-gradient(135deg, #1a5d1a, #2e8b57)', color: 'white', border: 'none', borderRadius: '12px', fontSize: '18px', fontWeight: '600', cursor: 'pointer', boxSizing: 'border-box', flexShrink: 0 },
   warningText: { display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', marginTop: '15px', color: '#e65100', fontSize: '14px' },
   qrSection: { marginBottom: '20px', padding: '20px', background: '#f8f9fa', borderRadius: '12px' },
   qrContainer: { display: 'flex', justifyContent: 'center', padding: '15px', background: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.1)' },

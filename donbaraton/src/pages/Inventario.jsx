@@ -176,6 +176,10 @@ export default function Inventario() {
           </p>
         </div>
         <div style={styles.headerActions}>
+          <button style={styles.vencimientosButton} onClick={() => navigate('/productos-por-vencer')}>
+            <Calendar size={18} />
+            Por Vencer
+          </button>
           {stats.alertasActivas > 0 && (
             <button style={styles.alertButton} onClick={() => navigate('/alertas-stock')}>
               <AlertTriangle size={18} />
@@ -516,6 +520,7 @@ const styles = {
   title: { margin: 0, fontSize: '28px', fontWeight: '700', color: '#1a5d1a', display: 'flex', alignItems: 'center' },
   subtitle: { margin: '8px 0 0 0', color: '#6c757d', fontSize: '14px' },
   headerActions: { display: 'flex', gap: '10px' },
+  vencimientosButton: { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: '#e8f5e9', color: '#1a5d1a', border: '1px solid #a5d6a7', borderRadius: '10px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' },
   alertButton: { display: 'flex', alignItems: 'center', gap: '8px', padding: '10px 16px', background: '#fff3e0', color: '#e65100', border: '1px solid #ffcc80', borderRadius: '10px', fontSize: '14px', fontWeight: '500', cursor: 'pointer' },
   refreshButton: { padding: '10px', background: 'white', border: '1px solid #e9ecef', borderRadius: '10px', cursor: 'pointer', color: '#6c757d' },
   statsGrid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: '15px', marginBottom: '20px' },

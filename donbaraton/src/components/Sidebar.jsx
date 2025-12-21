@@ -63,7 +63,8 @@ const ROLE_PERMISSIONS = {
   ],
   [ROLES.ENCARGADO_ALMACEN]: [
     "Inventario", "Productos", "Categorías",
-    "Alertas de Stock", "Movimientos de Inventario"
+    "Alertas de Stock", "Movimientos de Inventario", "Ajustes de Inventario",
+    "Proveedores", "Devoluciones"
   ],
   [ROLES.ENCARGADO_COMPRAS]: [
     "Panel Principal", "Compras", "Proveedores", "Órdenes de Compra"
@@ -74,7 +75,8 @@ const ROLE_PERMISSIONS = {
   ],
   [ROLES.GERENTE]: [
     "Panel Principal", "Ventas", "Compras", "Inventario",
-    "Reportes", "Alertas", "Personal", "Clientes", "Proveedores"
+    "Reportes", "Alertas", "Personal", "Clientes", "Proveedores",
+    "Órdenes de Compra", "Cuentas por Pagar"
   ],
   [ROLES.CONTADOR]: [
     "Panel Principal", "Reportes", "Ventas", "Compras",
@@ -117,6 +119,13 @@ const MENU_CONFIG = [
     roles: [ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.SUPERVISOR_CAJA, ROLES.GERENTE],
     description: "Gestión de clientes"
   },
+  {
+    label: "Cuentas por Pagar",
+    icon: Receipt,
+    path: "/cuentas-por-pagar",
+    roles: [ROLES.ADMINISTRADOR, ROLES.CONTADOR, ROLES.GERENTE],
+    description: "Deudas con proveedores"
+  },
 
   // SECCIÓN: PRODUCTOS
   {
@@ -139,7 +148,7 @@ const MENU_CONFIG = [
     label: "Proveedores",
     icon: Truck,
     path: "/proveedores",
-    roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_COMPRAS, ROLES.GERENTE],
+    roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_COMPRAS, ROLES.ENCARGADO_ALMACEN, ROLES.GERENTE],
     description: "Gestión de proveedores"
   },
   {
@@ -149,6 +158,13 @@ const MENU_CONFIG = [
     roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_COMPRAS, ROLES.ENCARGADO_ALMACEN, ROLES.GERENTE],
     description: "Órdenes de compra"
   },
+  {
+    label: "Devoluciones a Proveedor",
+    icon: RotateCcw,
+    path: "/devoluciones",
+    roles: [ROLES.ADMINISTRADOR, ROLES.GERENTE, ROLES.ENCARGADO_ALMACEN],
+    description: "Devoluciones a proveedores"
+  },
 
   // SECCIÓN: INVENTARIO
   {
@@ -157,6 +173,13 @@ const MENU_CONFIG = [
     path: "/inventario",
     roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_ALMACEN, ROLES.GERENTE],
     description: "Control de stock"
+  },
+  {
+    label: "Ajustes de Inventario",
+    icon: ClipboardList,
+    path: "/ajustes-inventario",
+    roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_ALMACEN],
+    description: "Registrar ajustes de stock"
   },
   {
     label: "Stock No Vendible",
@@ -196,7 +219,6 @@ const MENU_CONFIG = [
     description: "Devoluciones de ventas"
   },
 
-  // SECCIÓN: REPORTES
   {
     label: "Reportes",
     icon: BarChart3,

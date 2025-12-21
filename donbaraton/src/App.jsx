@@ -18,8 +18,11 @@ const Productos = lazy(() => import("./pages/Productos"));
 const Categorias = lazy(() => import("./pages/Categorias"));
 const Inventario = lazy(() => import("./pages/Inventario"));
 const MovimientosInventario = lazy(() => import("./pages/MovimientosInventario"));
+const AjustesInventario = lazy(() => import("./pages/AjustesInventario"));
 const AlertasStock = lazy(() => import("./pages/AlertasStock"));
 const StockNoVendible = lazy(() => import("./pages/StockNoVendible"));
+const ProductosPorVencer = lazy(() => import("./pages/ProductosPorVencer"));
+
 
 // Ventas
 const Ventas = lazy(() => import("./pages/Ventas"));
@@ -39,10 +42,10 @@ const ReportesCompras = lazy(() => import("./pages/ReportesCompras"));
 const Clientes = lazy(() => import("./pages/Clientes"));
 const CuentasPorPagar = lazy(() => import("./pages/CuentasPorPagar"));
 
-// Reportes y Administración
 const Reportes = lazy(() => import("./pages/Reportes"));
 const ReportesRentabilidad = lazy(() => import("./pages/ReportesRentabilidad"));
 const ReportesInventario = lazy(() => import("./pages/ReportesInventario"));
+const ReportesProductosMasVendidos = lazy(() => import("./pages/ReportesProductosMasVendidos"));
 const BalanceGeneral = lazy(() => import("./pages/BalanceGeneral"));
 const Backups = lazy(() => import("./pages/Backups"));
 const Configuracion = lazy(() => import("./pages/Configuracion"));
@@ -151,8 +154,11 @@ function App() {
               <Route path="categorias" element={<Protected><Categorias /></Protected>} />
               <Route path="inventario" element={<Protected><Inventario /></Protected>} />
               <Route path="movimientos-inventario" element={<Protected><MovimientosInventario /></Protected>} />
+              <Route path="ajustes-inventario" element={<Protected><AjustesInventario /></Protected>} />
               <Route path="alertas-stock" element={<Protected><AlertasStock /></Protected>} />
               <Route path="stock-no-vendible" element={<Protected><StockNoVendible /></Protected>} />
+              <Route path="productos-por-vencer" element={<Protected><ProductosPorVencer /></Protected>} />
+
 
               {/* Ventas */}
               <Route path="ventas" element={<Protected><Ventas /></Protected>} />
@@ -174,6 +180,7 @@ function App() {
 
               {/* Reportes y Administración */}
               <Route path="reportes" element={<Protected><Reportes /></Protected>} />
+              <Route path="reportes-productos-mas-vendidos" element={<Protected><ReportesProductosMasVendidos /></Protected>} />
               <Route path="reportes-rentabilidad" element={<Protected><ReportesRentabilidad /></Protected>} />
               <Route path="reportes-inventario" element={<Protected><ReportesInventario /></Protected>} />
               <Route path="balance-general" element={<Protected><BalanceGeneral /></Protected>} />

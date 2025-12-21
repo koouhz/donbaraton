@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import {
   Building, Plus, Edit, Trash2, Search,
-  X, Save, Loader2, Phone, Mail, MapPin, User
+  X, Save, Loader2, Phone, Mail, MapPin, User, ShoppingBag, Calendar, Receipt
 } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
@@ -23,6 +23,12 @@ export default function Clientes() {
     email: '',
     direccion: ''
   });
+
+  // Estados para historial de compras (CLI-03)
+  const [showHistorialModal, setShowHistorialModal] = useState(false);
+  const [clienteHistorial, setClienteHistorial] = useState(null);
+  const [historialCompras, setHistorialCompras] = useState([]);
+  const [loadingHistorial, setLoadingHistorial] = useState(false);
 
   const getUsername = () => {
     const user = localStorage.getItem('user');
@@ -243,6 +249,35 @@ export default function Clientes() {
     setEditingItem(null);
   };
 
+  // CLI-03: Cargar historial de compras del cliente
+  const cargarHistorialCliente = async (cliente) => {
+    setClienteHistorial(cliente);
+    setShowHistorialModal(true);
+    setLoadingHistorial(true);
+    try {
+      const { data, error } = await supabase.rpc('fn_historial_compras_cliente_detalle', {
+        p_id_cliente: cliente.id_cliente
+      });
+      if (error) throw error;
+      setHistorialCompras(data || []);
+    } catch (err) {
+      console.error('Error historial:', err);
+      toast.error('Error al cargar historial de compras');
+      setHistorialCompras([]);
+    } finally {
+      setLoadingHistorial(false);
+    }
+  };
+
+  const cerrarHistorialModal = () => {
+    setShowHistorialModal(false);
+    setClienteHistorial(null);
+    setHistorialCompras([]);
+  };
+
+  const formatDate = (date) => new Date(date).toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' });
+  const formatCurrency = (value) => new Intl.NumberFormat('es-BO', { style: 'currency', currency: 'BOB' }).format(value || 0);
+
   return (
     <div style={styles.container}>
       <Toaster position="top-right" />
@@ -349,6 +384,9 @@ export default function Clientes() {
                   </td>
                   <td style={{ ...styles.td, textAlign: 'center' }}>
                     <div style={styles.actionButtons}>
+                      <button type="button" style={styles.historyButton} onClick={() => cargarHistorialCliente(cliente)} title="Ver historial de compras">
+                        <ShoppingBag size={16} />
+                      </button>
                       <button type="button" style={styles.editButton} onClick={() => openEditModal(cliente)} title="Editar cliente">
                         <Edit size={16} />
                       </button>
@@ -479,6 +517,98 @@ export default function Clientes() {
         )
       }
 
+      {/* Modal Historial de Compras (CLI-03) */}
+      {showHistorialModal && clienteHistorial && (
+        <div style={styles.modalOverlay} onClick={cerrarHistorialModal}>
+          <div style={{...styles.modal, maxWidth: '800px'}} onClick={(e) => e.stopPropagation()}>
+            <div style={styles.modalHeader}>
+              <h2 style={styles.modalTitle}>
+                <ShoppingBag size={22} style={{ marginRight: '10px' }} />
+                Historial de Compras
+              </h2>
+              <button style={styles.closeButton} onClick={cerrarHistorialModal}>
+                <X size={20} />
+              </button>
+            </div>
+
+            <div style={styles.modalBody}>
+              {/* Info del cliente */}
+              <div style={styles.clienteInfoBox}>
+                <User size={20} style={{ color: '#1a5d1a' }} />
+                <div>
+                  <strong>{`${clienteHistorial.nombres} ${clienteHistorial.apellido_paterno || ''} ${clienteHistorial.apellido_materno || ''}`.trim()}</strong>
+                  <span style={{ display: 'block', fontSize: '12px', color: '#6c757d' }}>CI/NIT: {clienteHistorial.ci_nit}</span>
+                </div>
+              </div>
+
+              {/* Tabla de historial */}
+              {loadingHistorial ? (
+                <div style={styles.loadingState}>
+                  <Loader2 size={32} style={{ animation: 'spin 1s linear infinite', color: '#1a5d1a' }} />
+                  <p>Cargando historial...</p>
+                </div>
+              ) : historialCompras.length === 0 ? (
+                <div style={styles.emptyState}>
+                  <Receipt size={48} style={{ color: '#ccc' }} />
+                  <p>No hay compras registradas para este cliente</p>
+                </div>
+              ) : (
+                <div style={{ overflowX: 'auto', marginTop: '15px' }}>
+                  <table style={styles.historialTable}>
+                    <thead>
+                      <tr>
+                        <th style={styles.historialTh}>Fecha</th>
+                        <th style={styles.historialTh}>Nro. Factura</th>
+                        <th style={styles.historialTh}>Productos</th>
+                        <th style={styles.historialTh}>Total</th>
+                        <th style={styles.historialTh}>Pago</th>
+                        <th style={styles.historialTh}>Cajero</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {historialCompras.map((compra, i) => (
+                        <tr key={i} style={styles.tr}>
+                          <td style={styles.historialTd}>
+                            {formatDate(compra.fecha)}
+                          </td>
+                          <td style={styles.historialTd}>
+                            <span style={styles.facturaBadge}>{compra.numero_factura}</span>
+                          </td>
+                          <td style={{...styles.historialTd, maxWidth: '250px'}}>
+                            <span style={styles.productosList} title={compra.productos}>
+                              {compra.productos || '-'}
+                            </span>
+                          </td>
+                          <td style={{...styles.historialTd, fontWeight: '600', color: '#1a5d1a'}}>
+                            {formatCurrency(compra.total)}
+                          </td>
+                          <td style={styles.historialTd}>
+                            <span style={styles.pagoBadge}>{compra.forma_pago}</span>
+                          </td>
+                          <td style={styles.historialTd}>{compra.cajero}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div style={styles.historialResumen}>
+                    <span>Total de compras: <strong>{historialCompras.length}</strong></span>
+                    <span>Monto total: <strong style={{ color: '#1a5d1a' }}>
+                      {formatCurrency(historialCompras.reduce((sum, c) => sum + parseFloat(c.total || 0), 0))}
+                    </strong></span>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            <div style={styles.modalFooter}>
+              <button style={styles.cancelButton} onClick={cerrarHistorialModal}>
+                Cerrar
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
       <style>{`@keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }`}</style>
     </div >
   );
@@ -522,4 +652,15 @@ const styles = {
   statusActive: { background: '#e8f5e9', color: '#2e7d32', border: '1px solid #c8e6c9' },
   statusInactive: { background: '#ffebee', color: '#c62828', border: '1px solid #ffcdd2' },
   ciBadge: { padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', background: '#e3f2fd', color: '#1565c0', border: '1px solid #bbdefb' },
+  
+  // CLI-03: Historial de compras styles
+  historyButton: { padding: '8px', background: '#fff3e0', border: 'none', borderRadius: '8px', cursor: 'pointer', color: '#e65100', transition: 'all 0.2s' },
+  clienteInfoBox: { display: 'flex', alignItems: 'center', gap: '12px', padding: '15px', background: '#e8f5e9', borderRadius: '10px', marginBottom: '15px' },
+  historialTable: { width: '100%', borderCollapse: 'collapse', fontSize: '13px' },
+  historialTh: { padding: '12px 10px', textAlign: 'left', background: '#f8f9fa', color: '#1a5d1a', fontWeight: '600', fontSize: '12px', borderBottom: '2px solid #e9ecef' },
+  historialTd: { padding: '12px 10px', borderBottom: '1px solid #e9ecef', verticalAlign: 'middle' },
+  facturaBadge: { padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', background: '#e3f2fd', color: '#1565c0' },
+  pagoBadge: { padding: '3px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: '600', background: '#fff3e0', color: '#e65100' },
+  productosList: { fontSize: '12px', color: '#495057', display: 'block', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', cursor: 'help' },
+  historialResumen: { display: 'flex', justifyContent: 'space-between', padding: '15px', background: '#f8f9fa', borderRadius: '8px', marginTop: '15px', fontSize: '14px' }
 };

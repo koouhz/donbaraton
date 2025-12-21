@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import {
   FileBarChart, TrendingUp, Package, DollarSign,
-  Loader2, ArrowRight, Calendar, Warehouse
+  Loader2, ArrowRight, Calendar, Warehouse, Award
 } from 'lucide-react';
 import { toast, Toaster } from 'react-hot-toast';
 import { supabase } from '../lib/supabaseClient';
@@ -123,6 +123,14 @@ export default function Reportes() {
           <div>
             <strong>Reportes de Compras</strong>
             <span>Historial de compras</span>
+          </div>
+          <ArrowRight size={20} style={{ color: '#ccc' }} />
+        </button>
+        <button style={styles.linkCard} onClick={() => navigate('/reportes-productos-mas-vendidos')}>
+          <Award size={24} style={{ color: '#f57c00' }} />
+          <div>
+            <strong>Productos Más Vendidos</strong>
+            <span>Ranking por cantidad vendida</span>
           </div>
           <ArrowRight size={20} style={{ color: '#ccc' }} />
         </button>
