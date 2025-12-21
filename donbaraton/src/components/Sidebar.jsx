@@ -85,88 +85,54 @@ const ROLE_PERMISSIONS = {
   [ROLES.USUARIO]: ["Panel Principal"]
 };
 
-// Configuración del menú - IMPORTANTE: Rutas actualizadas
+// Configuración del menú con CATEGORÍAS
 const MENU_CONFIG = [
-  // SECCIÓN: PANEL PRINCIPAL
+  // ============ PRINCIPAL ============
   {
     label: "Panel Principal",
     icon: Home,
-    path: "/dashboard",  // Cambiado de "/" a "/dashboard"
+    path: "/dashboard",
     exact: true,
     roles: [ROLES.ADMINISTRADOR, ROLES.GERENTE],
-    description: "Dashboard y estadísticas"
+    description: "Dashboard y estadísticas",
+    category: "PRINCIPAL"
   },
 
-  // SECCIÓN: ADMINISTRACIÓN
+  // ============ VENTAS ============
   {
-    label: "Roles y Permisos",
-    icon: Shield,
-    path: "/roles-cargos",  // Cambiado de "/roles" a "/roles-cargos"
-    roles: [ROLES.ADMINISTRADOR],
-    description: "Gestión de roles y permisos"
+    label: "Ventas",
+    icon: ShoppingCart,
+    path: "/ventas",
+    roles: [ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.SUPERVISOR_CAJA, ROLES.GERENTE, ROLES.CONTADOR],
+    description: "Registro de ventas",
+    category: "VENTAS"
   },
   {
-    label: "Personal",
-    icon: Users,
-    path: "/personal",
-    roles: [ROLES.ADMINISTRADOR, ROLES.GERENTE],
-    description: "Gestión de empleados"
-  },
-  {
-    label: "Clientes",
-    icon: Building,
-    path: "/clientes",
-    roles: [ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.SUPERVISOR_CAJA, ROLES.GERENTE],
-    description: "Gestión de clientes"
-  },
-  {
-    label: "Cuentas por Pagar",
+    label: "Caja",
     icon: Receipt,
-    path: "/cuentas-por-pagar",
-    roles: [ROLES.ADMINISTRADOR, ROLES.CONTADOR, ROLES.GERENTE],
-    description: "Deudas con proveedores"
-  },
-
-  // SECCIÓN: PRODUCTOS
-  {
-    label: "Productos",
-    icon: Package,
-    path: "/productos",
-    roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_ALMACEN, ROLES.GERENTE],
-    description: "Gestión de productos"
+    path: "/caja",
+    roles: [ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.SUPERVISOR_CAJA, ROLES.GERENTE],
+    description: "Operaciones de caja",
+    category: "VENTAS"
   },
   {
-    label: "Categorías",
-    icon: ClipboardList,
-    path: "/categorias",
-    roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_ALMACEN],
-    description: "Categorías de productos"
-  },
-
-  // SECCIÓN: PROVEEDORES Y COMPRAS
-  {
-    label: "Proveedores",
-    icon: Truck,
-    path: "/proveedores",
-    roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_COMPRAS, ROLES.ENCARGADO_ALMACEN, ROLES.GERENTE],
-    description: "Gestión de proveedores"
+    label: "Cierre de Caja",
+    icon: Calculator,
+    path: "/cierre-caja",
+    roles: [ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.SUPERVISOR_CAJA, ROLES.CONTADOR],
+    description: "Cierre diario de caja",
+    category: "VENTAS"
   },
   {
-    label: "Compras",
-    icon: ShoppingBag,
-    path: "/compras",
-    roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_COMPRAS, ROLES.ENCARGADO_ALMACEN, ROLES.GERENTE],
-    description: "Órdenes de compra"
-  },
-  {
-    label: "Devoluciones a Proveedor",
+    label: "Devoluciones Ventas",
     icon: RotateCcw,
-    path: "/devoluciones",
-    roles: [ROLES.ADMINISTRADOR, ROLES.GERENTE, ROLES.ENCARGADO_ALMACEN],
-    description: "Devoluciones a proveedores"
+    path: "/devoluciones-ventas",
+    roles: [ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.SUPERVISOR_CAJA, ROLES.GERENTE],
+    description: "Devoluciones de ventas",
+    category: "VENTAS"
   },
 
-  // SECCIÓN: INVENTARIO
+  // ============ INVENTARIO ============
   {
     label: "Inventario",
     icon: Warehouse,
@@ -176,7 +142,23 @@ const MENU_CONFIG = [
     category: "INVENTARIO"
   },
   {
-    label: "Ajustes de Inventario",
+    label: "Productos",
+    icon: Package,
+    path: "/productos",
+    roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_ALMACEN, ROLES.GERENTE],
+    description: "Gestión de productos",
+    category: "INVENTARIO"
+  },
+  {
+    label: "Categorías",
+    icon: ClipboardList,
+    path: "/categorias",
+    roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_ALMACEN],
+    description: "Categorías de productos",
+    category: "INVENTARIO"
+  },
+  {
+    label: "Ajustes Inventario",
     icon: ClipboardList,
     path: "/ajustes-inventario",
     roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_ALMACEN],
@@ -200,60 +182,105 @@ const MENU_CONFIG = [
     category: "INVENTARIO"
   },
 
-  // SECCIÓN: VENTAS
+  // ============ COMPRAS ============
   {
-    label: "Ventas",
-    icon: ShoppingCart,
-    path: "/ventas",
-    roles: [ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.SUPERVISOR_CAJA, ROLES.GERENTE, ROLES.CONTADOR],
-    description: "Registro de ventas"
+    label: "Compras",
+    icon: ShoppingBag,
+    path: "/compras",
+    roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_COMPRAS, ROLES.ENCARGADO_ALMACEN, ROLES.GERENTE],
+    description: "Órdenes de compra",
+    category: "COMPRAS"
   },
   {
-    label: "Caja",
-    icon: Receipt,
-    path: "/caja",
-    roles: [ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.SUPERVISOR_CAJA, ROLES.GERENTE],
-    description: "Operaciones de caja"
+    label: "Proveedores",
+    icon: Truck,
+    path: "/proveedores",
+    roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_COMPRAS, ROLES.ENCARGADO_ALMACEN, ROLES.GERENTE],
+    description: "Gestión de proveedores",
+    category: "COMPRAS"
   },
   {
-    label: "Cierre de Caja",
-    icon: Calculator,
-    path: "/cierre-caja",
-    roles: [ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.SUPERVISOR_CAJA, ROLES.CONTADOR],
-    description: "Cierre diario de caja"
-  },
-  {
-    label: "Devoluciones",
+    label: "Devoluciones Proveedor",
     icon: RotateCcw,
-    path: "/devoluciones-ventas",
-    roles: [ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.SUPERVISOR_CAJA, ROLES.GERENTE],
-    description: "Devoluciones de ventas"
+    path: "/devoluciones",
+    roles: [ROLES.ADMINISTRADOR, ROLES.GERENTE, ROLES.ENCARGADO_ALMACEN],
+    description: "Devoluciones a proveedores",
+    category: "COMPRAS"
+  },
+  {
+    label: "Cuentas por Pagar",
+    icon: Receipt,
+    path: "/cuentas-por-pagar",
+    roles: [ROLES.ADMINISTRADOR, ROLES.CONTADOR, ROLES.GERENTE],
+    description: "Deudas con proveedores",
+    category: "COMPRAS"
   },
 
+  // ============ CLIENTES ============
+  {
+    label: "Clientes",
+    icon: Building,
+    path: "/clientes",
+    roles: [ROLES.ADMINISTRADOR, ROLES.CAJERO, ROLES.SUPERVISOR_CAJA, ROLES.GERENTE],
+    description: "Gestión de clientes",
+    category: "CLIENTES"
+  },
+
+  // ============ REPORTES ============
   {
     label: "Reportes",
     icon: BarChart3,
     path: "/reportes",
     roles: [ROLES.ADMINISTRADOR, ROLES.GERENTE, ROLES.CONTADOR],
-    description: "Reportes del sistema"
+    description: "Reportes del sistema",
+    category: "REPORTES"
   },
 
-  // SECCIÓN: SISTEMA
+  // ============ ADMINISTRACIÓN ============
+  {
+    label: "Personal",
+    icon: Users,
+    path: "/personal",
+    roles: [ROLES.ADMINISTRADOR, ROLES.GERENTE],
+    description: "Gestión de empleados",
+    category: "ADMIN"
+  },
   {
     label: "Asistencias",
     icon: Calendar,
     path: "/asistencias",
     roles: [ROLES.ADMINISTRADOR, ROLES.GERENTE],
-    description: "Control de asistencias del personal"
+    description: "Control de asistencias",
+    category: "ADMIN"
   },
   {
     label: "Cajeros",
     icon: UserCheck,
     path: "/cajeros",
     roles: [ROLES.ADMINISTRADOR],
-    description: "Gestión de cajeros del sistema"
+    description: "Gestión de cajeros",
+    category: "ADMIN"
+  },
+  {
+    label: "Roles y Permisos",
+    icon: Shield,
+    path: "/roles-cargos",
+    roles: [ROLES.ADMINISTRADOR],
+    description: "Gestión de roles",
+    category: "ADMIN"
   },
 ];
+
+// Configuración de categorías con iconos y colores
+const CATEGORY_CONFIG = {
+  "PRINCIPAL": { label: "Principal", icon: Home, color: "#1a5d1a" },
+  "VENTAS": { label: "Ventas", icon: ShoppingCart, color: "#2e7d32" },
+  "INVENTARIO": { label: "Inventario", icon: Warehouse, color: "#1565c0" },
+  "COMPRAS": { label: "Compras", icon: ShoppingBag, color: "#7b1fa2" },
+  "CLIENTES": { label: "Clientes", icon: Building, color: "#00838f" },
+  "REPORTES": { label: "Reportes", icon: BarChart3, color: "#ef6c00" },
+  "ADMIN": { label: "Administración", icon: Shield, color: "#c62828" }
+};
 
 // Configuración de colores por rol (usando los del Dashboard)
 const ROLE_COLORS = {
@@ -289,7 +316,9 @@ export default function Sidebar({ onLogout, empleado }) {
   const [logoError, setLogoError] = useState(false);
   const [breadcrumbs, setBreadcrumbs] = useState([]);
   const [currentPage, setCurrentPage] = useState("");
-  const [lowStockCount, setLowStockCount] = useState(0); // Contador de productos con bajo stock
+  const [lowStockCount, setLowStockCount] = useState(0);
+  const [sidebarOpen, setSidebarOpen] = useState(false); // Para móvil
+  const [collapsedCategories, setCollapsedCategories] = useState({}); // Categorías colapsadas
 
   useEffect(() => {
     const checkScreenSize = () => {
@@ -417,6 +446,14 @@ export default function Sidebar({ onLogout, empleado }) {
     return allPermissions.filter(perm => !availablePerms.includes(perm));
   };
 
+  // Función para colapsar/expandir categorías
+  const toggleCategory = (category) => {
+    setCollapsedCategories(prev => ({
+      ...prev,
+      [category]: !prev[category]
+    }));
+  };
+
   // ==================== LÓGICA DEL COMPONENTE ====================
 
   const empleadoRol = getEmpleadoRol();
@@ -424,6 +461,17 @@ export default function Sidebar({ onLogout, empleado }) {
     item.roles.includes(empleadoRol)
   );
   const unavailablePermissions = getUnavailablePermissions(empleadoRol);
+
+  // Agrupar items por categoría
+  const groupedItems = filteredItems.reduce((acc, item) => {
+    const cat = item.category || "OTROS";
+    if (!acc[cat]) acc[cat] = [];
+    acc[cat].push(item);
+    return acc;
+  }, {});
+
+  // Orden de las categorías
+  const categoryOrder = ["PRINCIPAL", "VENTAS", "INVENTARIO", "COMPRAS", "CLIENTES", "REPORTES", "ADMIN"];
 
   // Función para determinar si un item está activo
   const isItemActive = (itemPath, exact = false) => {
@@ -445,26 +493,50 @@ export default function Sidebar({ onLogout, empleado }) {
   // Función para navegar a una página
   const handleNavigation = (path) => {
     navigate(path);
+    // Cerrar sidebar en móvil al navegar
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
   };
 
   // ==================== ESTILOS ====================
 
+  // Estilos responsive del sidebar
+  const sidebarStyle = isMobile ? {
+    width: "85%",
+    maxWidth: "300px",
+    height: "100vh",
+    background: "linear-gradient(160deg, #f8f9fa 0%, #e8f5e9 100%)",
+    padding: "20px 15px",
+    display: "flex",
+    flexDirection: "column",
+    boxShadow: "2px 0 20px rgba(0, 0, 0, 0.15)",
+    position: "fixed",
+    left: 0,
+    top: 0,
+    zIndex: 1001,
+    overflow: "hidden",
+    borderRight: "1px solid rgba(26, 93, 26, 0.1)",
+    transform: sidebarOpen ? "translateX(0)" : "translateX(-100%)",
+    transition: "transform 0.3s ease"
+  } : {
+    width: "280px",
+    height: "100vh",
+    background: "linear-gradient(160deg, #f8f9fa 0%, #e8f5e9 100%)",
+    padding: "25px 20px",
+    display: "flex",
+    flexDirection: "column",
+    boxShadow: "2px 0 20px rgba(26, 93, 26, 0.08)",
+    position: "fixed",
+    left: 0,
+    top: 0,
+    zIndex: 999,
+    overflow: "hidden",
+    borderRight: "1px solid rgba(26, 93, 26, 0.1)"
+  };
+
   const styles = {
-    sidebar: {
-      width: "280px",
-      height: "100vh",
-      background: "linear-gradient(160deg, #f8f9fa 0%, #e8f5e9 100%)",
-      padding: "25px 20px",
-      display: "flex",
-      flexDirection: "column",
-      boxShadow: "2px 0 20px rgba(26, 93, 26, 0.08)",
-      position: "fixed",
-      left: 0,
-      top: 0,
-      zIndex: 999,
-      overflow: "hidden",
-      borderRight: "1px solid rgba(26, 93, 26, 0.1)"
-    }
+    sidebar: sidebarStyle
   };
 
   const sidebarStyles = {
@@ -832,227 +904,360 @@ export default function Sidebar({ onLogout, empleado }) {
   }
 
   return (
-    <aside style={styles.sidebar}>
-      {/* Header del Sidebar */}
-      <div style={sidebarStyles.header}>
-        {/* Logo con imagen */}
-        <div style={sidebarStyles.logoContainer}>
-          {!logoError ? (
-            <img
-              src={logoEmpresa}
-              alt="Logo Don Baraton"
-              style={sidebarStyles.logoImage}
-              onError={() => setLogoError(true)}
-              onLoad={() => setLogoError(false)}
-            />
-          ) : (
-            <div style={sidebarStyles.logoFallback}>
-              <Store size={28} />
+    <>
+      {/* Botón hamburguesa para móvil */}
+      {isMobile && (
+        <button
+          onClick={() => setSidebarOpen(!sidebarOpen)}
+          style={{
+            position: 'fixed',
+            top: '15px',
+            left: '15px',
+            zIndex: 1002,
+            width: '45px',
+            height: '45px',
+            borderRadius: '12px',
+            border: 'none',
+            background: sidebarOpen ? 'transparent' : 'linear-gradient(135deg, #1a5d1a, #2e8b57)',
+            color: sidebarOpen ? 'transparent' : 'white',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            cursor: 'pointer',
+            boxShadow: sidebarOpen ? 'none' : '0 4px 15px rgba(26, 93, 26, 0.3)',
+            transition: 'all 0.3s ease'
+          }}
+        >
+          {sidebarOpen ? null : (
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="3" y1="6" x2="21" y2="6"></line>
+              <line x1="3" y1="12" x2="21" y2="12"></line>
+              <line x1="3" y1="18" x2="21" y2="18"></line>
+            </svg>
+          )}
+        </button>
+      )}
+
+      {/* Overlay oscuro para cerrar sidebar en móvil */}
+      {isMobile && sidebarOpen && (
+        <div
+          onClick={() => setSidebarOpen(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(0, 0, 0, 0.5)',
+            zIndex: 1000,
+            transition: 'opacity 0.3s ease'
+          }}
+        />
+      )}
+
+      <aside style={styles.sidebar}>
+        {/* Botón cerrar para móvil */}
+        {isMobile && sidebarOpen && (
+          <button
+            onClick={() => setSidebarOpen(false)}
+            style={{
+              position: 'absolute',
+              top: '12px',
+              right: '12px',
+              width: '32px',
+              height: '32px',
+              borderRadius: '8px',
+              border: 'none',
+              background: 'rgba(220, 53, 69, 0.1)',
+              color: '#dc3545',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              zIndex: 10
+            }}
+          >
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+              <line x1="18" y1="6" x2="6" y2="18"></line>
+              <line x1="6" y1="6" x2="18" y2="18"></line>
+            </svg>
+          </button>
+        )}
+
+        {/* Header del Sidebar */}
+        <div style={sidebarStyles.header}>
+          {/* Logo con imagen */}
+          <div style={sidebarStyles.logoContainer}>
+            {!logoError ? (
+              <img
+                src={logoEmpresa}
+                alt="Logo Don Baraton"
+                style={sidebarStyles.logoImage}
+                onError={() => setLogoError(true)}
+                onLoad={() => setLogoError(false)}
+              />
+            ) : (
+              <div style={sidebarStyles.logoFallback}>
+                <Store size={28} />
+              </div>
+            )}
+          </div>
+
+          <div style={sidebarStyles.brandSection}>
+            <h2 style={sidebarStyles.brandTitle}>Don Baraton</h2>
+            <span style={sidebarStyles.brandSubtitle}>Sistema de Gestión Comercial</span>
+          </div>
+
+          {/* Información del usuario */}
+          <div style={sidebarStyles.userInfo}>
+            <div style={sidebarStyles.userAvatar}>
+              <UserCheck size={18} />
+            </div>
+            <div style={sidebarStyles.userDetails}>
+              <p style={sidebarStyles.userName}>
+                {getEmpleadoNombre()}
+              </p>
+              <div style={sidebarStyles.userRoleSection}>
+                <span
+                  style={{
+                    ...sidebarStyles.userRoleBadge,
+                    background: `linear-gradient(135deg, ${getRoleColor(empleadoRol)}, ${ROLE_COLORS[empleadoRol]}99)`
+                  }}
+                  title={`Rol: ${empleadoRol}`}
+                >
+                  {getRoleBadge(empleadoRol)}
+                </span>
+                <button
+                  style={{
+                    ...sidebarStyles.roleInfoButton,
+                    background: showRoleInfo ? "rgba(26, 93, 26, 0.2)" : "rgba(26, 93, 26, 0.1)"
+                  }}
+                  onClick={toggleRoleInfo}
+                  title="Ver información de permisos"
+                >
+                  {showRoleInfo ? <EyeOff size={12} /> : <Eye size={12} />}
+                </button>
+              </div>
+
+              {/* Indicador de página actual */}
+              {currentPage && (
+                <div style={sidebarStyles.currentPageBadge}>
+                  <CheckCircle size={10} />
+                  <span>{currentPage}</span>
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Información de permisos del rol */}
+          {showRoleInfo && (
+            <div style={sidebarStyles.rolePermissionsInfo}>
+              {/* Permisos disponibles (VERDE) */}
+              <div>
+                <div style={sidebarStyles.permissionsHeader}>
+                  <Settings size={14} />
+                  <span>Permisos disponibles - {empleadoRol.toUpperCase()}</span>
+                </div>
+                <ul style={sidebarStyles.permissionsList}>
+                  {(ROLE_PERMISSIONS[empleadoRol] || []).slice(0, 6).map((permiso, index) => (
+                    <li key={`available-${index}`} style={sidebarStyles.permissionItem}>
+                      <div style={sidebarStyles.permissionDotAvailable}></div>
+                      <span style={sidebarStyles.permissionTextAvailable}>{permiso}</span>
+                    </li>
+                  ))}
+                  {(ROLE_PERMISSIONS[empleadoRol] || []).length > 6 && (
+                    <li style={sidebarStyles.permissionItem}>
+                      <span style={{ fontSize: '11px', color: '#1a5d1a', opacity: 0.7 }}>
+                        + {ROLE_PERMISSIONS[empleadoRol].length - 6} más...
+                      </span>
+                    </li>
+                  )}
+                </ul>
+              </div>
+
+
             </div>
           )}
         </div>
 
-        <div style={sidebarStyles.brandSection}>
-          <h2 style={sidebarStyles.brandTitle}>Don Baraton</h2>
-          <span style={sidebarStyles.brandSubtitle}>Sistema de Gestión Comercial</span>
-        </div>
-
-        {/* Información del usuario */}
-        <div style={sidebarStyles.userInfo}>
-          <div style={sidebarStyles.userAvatar}>
-            <UserCheck size={18} />
-          </div>
-          <div style={sidebarStyles.userDetails}>
-            <p style={sidebarStyles.userName}>
-              {getEmpleadoNombre()}
-            </p>
-            <div style={sidebarStyles.userRoleSection}>
-              <span
-                style={{
-                  ...sidebarStyles.userRoleBadge,
-                  background: `linear-gradient(135deg, ${getRoleColor(empleadoRol)}, ${ROLE_COLORS[empleadoRol]}99)`
-                }}
-                title={`Rol: ${empleadoRol}`}
-              >
-                {getRoleBadge(empleadoRol)}
-              </span>
-              <button
-                style={{
-                  ...sidebarStyles.roleInfoButton,
-                  background: showRoleInfo ? "rgba(26, 93, 26, 0.2)" : "rgba(26, 93, 26, 0.1)"
-                }}
-                onClick={toggleRoleInfo}
-                title="Ver información de permisos"
-              >
-                {showRoleInfo ? <EyeOff size={12} /> : <Eye size={12} />}
-              </button>
+        {/* Navegación por categorías */}
+        <nav style={sidebarStyles.sidebarNav}>
+          {filteredItems.length === 0 ? (
+            <div style={sidebarStyles.noPermissions}>
+              <AlertCircle size={36} style={sidebarStyles.noPermissionsIcon} />
+              <p style={sidebarStyles.noPermissionsTitle}>Sin permisos</p>
+              <p style={sidebarStyles.noPermissionsDescription}>
+                Tu rol de usuario no tiene acceso a las funciones del sistema.
+              </p>
             </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+              {categoryOrder.map(category => {
+                const items = groupedItems[category];
+                if (!items || items.length === 0) return null;
 
-            {/* Indicador de página actual */}
-            {currentPage && (
-              <div style={sidebarStyles.currentPageBadge}>
-                <CheckCircle size={10} />
-                <span>{currentPage}</span>
-              </div>
-            )}
-          </div>
-        </div>
+                const catConfig = CATEGORY_CONFIG[category] || { label: category, color: '#666' };
+                const CatIcon = catConfig.icon || Package;
+                const isCollapsed = collapsedCategories[category];
 
-        {/* Información de permisos del rol */}
-        {showRoleInfo && (
-          <div style={sidebarStyles.rolePermissionsInfo}>
-            {/* Permisos disponibles (VERDE) */}
-            <div>
-              <div style={sidebarStyles.permissionsHeader}>
-                <Settings size={14} />
-                <span>Permisos disponibles - {empleadoRol.toUpperCase()}</span>
-              </div>
-              <ul style={sidebarStyles.permissionsList}>
-                {(ROLE_PERMISSIONS[empleadoRol] || []).slice(0, 6).map((permiso, index) => (
-                  <li key={`available-${index}`} style={sidebarStyles.permissionItem}>
-                    <div style={sidebarStyles.permissionDotAvailable}></div>
-                    <span style={sidebarStyles.permissionTextAvailable}>{permiso}</span>
-                  </li>
-                ))}
-                {(ROLE_PERMISSIONS[empleadoRol] || []).length > 6 && (
-                  <li style={sidebarStyles.permissionItem}>
-                    <span style={{ fontSize: '11px', color: '#1a5d1a', opacity: 0.7 }}>
-                      + {ROLE_PERMISSIONS[empleadoRol].length - 6} más...
-                    </span>
-                  </li>
-                )}
-              </ul>
-            </div>
-
-
-          </div>
-        )}
-      </div>
-
-      {/* Navegación */}
-      <nav style={sidebarStyles.sidebarNav}>
-        {filteredItems.length === 0 ? (
-          <div style={sidebarStyles.noPermissions}>
-            <AlertCircle size={36} style={sidebarStyles.noPermissionsIcon} />
-            <p style={sidebarStyles.noPermissionsTitle}>Sin permisos</p>
-            <p style={sidebarStyles.noPermissionsDescription}>
-              Tu rol de usuario no tiene acceso a las funciones del sistema.
-            </p>
-          </div>
-        ) : (
-          <ul style={sidebarStyles.navList}>
-            {filteredItems.map((item, index) => {
-              const active = isItemActive(item.path, item.exact);
-              const IconComponent = item.icon;
-
-              return (
-                <li
-                  key={index}
-                  style={{
-                    ...sidebarStyles.navItem,
-                    ...(active ? sidebarStyles.navItemActive : {})
-                  }}
-                  onMouseEnter={(e) => {
-                    if (!active) {
-                      e.currentTarget.style.background = "rgba(26, 93, 26, 0.05)";
-                      e.currentTarget.style.transform = "translateX(4px)";
-                    }
-                  }}
-                  onMouseLeave={(e) => {
-                    if (!active) {
-                      e.currentTarget.style.background = "transparent";
-                      e.currentTarget.style.transform = "translateX(0)";
-                    }
-                  }}
-                >
-                  <div
-                    onClick={() => handleNavigation(item.path)}
-                    style={sidebarStyles.navLink}
-                    title={item.description}
-                  >
-                    <span style={{
-                      ...sidebarStyles.navIcon,
-                      background: active ? "linear-gradient(135deg, #1a5d1a, #2e8b57)" : sidebarStyles.navIcon.background,
-                      color: active ? "white" : "#1a5d1a",
-                      boxShadow: active ? "0 4px 10px rgba(26, 93, 26, 0.3)" : "none"
-                    }}>
-                      <IconComponent size={16} />
-                    </span>
-                    <span style={sidebarStyles.navLabel}>
-                      {item.label}
-                    </span>
-                    {/* Alerta de bajo stock para Inventario */}
-                    {item.label === 'Inventario' && lowStockCount > 0 && (
-                      <span style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: '4px',
-                        padding: '3px 8px',
-                        background: 'linear-gradient(135deg, #ff6b6b, #ee5a24)',
-                        color: 'white',
-                        borderRadius: '12px',
-                        fontSize: '11px',
-                        fontWeight: '600',
-                        boxShadow: '0 2px 8px rgba(238, 90, 36, 0.4)',
-                        animation: 'pulse 2s infinite'
-                      }} title={`${lowStockCount} productos con bajo stock`}>
-                        <AlertCircle size={12} />
-                        {lowStockCount}
-                      </span>
+                return (
+                  <div key={category} style={{ marginBottom: '4px' }}>
+                    {/* Header de categoría - Solo mostrar si no es PRINCIPAL */}
+                    {category !== "PRINCIPAL" && (
+                      <div
+                        onClick={() => toggleCategory(category)}
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '8px',
+                          padding: '8px 12px',
+                          cursor: 'pointer',
+                          borderRadius: '8px',
+                          background: 'rgba(26, 93, 26, 0.03)',
+                          marginBottom: '4px',
+                          transition: 'all 0.2s ease'
+                        }}
+                      >
+                        <CatIcon size={14} color={catConfig.color} />
+                        <span style={{
+                          flex: 1,
+                          fontSize: '11px',
+                          fontWeight: '600',
+                          color: catConfig.color,
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px'
+                        }}>
+                          {catConfig.label}
+                        </span>
+                        <ChevronRight
+                          size={14}
+                          color={catConfig.color}
+                          style={{
+                            transform: isCollapsed ? 'rotate(0deg)' : 'rotate(90deg)',
+                            transition: 'transform 0.2s ease'
+                          }}
+                        />
+                      </div>
                     )}
-                    {active && (
-                      <span style={sidebarStyles.navActiveBadge}>
-                        <ChevronRight size={10} />
-                        Activa
-                      </span>
+
+                    {/* Items de la categoría */}
+                    {!isCollapsed && (
+                      <ul style={{ listStyle: 'none', padding: 0, margin: 0 }}>
+                        {items.map((item, index) => {
+                          const active = isItemActive(item.path, item.exact);
+                          const IconComponent = item.icon;
+
+                          return (
+                            <li
+                              key={`${category}-${index}`}
+                              style={{
+                                ...sidebarStyles.navItem,
+                                ...(active ? sidebarStyles.navItemActive : {}),
+                                marginLeft: category !== "PRINCIPAL" ? '8px' : '0'
+                              }}
+                              onMouseEnter={(e) => {
+                                if (!active) {
+                                  e.currentTarget.style.background = "rgba(26, 93, 26, 0.05)";
+                                  e.currentTarget.style.transform = "translateX(4px)";
+                                }
+                              }}
+                              onMouseLeave={(e) => {
+                                if (!active) {
+                                  e.currentTarget.style.background = "transparent";
+                                  e.currentTarget.style.transform = "translateX(0)";
+                                }
+                              }}
+                            >
+                              <div
+                                onClick={() => handleNavigation(item.path)}
+                                style={sidebarStyles.navLink}
+                                title={item.description}
+                              >
+                                <span style={{
+                                  ...sidebarStyles.navIcon,
+                                  width: '32px',
+                                  height: '32px',
+                                  background: active ? `linear-gradient(135deg, ${catConfig.color}, ${catConfig.color}99)` : "rgba(26, 93, 26, 0.08)",
+                                  color: active ? "white" : catConfig.color,
+                                  boxShadow: active ? `0 4px 10px ${catConfig.color}40` : "none"
+                                }}>
+                                  <IconComponent size={14} />
+                                </span>
+                                <span style={{
+                                  ...sidebarStyles.navLabel,
+                                  fontSize: '13px'
+                                }}>
+                                  {item.label}
+                                </span>
+                                {/* Alerta de bajo stock */}
+                                {item.label === 'Inventario' && lowStockCount > 0 && (
+                                  <span style={{
+                                    display: 'flex',
+                                    alignItems: 'center',
+                                    gap: '3px',
+                                    padding: '2px 6px',
+                                    background: 'linear-gradient(135deg, #ff6b6b, #ee5a24)',
+                                    color: 'white',
+                                    borderRadius: '10px',
+                                    fontSize: '10px',
+                                    fontWeight: '600'
+                                  }} title={`${lowStockCount} productos con bajo stock`}>
+                                    <AlertCircle size={10} />
+                                    {lowStockCount}
+                                  </span>
+                                )}
+                                {active && <div style={sidebarStyles.navIndicator} />}
+                              </div>
+                            </li>
+                          );
+                        })}
+                      </ul>
                     )}
-                    {active && <div style={sidebarStyles.navIndicator} />}
                   </div>
-                </li>
-              );
-            })}
-          </ul>
-        )}
-      </nav>
+                );
+              })}
+            </div>
+          )}
+        </nav>
 
-      {/* Botón de Cerrar Sesión */}
-      <div style={sidebarStyles.sidebarFooter}>
-        <button
-          onClick={handleLogout}
-          style={{
-            ...sidebarStyles.logoutButton,
-            ':hover': {
-              background: "linear-gradient(135deg, rgba(26, 93, 26, 0.15), rgba(220, 53, 69, 0.15))",
-              transform: "translateY(-2px)",
-              boxShadow: "0 6px 15px rgba(220, 53, 69, 0.2)"
-            }
-          }}
-          onMouseEnter={(e) => {
-            e.currentTarget.style.background = "linear-gradient(135deg, rgba(26, 93, 26, 0.15), rgba(220, 53, 69, 0.15))";
-            e.currentTarget.style.transform = "translateY(-2px)";
-            e.currentTarget.style.boxShadow = "0 6px 15px rgba(220, 53, 69, 0.2)";
-          }}
-          onMouseLeave={(e) => {
-            e.currentTarget.style.background = "linear-gradient(135deg, rgba(26, 93, 26, 0.1), rgba(220, 53, 69, 0.1))";
-            e.currentTarget.style.transform = "translateY(0)";
-            e.currentTarget.style.boxShadow = "none";
-          }}
-          title="Cerrar sesión del sistema"
-        >
-          <span style={sidebarStyles.logoutIcon}>
-            <LogOut size={16} />
-          </span>
-          <span>Cerrar Sesión</span>
-        </button>
+        {/* Botón de Cerrar Sesión */}
+        <div style={sidebarStyles.sidebarFooter}>
+          <button
+            onClick={handleLogout}
+            style={{
+              ...sidebarStyles.logoutButton,
+              ':hover': {
+                background: "linear-gradient(135deg, rgba(26, 93, 26, 0.15), rgba(220, 53, 69, 0.15))",
+                transform: "translateY(-2px)",
+                boxShadow: "0 6px 15px rgba(220, 53, 69, 0.2)"
+              }
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "linear-gradient(135deg, rgba(26, 93, 26, 0.15), rgba(220, 53, 69, 0.15))";
+              e.currentTarget.style.transform = "translateY(-2px)";
+              e.currentTarget.style.boxShadow = "0 6px 15px rgba(220, 53, 69, 0.2)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "linear-gradient(135deg, rgba(26, 93, 26, 0.1), rgba(220, 53, 69, 0.1))";
+              e.currentTarget.style.transform = "translateY(0)";
+              e.currentTarget.style.boxShadow = "none";
+            }}
+            title="Cerrar sesión del sistema"
+          >
+            <span style={sidebarStyles.logoutIcon}>
+              <LogOut size={16} />
+            </span>
+            <span>Cerrar Sesión</span>
+          </button>
 
-        {/* Footer */}
-        <div style={sidebarStyles.sidebarCopyright}>
-          <div>© 2025 Don Baraton</div>
+          {/* Footer */}
+          <div style={sidebarStyles.sidebarCopyright}>
+            <div>© 2025 Don Baraton</div>
+          </div>
         </div>
-      </div>
 
-      {/* Estilos CSS inline */}
-      <style>{`
+        {/* Estilos CSS inline */}
+        <style>{`
         @keyframes spin {
           0% { transform: rotate(0deg); }
           100% { transform: rotate(360deg); }
@@ -1087,6 +1292,7 @@ export default function Sidebar({ onLogout, empleado }) {
           to { opacity: 1; transform: translateX(0); }
         }
       `}</style>
-    </aside>
+      </aside>
+    </>
   );
 }
