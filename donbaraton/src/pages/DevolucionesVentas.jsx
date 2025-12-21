@@ -226,7 +226,7 @@ export default function DevolucionesVentas() {
 
             const totalDevolver = calcularTotalDevolver();
 
-            const { data, error } = await supabase.rpc('fn_devolucion_venta_parcial', {
+            const { data: idDevolucion, error } = await supabase.rpc('fn_devolucion_venta_parcial', {
                 p_id_venta: ventaEncontrada.id_venta,
                 p_detalles: detallesDevolucion,
                 p_motivo: formData.motivo + (formData.observaciones ? ` - ${formData.observaciones}` : ''),
@@ -238,6 +238,65 @@ export default function DevolucionesVentas() {
                 console.error('Error:', error);
                 toast.error(error.message || 'Error al procesar devolución');
             } else {
+                // ===============================================
+                // INSERTAR EN STOCK_NO_VENDIBLE SI ES DAÑADO O VENCIDO
+                // Solo si la función SQL no lo hace automáticamente
+                // ===============================================
+                if (formData.motivo === 'DAÑADO' || formData.motivo === 'VENCIDO') {
+                    try {
+                        // Verificar si ya existen registros para esta devolución (evitar duplicados)
+                        const { data: existentes } = await supabase
+                            .from('stock_no_vendible')
+                            .select('id_registro')
+                            .eq('id_devolucion', idDevolucion)
+                            .limit(1);
+
+                        // Solo insertar si NO hay registros existentes para esta devolución
+                        if (!existentes || existentes.length === 0) {
+                            // Obtener el ID del usuario
+                            const { data: userData } = await supabase
+                                .from('usuarios')
+                                .select('id_usuario')
+                                .eq('username', getUsername())
+                                .single();
+
+                            const idUsuario = userData?.id_usuario || null;
+
+                            // Insertar cada producto devuelto en stock_no_vendible
+                            for (const detalle of detallesDevolucion) {
+                                // Generar ID único para el registro
+                                const timestamp = Date.now();
+                                const random = Math.floor(Math.random() * 1000);
+                                const idRegistro = `SNV-${timestamp}-${random}`;
+
+                                const { error: snvError } = await supabase
+                                    .from('stock_no_vendible')
+                                    .insert({
+                                        id_registro: idRegistro,
+                                        id_producto: detalle.id_producto,
+                                        id_devolucion: idDevolucion || null,
+                                        cantidad: detalle.cantidad,
+                                        motivo: formData.motivo,
+                                        observaciones: `Devolución de venta ${ventaEncontrada.id_venta} - Producto ${formData.motivo.toLowerCase()}`,
+                                        fecha_registro: new Date().toISOString(),
+                                        estado: 'PENDIENTE',
+                                        id_usuario: idUsuario
+                                    });
+
+                                if (snvError) {
+                                    console.error('Error al registrar en stock no vendible:', snvError);
+                                }
+                            }
+                            console.log('Productos registrados en stock no vendible');
+                        } else {
+                            console.log('Registros ya existen en stock_no_vendible, omitiendo inserción');
+                        }
+                    } catch (snvErr) {
+                        console.error('Error al procesar stock no vendible:', snvErr);
+                        // No mostramos error al usuario porque la devolución principal fue exitosa
+                    }
+                }
+
                 toast.success(`Devolución procesada exitosamente`);
                 toast(`Reembolso: Bs ${totalDevolver.toFixed(2)} en ${formData.forma_reembolso}`, {
                     icon: '💰',

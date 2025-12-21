@@ -40,15 +40,79 @@ export default function StockNoVendible() {
 
     const actualizarEstado = async (idRegistro, nuevoEstado) => {
         try {
-            const { error } = await supabase.rpc('fn_actualizar_stock_no_vendible', {
-                p_id_registro: idRegistro,
-                p_nuevo_estado: nuevoEstado,
-                p_username: localStorage.getItem('username') || 'admin'
-            });
+            // Si el estado es RECUPERADO, primero obtener los datos del registro para devolver al inventario
+            if (nuevoEstado === 'RECUPERADO') {
+                // Obtener el registro actual para saber el id_producto y cantidad
+                const { data: registroActual, error: fetchError } = await supabase
+                    .from('stock_no_vendible')
+                    .select('id_producto, cantidad, estado')
+                    .eq('id_registro', idRegistro)
+                    .single();
+
+                if (fetchError) {
+                    console.error('Error al obtener registro:', fetchError);
+                    toast.error('Error al obtener datos del producto');
+                    return;
+                }
+
+                // Solo procesar si el registro existe y NO está ya recuperado
+                if (registroActual && registroActual.estado !== 'RECUPERADO') {
+                    // Obtener stock actual del producto
+                    const { data: producto, error: prodError } = await supabase
+                        .from('productos')
+                        .select('stock_actual')
+                        .eq('id_producto', registroActual.id_producto)
+                        .single();
+
+                    if (!prodError && producto) {
+                        const nuevoStock = (producto.stock_actual || 0) + registroActual.cantidad;
+
+                        const { error: updateError } = await supabase
+                            .from('productos')
+                            .update({ stock_actual: nuevoStock })
+                            .eq('id_producto', registroActual.id_producto);
+
+                        if (updateError) {
+                            console.error('Error al actualizar stock:', updateError);
+                            toast.error('Error al devolver producto al inventario');
+                            return;
+                        }
+
+                        // Registrar movimiento de inventario
+                        const timestamp = Date.now();
+                        const random = Math.floor(Math.random() * 1000);
+                        await supabase
+                            .from('movimientos_inventario')
+                            .insert({
+                                id_movimiento: `MOV-REC-${timestamp}-${random}`,
+                                id_producto: registroActual.id_producto,
+                                tipo: 'ENTRADA',
+                                cantidad: registroActual.cantidad,
+                                documento: idRegistro,
+                                motivo: 'RECUPERACION_STOCK_NO_VENDIBLE',
+                                fecha_hora: new Date().toISOString()
+                            });
+
+                        toast.success(`Producto recuperado y devuelto al inventario (+${registroActual.cantidad} unidades)`);
+                    }
+                } else if (registroActual && registroActual.estado === 'RECUPERADO') {
+                    toast.error('Este producto ya fue recuperado anteriormente');
+                    return;
+                }
+            }
+
+            // Actualizar el estado del registro en stock_no_vendible
+            const { error } = await supabase
+                .from('stock_no_vendible')
+                .update({ estado: nuevoEstado })
+                .eq('id_registro', idRegistro);
 
             if (error) throw error;
 
-            toast.success(`Estado actualizado a: ${nuevoEstado}`);
+            if (nuevoEstado !== 'RECUPERADO') {
+                toast.success(`Estado actualizado a: ${nuevoEstado}`);
+            }
+
             cargarDatos();
         } catch (error) {
             console.error('Error al actualizar estado:', error);

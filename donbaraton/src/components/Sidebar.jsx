@@ -172,21 +172,32 @@ const MENU_CONFIG = [
     icon: Warehouse,
     path: "/inventario",
     roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_ALMACEN, ROLES.GERENTE],
-    description: "Control de stock"
+    description: "Control de stock",
+    category: "INVENTARIO"
   },
   {
     label: "Ajustes de Inventario",
     icon: ClipboardList,
     path: "/ajustes-inventario",
     roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_ALMACEN],
-    description: "Registrar ajustes de stock"
+    description: "Registrar ajustes de stock",
+    category: "INVENTARIO"
+  },
+  {
+    label: "Gestión de Lotes",
+    icon: Calendar,
+    path: "/gestion-lotes",
+    roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_ALMACEN],
+    description: "Administrar lotes y vencimientos",
+    category: "INVENTARIO"
   },
   {
     label: "Stock No Vendible",
     icon: AlertCircle,
     path: "/stock-no-vendible",
     roles: [ROLES.ADMINISTRADOR, ROLES.ENCARGADO_ALMACEN],
-    description: "Productos dañados y vencidos"
+    description: "Productos dañados y vencidos",
+    category: "INVENTARIO"
   },
 
   // SECCIÓN: VENTAS
