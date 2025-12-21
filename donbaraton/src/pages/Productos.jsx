@@ -484,6 +484,10 @@ export default function Productos() {
       toast.error('El nombre es obligatorio');
       return;
     }
+    if (!formData.categoria_id) {
+      toast.error('Seleccione una categoría');
+      return;
+    }
 
     setSaving(true);
     try {
@@ -491,7 +495,7 @@ export default function Productos() {
         p_id: editingItem.id,
         p_codigo_barras: formData.codigo_barras.trim() || null,
         p_nombre: formData.nombre.trim(),
-        p_categoria_id: formData.categoria_id,
+        p_categoria_id: parseInt(formData.categoria_id),
         p_id_marca: formData.id_marca || null,
         p_id_unidad: formData.id_unidad || null,
         p_precio_costo: parseFloat(formData.precio_costo) || 0,
