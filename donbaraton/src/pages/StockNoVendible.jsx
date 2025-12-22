@@ -40,7 +40,8 @@ export default function StockNoVendible() {
 
     const actualizarEstado = async (idRegistro, nuevoEstado) => {
         try {
-            // Si el estado es RECUPERADO, primero obtener los datos del registro para devolver al inventario
+            // Si el estado es RECUPERADO, registrar movimiento de inventario
+            // El trigger de movimientos_inventario actualizará automáticamente el stock
             if (nuevoEstado === 'RECUPERADO') {
                 // Obtener el registro actual para saber el id_producto y cantidad
                 const { data: registroActual, error: fetchError } = await supabase
@@ -57,44 +58,29 @@ export default function StockNoVendible() {
 
                 // Solo procesar si el registro existe y NO está ya recuperado
                 if (registroActual && registroActual.estado !== 'RECUPERADO') {
-                    // Obtener stock actual del producto
-                    const { data: producto, error: prodError } = await supabase
-                        .from('productos')
-                        .select('stock_actual')
-                        .eq('id_producto', registroActual.id_producto)
-                        .single();
+                    // Registrar movimiento de inventario
+                    // El TRIGGER de la tabla movimientos_inventario actualizará automáticamente el stock
+                    const timestamp = Date.now();
+                    const random = Math.floor(Math.random() * 1000);
+                    const { error: movError } = await supabase
+                        .from('movimientos_inventario')
+                        .insert({
+                            id_movimiento: `MOV-REC-${timestamp}-${random}`,
+                            id_producto: registroActual.id_producto,
+                            tipo: 'ENTRADA',
+                            cantidad: registroActual.cantidad,
+                            documento: idRegistro,
+                            motivo: 'RECUPERACION_STOCK_NO_VENDIBLE',
+                            fecha_hora: new Date().toISOString()
+                        });
 
-                    if (!prodError && producto) {
-                        const nuevoStock = (producto.stock_actual || 0) + registroActual.cantidad;
-
-                        const { error: updateError } = await supabase
-                            .from('productos')
-                            .update({ stock_actual: nuevoStock })
-                            .eq('id_producto', registroActual.id_producto);
-
-                        if (updateError) {
-                            console.error('Error al actualizar stock:', updateError);
-                            toast.error('Error al devolver producto al inventario');
-                            return;
-                        }
-
-                        // Registrar movimiento de inventario
-                        const timestamp = Date.now();
-                        const random = Math.floor(Math.random() * 1000);
-                        await supabase
-                            .from('movimientos_inventario')
-                            .insert({
-                                id_movimiento: `MOV-REC-${timestamp}-${random}`,
-                                id_producto: registroActual.id_producto,
-                                tipo: 'ENTRADA',
-                                cantidad: registroActual.cantidad,
-                                documento: idRegistro,
-                                motivo: 'RECUPERACION_STOCK_NO_VENDIBLE',
-                                fecha_hora: new Date().toISOString()
-                            });
-
-                        toast.success(`Producto recuperado y devuelto al inventario (+${registroActual.cantidad} unidades)`);
+                    if (movError) {
+                        console.error('Error al registrar movimiento:', movError);
+                        toast.error('Error al registrar movimiento de inventario');
+                        return;
                     }
+
+                    toast.success(`Producto recuperado y devuelto al inventario (+${registroActual.cantidad} unidades)`);
                 } else if (registroActual && registroActual.estado === 'RECUPERADO') {
                     toast.error('Este producto ya fue recuperado anteriormente');
                     return;

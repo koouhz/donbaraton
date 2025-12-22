@@ -733,7 +733,7 @@ export default function Productos() {
           <Search size={18} style={{ color: '#6c757d' }} />
           <input
             type="text"
-            placeholder="Buscar por nombre o código..."
+            placeholder="Buscar por nombre, código interno o código de barras..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             style={styles.searchInput}
