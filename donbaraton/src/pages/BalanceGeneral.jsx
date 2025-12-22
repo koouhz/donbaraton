@@ -14,14 +14,21 @@ export default function BalanceGeneral() {
   const [rentabilidad, setRentabilidad] = useState([]);
   const [inventario, setInventario] = useState([]);
 
-  const [filtros, setFiltros] = useState({
-    periodo: 'mes',
-    fechaInicio: (() => {
-      const d = new Date();
-      d.setDate(1);
-      return d.toISOString().split('T')[0];
-    })(),
-    fechaFin: new Date().toISOString().split('T')[0]
+  // Filtros - CORREGIDO: usar fechas locales, no UTC
+  const [filtros, setFiltros] = useState(() => {
+    const hoy = new Date();
+    const formatLocalDate = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    return {
+      periodo: 'mes',
+      fechaInicio: formatLocalDate(inicioMes),
+      fechaFin: formatLocalDate(hoy)
+    };
   });
 
   useEffect(() => {
@@ -58,36 +65,37 @@ export default function BalanceGeneral() {
     }
   };
 
+  // Aplicar filtros de período - CORREGIDO: fechas locales, últimos 7 días para semana
   const aplicarFiltrosPeriodo = (periodo) => {
     const hoy = new Date();
+    const formatLocalDate = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
     let inicio, fin;
     
     switch (periodo) {
       case 'hoy':
-        inicio = fin = hoy.toISOString().split('T')[0];
+        inicio = fin = formatLocalDate(hoy);
         break;
       case 'semana':
-        const inicioSemana = new Date(hoy);
-        inicioSemana.setDate(hoy.getDate() - hoy.getDay());
-        inicio = inicioSemana.toISOString().split('T')[0];
-        fin = hoy.toISOString().split('T')[0];
+        // Últimos 7 días (hoy - 6 días = 7 días en total)
+        const hace7Dias = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - 6);
+        inicio = formatLocalDate(hace7Dias);
+        fin = formatLocalDate(hoy);
         break;
       case 'mes':
-        inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
-        fin = hoy.toISOString().split('T')[0];
-        break;
-      case 'anio':
-        inicio = new Date(hoy.getFullYear(), 0, 1).toISOString().split('T')[0];
-        fin = hoy.toISOString().split('T')[0];
-        break;
-      case 'todos':
-        inicio = '2024-01-01';
-        fin = hoy.toISOString().split('T')[0];
+        const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+        inicio = formatLocalDate(inicioMes);
+        fin = formatLocalDate(hoy);
         break;
       default:
         return;
     }
     
+    console.log(`📆 Balance ${periodo}: ${inicio} a ${fin}`);
     setFiltros({ ...filtros, periodo, fechaInicio: inicio, fechaFin: fin });
   };
 
@@ -104,13 +112,21 @@ export default function BalanceGeneral() {
   const totalStock = inventario.reduce((sum, c) => sum + parseInt(c.stock_total || 0), 0);
   const totalProductos = inventario.reduce((sum, c) => sum + parseInt(c.cantidad_productos || 0), 0);
 
-  const periodoTexto = {
-    'todos': 'Todas las fechas',
-    'hoy': 'Hoy',
-    'semana': 'Esta semana',
-    'mes': 'Este mes',
-    'anio': 'Este año'
-  }[filtros.periodo] || `${filtros.fechaInicio} - ${filtros.fechaFin}`;
+  // Función para obtener texto del período con fechas reales
+  const obtenerTextoPeriodo = () => {
+    const opciones = { day: '2-digit', month: 'long', year: 'numeric' };
+    if (filtros.fechaInicio && filtros.fechaFin) {
+      const fechaInicioFormateada = new Date(filtros.fechaInicio + 'T00:00:00').toLocaleDateString('es-BO', opciones);
+      const fechaFinFormateada = new Date(filtros.fechaFin + 'T00:00:00').toLocaleDateString('es-BO', opciones);
+      if (filtros.fechaInicio === filtros.fechaFin) {
+        return fechaInicioFormateada;
+      }
+      return `${fechaInicioFormateada} - ${fechaFinFormateada}`;
+    }
+    return 'Todas las fechas';
+  };
+
+  const periodoTexto = obtenerTextoPeriodo();
 
   const exportarPDF = async () => {
     setExportando(true);
@@ -461,9 +477,7 @@ export default function BalanceGeneral() {
             {[
               { key: 'hoy', label: 'Hoy' },
               { key: 'semana', label: 'Semana' },
-              { key: 'mes', label: 'Este Mes' },
-              { key: 'anio', label: 'Este Año' },
-              { key: 'todos', label: 'Todos' }
+              { key: 'mes', label: 'Este Mes' }
             ].map(p => (
               <button
                 key={p.key}

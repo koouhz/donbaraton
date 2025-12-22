@@ -63,11 +63,13 @@ export default function Asistencias() {
       const fechaConsulta = fechaRef.current;
       const fechaAnterior = new Date(fechaConsulta + 'T00:00:00');
       fechaAnterior.setDate(fechaAnterior.getDate() - 1);
-      const fechaAnteriorStr = fechaAnterior.toISOString().split('T')[0];
+      // Usar formateo local en lugar de toISOString
+      const fechaAnteriorStr = `${fechaAnterior.getFullYear()}-${String(fechaAnterior.getMonth() + 1).padStart(2, '0')}-${String(fechaAnterior.getDate()).padStart(2, '0')}`;
 
       const fechaSiguiente = new Date(fechaConsulta + 'T00:00:00');
       fechaSiguiente.setDate(fechaSiguiente.getDate() + 1);
-      const fechaSiguienteStr = fechaSiguiente.toISOString().split('T')[0];
+      // Usar formateo local en lugar de toISOString
+      const fechaSiguienteStr = `${fechaSiguiente.getFullYear()}-${String(fechaSiguiente.getMonth() + 1).padStart(2, '0')}-${String(fechaSiguiente.getDate()).padStart(2, '0')}`;
 
       const [empRes, asistRes] = await Promise.all([
         // Usar función fn_listar_empleados

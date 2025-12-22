@@ -26,32 +26,35 @@ export default function ReportesProductosMasVendidos() {
 
   const aplicarFiltroRapido = (tipo) => {
     const hoy = new Date();
+    // Función helper para formatear fecha local como YYYY-MM-DD
+    const formatLocalDate = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
     let inicio, fin;
     
     switch (tipo) {
       case 'dia':
-        inicio = fin = hoy.toISOString().split('T')[0];
+        inicio = fin = formatLocalDate(hoy);
         break;
       case 'semana':
-        const inicioSemana = new Date(hoy);
-        inicioSemana.setDate(hoy.getDate() - 7);
-        inicio = inicioSemana.toISOString().split('T')[0];
-        fin = hoy.toISOString().split('T')[0];
+        // Últimos 7 días (hoy - 6 días = 7 días en total)
+        const hace7Dias = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - 6);
+        inicio = formatLocalDate(hace7Dias);
+        fin = formatLocalDate(hoy);
         break;
       case 'mes':
         const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
-        inicio = inicioMes.toISOString().split('T')[0];
-        fin = hoy.toISOString().split('T')[0];
-        break;
-      case 'año':
-        const inicioAnio = new Date(hoy.getFullYear(), 0, 1);
-        inicio = inicioAnio.toISOString().split('T')[0];
-        fin = hoy.toISOString().split('T')[0];
+        inicio = formatLocalDate(inicioMes);
+        fin = formatLocalDate(hoy);
         break;
       default:
         return;
     }
     
+    console.log(`📆 Productos Más Vendidos ${tipo}: ${inicio} a ${fin}`);
     setPeriodoTipo(tipo);
     setFechaInicio(inicio);
     setFechaFin(fin);
@@ -145,7 +148,12 @@ export default function ReportesProductosMasVendidos() {
         </div>
         
         <div class="periodo">
-          <strong>Período:</strong> ${fechaInicio} al ${fechaFin}
+          <strong>Período:</strong> ${fechaInicio && fechaFin ? 
+            (fechaInicio === fechaFin 
+              ? new Date(fechaInicio + 'T00:00:00').toLocaleDateString('es-BO', { day: '2-digit', month: 'long', year: 'numeric' })
+              : new Date(fechaInicio + 'T00:00:00').toLocaleDateString('es-BO', { day: '2-digit', month: 'long', year: 'numeric' }) + ' - ' + new Date(fechaFin + 'T00:00:00').toLocaleDateString('es-BO', { day: '2-digit', month: 'long', year: 'numeric' })
+            )
+          : 'Sin período seleccionado'}
         </div>
         
         <div class="resumen">
@@ -228,7 +236,7 @@ export default function ReportesProductosMasVendidos() {
 
       {/* Filtros de período rápido */}
       <div style={styles.filtrosRapidos}>
-        {['dia', 'semana', 'mes', 'año'].map(tipo => (
+        {['dia', 'semana', 'mes'].map(tipo => (
           <button
             key={tipo}
             style={{
@@ -237,7 +245,7 @@ export default function ReportesProductosMasVendidos() {
             }}
             onClick={() => aplicarFiltroRapido(tipo)}
           >
-            {tipo === 'dia' ? 'Hoy' : tipo === 'semana' ? 'Última Semana' : tipo === 'mes' ? 'Este Mes' : 'Este Año'}
+            {tipo === 'dia' ? 'Hoy' : tipo === 'semana' ? 'Semana' : 'Este Mes'}
           </button>
         ))}
       </div>

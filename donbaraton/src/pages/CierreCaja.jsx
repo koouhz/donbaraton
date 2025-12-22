@@ -67,8 +67,9 @@ export default function CierreCaja() {
       const user = getUserInfo();
       const esAdmin = puedeVerTodo();
       const verTodo = esAdmin && vistaAdmin === 'GLOBAL'; // Solo ver todo si es admin Y está en modo global
-      // Usar UTC explícitamente como en Caja.jsx
-      const fechaHoy = new Date().toISOString().split('T')[0];
+      // Usar fecha LOCAL (Bolivia -4) en lugar de UTC
+      const ahora = new Date();
+      const fechaHoy = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
 
       // Construir parámetros para cierres
       const paramsCierres = {
@@ -120,10 +121,10 @@ export default function CierreCaja() {
       const totalSistema = resumenCaja?.total_recaudado || 0;
       const diferencia = efectivoNum - totalSistema;
 
-      // Obtener hora y fecha del dispositivo
+      // Obtener hora y fecha del dispositivo (local)
       const ahora = new Date();
       const horaLocal = ahora.toTimeString().split(' ')[0]; // "HH:mm:ss"
-      const fechaLocal = ahora.toISOString().split('T')[0]; // "YYYY-MM-DD"
+      const fechaLocal = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
 
       const { data, error } = await supabase.rpc('fn_registrar_cierre_caja', {
         p_id_usuario: user.id,

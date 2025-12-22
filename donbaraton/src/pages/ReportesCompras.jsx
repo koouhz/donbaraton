@@ -18,16 +18,22 @@ export default function ReportesCompras() {
   const [ordenAscendente, setOrdenAscendente] = useState(false); // false = desc, true = asc
   const [devoluciones, setDevoluciones] = useState([]);
   
-  // Filtros
-  const [filtros, setFiltros] = useState({
-    periodo: 'mes', // hoy, semana, mes
-    fechaInicio: (() => {
-      const d = new Date();
-      d.setDate(1);
-      return d.toISOString().split('T')[0];
-    })(),
-    fechaFin: new Date().toISOString().split('T')[0],
-    proveedor: ''
+  // Filtros - CORREGIDO: usar fechas locales, no UTC
+  const [filtros, setFiltros] = useState(() => {
+    const hoy = new Date();
+    const formatLocalDate = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    return {
+      periodo: 'mes',
+      fechaInicio: formatLocalDate(inicioMes),
+      fechaFin: formatLocalDate(hoy),
+      proveedor: ''
+    };
   });
 
   // Estadísticas
@@ -108,28 +114,29 @@ export default function ReportesCompras() {
     });
   };
 
-  // Aplicar filtros de período
+  // Aplicar filtros de período - CORREGIDO: sin mutación de Date
   const aplicarFiltrosPeriodo = () => {
-    const hoy = new Date();
-    hoy.setHours(0, 0, 0, 0);
+    const ahora = new Date();
+    const hoyInicio = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 0, 0, 0, 0);
+    const hoyFin = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 23, 59, 59, 999);
     
     switch (filtros.periodo) {
       case 'hoy':
         return {
-          inicio: hoy,
-          fin: new Date(hoy.getTime() + 24 * 60 * 60 * 1000)
+          inicio: hoyInicio,
+          fin: hoyFin
         };
       case 'semana':
-        const inicioSemana = new Date(hoy);
-        inicioSemana.setDate(hoy.getDate() - hoy.getDay());
+        // Últimos 7 días
+        const hace7Dias = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() - 6, 0, 0, 0, 0);
         return {
-          inicio: inicioSemana,
-          fin: new Date(inicioSemana.getTime() + 7 * 24 * 60 * 60 * 1000)
+          inicio: hace7Dias,
+          fin: hoyFin
         };
       case 'mes':
         return {
-          inicio: new Date(hoy.getFullYear(), hoy.getMonth(), 1),
-          fin: new Date(hoy.getFullYear(), hoy.getMonth() + 1, 0)
+          inicio: new Date(ahora.getFullYear(), ahora.getMonth(), 1, 0, 0, 0, 0),
+          fin: hoyFin
         };
       default:
         return null;
@@ -199,11 +206,17 @@ export default function ReportesCompras() {
 
   const limpiarFiltros = () => {
     const hoy = new Date();
+    const formatLocalDate = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
     const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
     setFiltros({ 
       periodo: 'mes', 
-      fechaInicio: inicioMes.toISOString().split('T')[0], 
-      fechaFin: hoy.toISOString().split('T')[0], 
+      fechaInicio: formatLocalDate(inicioMes), 
+      fechaFin: formatLocalDate(hoy), 
       proveedor: '' 
     });
   };
@@ -639,24 +652,33 @@ export default function ReportesCompras() {
                 }}
                 onClick={() => {
                   const hoy = new Date();
+                  // Función helper para formatear fecha local como YYYY-MM-DD
+                  const formatLocalDate = (date) => {
+                    const year = date.getFullYear();
+                    const month = String(date.getMonth() + 1).padStart(2, '0');
+                    const day = String(date.getDate()).padStart(2, '0');
+                    return `${year}-${month}-${day}`;
+                  };
                   let inicio, fin;
                   switch(p.key) {
                     case 'hoy':
-                      inicio = fin = hoy.toISOString().split('T')[0];
+                      inicio = fin = formatLocalDate(hoy);
                       break;
                     case 'semana':
-                      const inicioSemana = new Date(hoy);
-                      inicioSemana.setDate(hoy.getDate() - hoy.getDay());
-                      inicio = inicioSemana.toISOString().split('T')[0];
-                      fin = hoy.toISOString().split('T')[0];
+                      // Últimos 7 días (hoy - 6 días = 7 días en total incluyendo hoy)
+                      const hace7Dias = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - 6);
+                      inicio = formatLocalDate(hace7Dias);
+                      fin = formatLocalDate(hoy);
                       break;
                     case 'mes':
-                      inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
-                      fin = hoy.toISOString().split('T')[0];
+                      const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+                      inicio = formatLocalDate(inicioMes);
+                      fin = formatLocalDate(hoy);
                       break;
                     default:
-                      inicio = fin = hoy.toISOString().split('T')[0];
+                      inicio = fin = formatLocalDate(hoy);
                   }
+                  console.log(`📆 Filtro Compras ${p.key}: ${inicio} a ${fin}`); // Debug
                   setFiltros({ ...filtros, periodo: p.key, fechaInicio: inicio, fechaFin: fin });
                 }}
               >

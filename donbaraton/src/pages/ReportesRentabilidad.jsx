@@ -14,14 +14,21 @@ export default function ReportesRentabilidad() {
   const [exportando, setExportando] = useState(false);
   const [ordenAscendente, setOrdenAscendente] = useState(false);
   
-  const [filtros, setFiltros] = useState({
-    periodo: 'mes',
-    fechaInicio: (() => {
-      const d = new Date();
-      d.setDate(1);
-      return d.toISOString().split('T')[0];
-    })(),
-    fechaFin: new Date().toISOString().split('T')[0]
+  // Filtros - CORREGIDO: usar fechas locales, no UTC
+  const [filtros, setFiltros] = useState(() => {
+    const hoy = new Date();
+    const formatLocalDate = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    return {
+      periodo: 'mes',
+      fechaInicio: formatLocalDate(inicioMes),
+      fechaFin: formatLocalDate(hoy)
+    };
   });
 
   const [stats, setStats] = useState({
@@ -76,28 +83,37 @@ export default function ReportesRentabilidad() {
     });
   };
 
+  // Aplicar filtros de período - CORREGIDO: fechas locales, últimos 7 días para semana
   const aplicarFiltrosPeriodo = (periodo) => {
     const hoy = new Date();
+    const formatLocalDate = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
     let inicio, fin;
     
     switch (periodo) {
       case 'hoy':
-        inicio = fin = hoy.toISOString().split('T')[0];
+        inicio = fin = formatLocalDate(hoy);
         break;
       case 'semana':
-        const inicioSemana = new Date(hoy);
-        inicioSemana.setDate(hoy.getDate() - hoy.getDay());
-        inicio = inicioSemana.toISOString().split('T')[0];
-        fin = hoy.toISOString().split('T')[0];
+        // Últimos 7 días (hoy - 6 días = 7 días en total)
+        const hace7Dias = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - 6);
+        inicio = formatLocalDate(hace7Dias);
+        fin = formatLocalDate(hoy);
         break;
       case 'mes':
-        inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
-        fin = hoy.toISOString().split('T')[0];
+        const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+        inicio = formatLocalDate(inicioMes);
+        fin = formatLocalDate(hoy);
         break;
       default:
         return;
     }
     
+    console.log(`📆 Rentabilidad ${periodo}: ${inicio} a ${fin}`);
     setFiltros({ ...filtros, periodo, fechaInicio: inicio, fechaFin: fin });
   };
 
@@ -121,11 +137,17 @@ export default function ReportesRentabilidad() {
 
   const limpiarFiltros = () => {
     const hoy = new Date();
+    const formatLocalDate = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
     const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
     setFiltros({
       periodo: 'mes',
-      fechaInicio: inicioMes.toISOString().split('T')[0],
-      fechaFin: hoy.toISOString().split('T')[0]
+      fechaInicio: formatLocalDate(inicioMes),
+      fechaFin: formatLocalDate(hoy)
     });
   };
 

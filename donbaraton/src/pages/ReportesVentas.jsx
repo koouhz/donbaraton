@@ -25,15 +25,21 @@ export default function ReportesVentas() {
   const [cajeroSearchText, setCajeroSearchText] = useState('');
   const [showCajeroDropdown, setShowCajeroDropdown] = useState(false);
   
-  // Filtros
-  const [filtros, setFiltros] = useState({
-    periodo: 'mes',
-    fechaInicio: (() => {
-      const d = new Date();
-      d.setDate(1);
-      return d.toISOString().split('T')[0];
-    })(),
-    fechaFin: new Date().toISOString().split('T')[0]
+  // Filtros - CORREGIDO: usar fechas locales, no UTC
+  const [filtros, setFiltros] = useState(() => {
+    const hoy = new Date();
+    const formatLocalDate = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+    return {
+      periodo: 'mes',
+      fechaInicio: formatLocalDate(inicioMes),
+      fechaFin: formatLocalDate(hoy)
+    };
   });
 
   // Estadísticas
@@ -129,29 +135,39 @@ export default function ReportesVentas() {
     });
   };
 
-  // Aplicar filtros de período
+  // Aplicar filtros de período - CORREGIDO: usar fechas locales, no UTC
   const aplicarFiltrosPeriodo = (periodo) => {
     const hoy = new Date();
+    // Función helper para formatear fecha local como YYYY-MM-DD
+    const formatLocalDate = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
+    
     let inicio, fin;
     
     switch (periodo) {
       case 'hoy':
-        inicio = fin = hoy.toISOString().split('T')[0];
+        inicio = fin = formatLocalDate(hoy);
         break;
       case 'semana':
-        const inicioSemana = new Date(hoy);
-        inicioSemana.setDate(hoy.getDate() - hoy.getDay());
-        inicio = inicioSemana.toISOString().split('T')[0];
-        fin = hoy.toISOString().split('T')[0];
+        // Últimos 7 días (hoy - 6 días = 7 días en total incluyendo hoy)
+        const hace7Dias = new Date(hoy.getFullYear(), hoy.getMonth(), hoy.getDate() - 6);
+        inicio = formatLocalDate(hace7Dias);
+        fin = formatLocalDate(hoy);
         break;
       case 'mes':
-        inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1).toISOString().split('T')[0];
-        fin = hoy.toISOString().split('T')[0];
+        const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
+        inicio = formatLocalDate(inicioMes);
+        fin = formatLocalDate(hoy);
         break;
       default:
         return;
     }
     
+    console.log(`📆 Filtro ${periodo}: ${inicio} a ${fin}`); // Debug
     setFiltros({ ...filtros, periodo, fechaInicio: inicio, fechaFin: fin });
   };
 
@@ -169,20 +185,22 @@ export default function ReportesVentas() {
 
       const fechaVenta = new Date(venta.fecha);
       
-      // Filtro por período predefinido
+      // Filtro por período predefinido - CORREGIDO: sin mutación de Date
       if (filtros.periodo !== 'todos' && filtros.periodo !== 'personalizado') {
-        const hoy = new Date();
+        const ahora = new Date();
         let inicio, fin;
+        
         if (filtros.periodo === 'hoy') {
-            inicio = new Date(hoy.setHours(0,0,0,0));
-            fin = new Date(hoy.setHours(23,59,59,999));
+            inicio = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 0, 0, 0, 0);
+            fin = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 23, 59, 59, 999);
         } else if (filtros.periodo === 'semana') {
-            const i = new Date(hoy); i.setDate(hoy.getDate() - hoy.getDay()); i.setHours(0,0,0,0);
-            inicio = i;
-            fin = new Date();
+            // Últimos 7 días
+            const hace7Dias = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate() - 6, 0, 0, 0, 0);
+            inicio = hace7Dias;
+            fin = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 23, 59, 59, 999);
         } else if (filtros.periodo === 'mes') {
-            inicio = new Date(hoy.getFullYear(), hoy.getMonth(), 1); 
-            fin = new Date();
+            inicio = new Date(ahora.getFullYear(), ahora.getMonth(), 1, 0, 0, 0, 0);
+            fin = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate(), 23, 59, 59, 999);
         }
         
         if (inicio && fin && (fechaVenta < inicio || fechaVenta > fin)) return false;
@@ -230,11 +248,17 @@ export default function ReportesVentas() {
 
   const limpiarFiltros = () => {
     const hoy = new Date();
+    const formatLocalDate = (date) => {
+      const year = date.getFullYear();
+      const month = String(date.getMonth() + 1).padStart(2, '0');
+      const day = String(date.getDate()).padStart(2, '0');
+      return `${year}-${month}-${day}`;
+    };
     const inicioMes = new Date(hoy.getFullYear(), hoy.getMonth(), 1);
     setFiltros({
       periodo: 'mes',
-      fechaInicio: inicioMes.toISOString().split('T')[0],
-      fechaFin: hoy.toISOString().split('T')[0]
+      fechaInicio: formatLocalDate(inicioMes),
+      fechaFin: formatLocalDate(hoy)
     });
     setCajeroFiltro('');
     setCajeroSearchText('');

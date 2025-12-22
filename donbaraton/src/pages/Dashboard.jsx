@@ -37,6 +37,15 @@ const COLORS = {
   }
 };
 
+// Función helper para formatear fecha local como YYYY-MM-DD (evita problemas de timezone con toISOString)
+const formatLocalDate = (date) => {
+  const d = date instanceof Date ? date : new Date(date);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+};
+
 // Componente Card simplificado
 const DashboardCard = ({ title, value, subtitle, icon, color, trend, onClick }) => {
   const getTrendIcon = () => {
@@ -281,7 +290,7 @@ const SimpleLoadingSkeleton = () => {
 const fetchVentasHoy = async () => {
   try {
     const hoy = new Date();
-    const fechaHoy = hoy.toISOString().split('T')[0];
+    const fechaHoy = formatLocalDate(hoy);
 
     const { data, error } = await supabase.rpc('fn_reporte_ventas_periodo', {
       p_fecha_inicio: fechaHoy,
@@ -311,8 +320,8 @@ const fetchPedidosActivos = async () => {
     hace6Meses.setMonth(hace6Meses.getMonth() - 6);
 
     const { data, error } = await supabase.rpc('fn_historial_compras', {
-      p_fecha_inicio: hace6Meses.toISOString().split('T')[0],
-      p_fecha_fin: hoy.toISOString().split('T')[0],
+      p_fecha_inicio: formatLocalDate(hace6Meses),
+      p_fecha_fin: formatLocalDate(hoy),
       p_id_proveedor: null
     });
 
@@ -389,8 +398,8 @@ const fetchVentasMensuales = async () => {
     const ultimoDiaMes = new Date(fecha.getFullYear(), fecha.getMonth() + 1, 0);
 
     const { data, error } = await supabase.rpc('fn_reporte_ventas_periodo', {
-      p_fecha_inicio: primerDiaMes.toISOString().split('T')[0],
-      p_fecha_fin: ultimoDiaMes.toISOString().split('T')[0]
+      p_fecha_inicio: formatLocalDate(primerDiaMes),
+      p_fecha_fin: formatLocalDate(ultimoDiaMes)
     });
 
     if (error) throw error;
@@ -412,8 +421,8 @@ const fetchVentasUltimosMeses = async (meses = 6) => {
 
     for (let i = meses - 1; i >= 0; i--) {
       const fechaMes = new Date(fecha.getFullYear(), fecha.getMonth() - i, 1);
-      const primerDia = fechaMes.toISOString().split('T')[0];
-      const ultimoDia = new Date(fechaMes.getFullYear(), fechaMes.getMonth() + 1, 0).toISOString().split('T')[0];
+      const primerDia = formatLocalDate(fechaMes);
+      const ultimoDia = formatLocalDate(new Date(fechaMes.getFullYear(), fechaMes.getMonth() + 1, 0));
 
       const { data, error } = await supabase.rpc('fn_reporte_ventas_periodo', {
         p_fecha_inicio: primerDia,
@@ -454,8 +463,8 @@ const fetchDistribucionVentas = async () => {
 
     // Usar fn_reporte_productos_mas_vendidos para obtener las ventas por producto
     const { data: productosVendidos, error } = await supabase.rpc('fn_reporte_productos_mas_vendidos', {
-      p_fecha_inicio: primerDiaMes.toISOString().split('T')[0],
-      p_fecha_fin: ultimoDiaMes.toISOString().split('T')[0],
+      p_fecha_inicio: formatLocalDate(primerDiaMes),
+      p_fecha_fin: formatLocalDate(ultimoDiaMes),
       p_limite: 100
     });
 

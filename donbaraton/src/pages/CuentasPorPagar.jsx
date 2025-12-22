@@ -15,9 +15,15 @@ export default function CuentasPorPagar() {
   const [saving, setSaving] = useState(false);
   const [archivoComprobante, setArchivoComprobante] = useState(null);
   const [uploading, setUploading] = useState(false);
+  // Helper para fecha local en lugar de toISOString (evita problemas timezone)
+  const getLocalDateStr = () => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  };
+
   const [formPago, setFormPago] = useState({
     monto_pago: '',
-    fecha_pago: new Date().toISOString().split('T')[0],
+    fecha_pago: getLocalDateStr(),
     metodo_pago: 'TRANSFERENCIA',
     observaciones: ''
   });
@@ -65,7 +71,7 @@ export default function CuentasPorPagar() {
     setCuentaSeleccionada(cuenta);
     setFormPago({
       monto_pago: cuenta.saldo_pendiente, // Pre-llenar con saldo total
-      fecha_pago: new Date().toISOString().split('T')[0],
+      fecha_pago: getLocalDateStr(),
       metodo_pago: 'TRANSFERENCIA',
       observaciones: ''
     });
@@ -78,7 +84,7 @@ export default function CuentasPorPagar() {
     setArchivoComprobante(null);
     setFormPago({
       monto_pago: '',
-      fecha_pago: new Date().toISOString().split('T')[0],
+      fecha_pago: getLocalDateStr(),
       metodo_pago: 'TRANSFERENCIA',
       observaciones: ''
     });
