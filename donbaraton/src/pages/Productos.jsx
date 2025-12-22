@@ -344,7 +344,7 @@ export default function Productos() {
       const [prodRes, catRes, provRes, marcasRes, unidadesRes] = await Promise.all([
         supabase.rpc('fn_leer_productos', {
           p_buscar: searchTerm || null,
-          p_categoria_id: filterCategoria ? parseInt(filterCategoria) : null
+          p_categoria_id: filterCategoria || null
         }),
         supabase.rpc('fn_leer_categorias'),
         supabase.rpc('fn_leer_proveedores', { p_buscar_texto: null }),
@@ -383,7 +383,7 @@ export default function Productos() {
     try {
       const { data, error } = await supabase.rpc('fn_leer_productos', {
         p_buscar: searchTerm || null,
-        p_categoria_id: filterCategoria ? parseInt(filterCategoria) : null
+        p_categoria_id: filterCategoria || null
       });
 
       if (error) throw error;

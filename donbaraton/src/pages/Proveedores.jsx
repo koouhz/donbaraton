@@ -67,9 +67,18 @@ export default function Proveedores() {
     return () => clearTimeout(timer);
   }, [searchTerm]);
 
+  // Regex de validación de email
+  const REGEX_EMAIL = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
   const handleCreate = async () => {
     if (!formData.razon_social.trim() || !formData.nit_ci.trim()) {
       toast.error('Razón social y NIT/CI son obligatorios');
+      return;
+    }
+
+    // Validar email si está presente
+    if (formData.email && formData.email.trim() && !REGEX_EMAIL.test(formData.email.trim())) {
+      toast.error('El formato del correo electrónico es inválido');
       return;
     }
 
@@ -109,6 +118,12 @@ export default function Proveedores() {
   const handleUpdate = async () => {
     if (!formData.razon_social.trim()) {
       toast.error('La razón social es obligatoria');
+      return;
+    }
+
+    // Validar email si está presente
+    if (formData.email && formData.email.trim() && !REGEX_EMAIL.test(formData.email.trim())) {
+      toast.error('El formato del correo electrónico es inválido');
       return;
     }
 

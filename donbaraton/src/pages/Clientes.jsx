@@ -95,11 +95,16 @@ export default function Clientes() {
       return false;
     }
 
-    // 2. Validar Apellidos (opcionales pero si existen, solo letras)
-    if (formData.apellido_paterno && !REGEX_NOMBRE.test(formData.apellido_paterno.trim())) {
+    // 2. Validar Apellido Paterno (obligatorio)
+    if (!formData.apellido_paterno.trim()) {
+      toast.error('El apellido paterno es obligatorio');
+      return false;
+    }
+    if (!REGEX_NOMBRE.test(formData.apellido_paterno.trim())) {
       toast.error('El apellido paterno solo puede contener letras');
       return false;
     }
+    // 3. Validar Apellido Materno (opcional, pero si existe, solo letras)
     if (formData.apellido_materno && !REGEX_NOMBRE.test(formData.apellido_materno.trim())) {
       toast.error('El apellido materno solo puede contener letras');
       return false;
@@ -336,7 +341,7 @@ export default function Clientes() {
           <table style={styles.table}>
             <thead>
               <tr>
-                <th style={styles.th}>Nombres</th>
+                <th style={styles.th}>Nombre</th>
                 <th style={styles.th}>Ap. Paterno</th>
                 <th style={styles.th}>Ap. Materno</th>
                 <th style={styles.th}>CI/NIT</th>
@@ -353,7 +358,7 @@ export default function Clientes() {
                       <div style={styles.avatar}>
                         <User size={16} />
                       </div>
-                      <strong>{`${cliente.nombres} ${cliente.apellido_paterno || ''} ${cliente.apellido_materno || ''}`.trim()}</strong>
+                      <strong>{cliente.nombres}</strong>
                     </div >
                   </td >
                   <td style={styles.td}>
@@ -420,7 +425,7 @@ export default function Clientes() {
               <div style={styles.modalBody}>
                 <div style={styles.formRow}>
                   <div style={styles.formGroup}>
-                    <label style={styles.label}>Nombres *</label>
+                    <label style={styles.label}>Nombre *</label>
                     <input
                       type="text"
                       value={formData.nombres}
@@ -430,7 +435,7 @@ export default function Clientes() {
                     />
                   </div>
                   <div style={styles.formGroup}>
-                    <label style={styles.label}>Apellido Paterno</label>
+                    <label style={styles.label}>Apellido Paterno *</label>
                     <input
                       type="text"
                       value={formData.apellido_paterno}
@@ -520,7 +525,7 @@ export default function Clientes() {
       {/* Modal Historial de Compras (CLI-03) */}
       {showHistorialModal && clienteHistorial && (
         <div style={styles.modalOverlay} onClick={cerrarHistorialModal}>
-          <div style={{...styles.modal, maxWidth: '800px'}} onClick={(e) => e.stopPropagation()}>
+          <div style={{ ...styles.modal, maxWidth: '800px' }} onClick={(e) => e.stopPropagation()}>
             <div style={styles.modalHeader}>
               <h2 style={styles.modalTitle}>
                 <ShoppingBag size={22} style={{ marginRight: '10px' }} />
@@ -574,12 +579,12 @@ export default function Clientes() {
                           <td style={styles.historialTd}>
                             <span style={styles.facturaBadge}>{compra.numero_factura}</span>
                           </td>
-                          <td style={{...styles.historialTd, maxWidth: '250px'}}>
+                          <td style={{ ...styles.historialTd, maxWidth: '250px' }}>
                             <span style={styles.productosList} title={compra.productos}>
                               {compra.productos || '-'}
                             </span>
                           </td>
-                          <td style={{...styles.historialTd, fontWeight: '600', color: '#1a5d1a'}}>
+                          <td style={{ ...styles.historialTd, fontWeight: '600', color: '#1a5d1a' }}>
                             {formatCurrency(compra.total)}
                           </td>
                           <td style={styles.historialTd}>
@@ -652,7 +657,7 @@ const styles = {
   statusActive: { background: '#e8f5e9', color: '#2e7d32', border: '1px solid #c8e6c9' },
   statusInactive: { background: '#ffebee', color: '#c62828', border: '1px solid #ffcdd2' },
   ciBadge: { padding: '4px 10px', borderRadius: '6px', fontSize: '12px', fontWeight: '600', background: '#e3f2fd', color: '#1565c0', border: '1px solid #bbdefb' },
-  
+
   // CLI-03: Historial de compras styles
   historyButton: { padding: '8px', background: '#fff3e0', border: 'none', borderRadius: '8px', cursor: 'pointer', color: '#e65100', transition: 'all 0.2s' },
   clienteInfoBox: { display: 'flex', alignItems: 'center', gap: '12px', padding: '15px', background: '#e8f5e9', borderRadius: '10px', marginBottom: '15px' },
