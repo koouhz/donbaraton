@@ -67,8 +67,9 @@ export default function CierreCaja() {
       const user = getUserInfo();
       const esAdmin = puedeVerTodo();
       const verTodo = esAdmin && vistaAdmin === 'GLOBAL'; // Solo ver todo si es admin Y está en modo global
-      // Usar UTC explícitamente como en Caja.jsx
-      const fechaHoy = new Date().toISOString().split('T')[0];
+      // Usar fecha LOCAL de Bolivia (corregido)
+      const now = new Date();
+      const fechaHoy = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
 
       // Construir parámetros para cierres
       const paramsCierres = {

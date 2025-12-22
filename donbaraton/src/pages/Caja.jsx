@@ -22,10 +22,15 @@ export default function Caja() {
   const [detallesVenta, setDetallesVenta] = useState([]);
   const [loadingDetalles, setLoadingDetalles] = useState(false);
   const [userInfo, setUserInfo] = useState(null);
-  // NOTA: PostgreSQL guarda timestamps en UTC, por lo que usamos fecha UTC
-  // para que coincida con las ventas guardadas en la base de datos.
-  // Después de las 20:00 hora Bolivia (-4), la fecha UTC ya es del día siguiente.
-  const hoy = new Date().toISOString().split('T')[0];
+  // NOTA: Usamos la fecha LOCAL de Bolivia para mostrar las ventas del día.
+  // La función de BD convierte a fecha local automáticamente con DATE(fecha_hora).
+  const hoy = (() => {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+  })();
 
   // Obtener información del usuario logueado
   const getUserInfo = () => {
