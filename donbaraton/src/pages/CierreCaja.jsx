@@ -121,10 +121,12 @@ export default function CierreCaja() {
       const totalSistema = resumenCaja?.total_recaudado || 0;
       const diferencia = efectivoNum - totalSistema;
 
-      // Obtener hora y fecha del dispositivo
+      // Obtener hora y fecha LOCAL del dispositivo (no UTC)
       const ahora = new Date();
       const horaLocal = ahora.toTimeString().split(' ')[0]; // "HH:mm:ss"
-      const fechaLocal = ahora.toISOString().split('T')[0]; // "YYYY-MM-DD"
+      // Fecha local en formato YYYY-MM-DD
+      const fechaLocal = `${ahora.getFullYear()}-${String(ahora.getMonth() + 1).padStart(2, '0')}-${String(ahora.getDate()).padStart(2, '0')}`;
+
 
       const { data, error } = await supabase.rpc('fn_registrar_cierre_caja', {
         p_id_usuario: user.id,

@@ -32,6 +32,8 @@ export default function Caja() {
     return `${year}-${month}-${day}`;
   })();
 
+
+
   // Obtener información del usuario logueado
   const getUserInfo = () => {
     try {
@@ -114,12 +116,27 @@ export default function Caja() {
 
   const formatCurrency = (value) => `Bs ${parseFloat(value || 0).toFixed(2)}`;
 
-  // Convertir hora UTC de la base de datos a hora local
+  // Formatear hora - El timestamp viene de Supabase (sin timezone)
+  // Lo interpretamos directamente como hora local
   const formatTime = (date) => {
     if (!date) return '--:--';
-    // Añadir 'Z' si no tiene para indicar que es UTC
-    const utcDate = date.toString().includes('Z') ? date : date + 'Z';
-    return new Date(utcDate).toLocaleTimeString('es-BO', {
+    // Parsear el timestamp sin añadir timezone
+    const d = new Date(date);
+    // Si es inválido, intentar parsearlo directamente
+    if (isNaN(d.getTime())) return '--:--';
+
+    // Extraer hora y minutos directamente del string si es posible
+    // Formato típico: "2024-12-21T20:59:00" o "2024-12-21 20:59:00"
+    const match = date.toString().match(/(\d{2}):(\d{2})/);
+    if (match) {
+      const hours = parseInt(match[1]);
+      const minutes = match[2];
+      const period = hours >= 12 ? 'p. m.' : 'a. m.';
+      const hours12 = hours % 12 || 12;
+      return `${hours12}:${minutes} ${period}`;
+    }
+
+    return d.toLocaleTimeString('es-BO', {
       hour: '2-digit',
       minute: '2-digit',
       hour12: true
@@ -128,8 +145,10 @@ export default function Caja() {
 
   const formatDate = (date) => {
     if (!date) return '--/--/----';
-    const utcDate = date.toString().includes('Z') ? date : date + 'Z';
-    return new Date(utcDate).toLocaleDateString('es-BO', { day: '2-digit', month: '2-digit', year: 'numeric' });
+    // Parsear fecha sin timezone para evitar conversiones
+    const dateStr = date.toString().split('T')[0];
+    const [year, month, day] = dateStr.split('-');
+    return `${day}/${month}/${year}`;
   };
 
   const verDetalles = async (venta) => {

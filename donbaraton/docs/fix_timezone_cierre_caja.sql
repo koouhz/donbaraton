@@ -1,0 +1,147 @@
+-- =========================================================
+-- CORRECCIÓN: fn_registrar_cierre_caja con timezone Bolivia
+-- Ejecuta este SQL en Supabase SQL Editor
+-- =========================================================
+
+-- OPCIÓN 1: CONFIGURAR TIMEZONE GLOBAL (RECOMENDADO)
+-- Ejecuta esto primero:
+ALTER DATABASE postgres SET timezone TO 'America/La_Paz';
+
+-- Verificar que se aplicó:
+-- SHOW timezone;
+
+-- =========================================================
+-- OPCIÓN 2: MODIFICAR LA FUNCIÓN PARA USAR TIMEZONE EXPLÍCITO
+-- Esta función actualiza las ventas usando la fecha en timezone Bolivia
+-- =========================================================
+
+CREATE OR REPLACE FUNCTION public.fn_registrar_cierre_caja(
+    p_id_usuario character varying,
+    p_fecha date,
+    p_hora_cierre time without time zone,
+    p_total_efectivo numeric,
+    p_diferencia numeric,
+    p_observaciones text DEFAULT NULL
+)
+RETURNS character varying
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_id_cierre VARCHAR;
+    v_ventas_actualizadas INTEGER;
+BEGIN
+    -- Asegurar existencia de secuencia
+    IF NOT EXISTS (SELECT 1 FROM pg_class WHERE relname = 'cierre_caja_seq') THEN
+        CREATE SEQUENCE cierre_caja_seq;
+    END IF;
+
+    -- Generar ID
+    v_id_cierre := 'CIE-' || LPAD(nextval('cierre_caja_seq'::regclass)::VARCHAR, 5, '0');
+
+    -- Insertar Cierre
+    INSERT INTO public.cierre_caja (
+        id_cierre, id_usuario, fecha, hora_cierre, total_efectivo, diferencia, observaciones
+    ) VALUES (
+        v_id_cierre, p_id_usuario, p_fecha, p_hora_cierre, p_total_efectivo, p_diferencia, p_observaciones
+    );
+
+    -- Actualizar ventas del turno (LIMPIEZA DE CAJA)
+    -- Usar timezone Bolivia para la comparación de fechas
+    UPDATE public.ventas
+    SET id_cierre = v_id_cierre
+    WHERE id_usuario = p_id_usuario
+      AND DATE(fecha_hora AT TIME ZONE 'America/La_Paz') = p_fecha
+      AND estado = 'ACTIVO'
+      AND id_cierre IS NULL;
+    
+    -- Obtener cantidad de ventas actualizadas para debug
+    GET DIAGNOSTICS v_ventas_actualizadas = ROW_COUNT;
+    
+    -- Si no se actualizaron ventas, intentar sin timezone (por compatibilidad)
+    IF v_ventas_actualizadas = 0 THEN
+        UPDATE public.ventas
+        SET id_cierre = v_id_cierre
+        WHERE id_usuario = p_id_usuario
+          AND DATE(fecha_hora) = p_fecha
+          AND estado = 'ACTIVO'
+          AND id_cierre IS NULL;
+    END IF;
+
+    RETURN v_id_cierre;
+END;
+$$;
+
+-- =========================================================
+-- También actualizar fn_resumen_caja_cajero para usar timezone
+-- =========================================================
+
+CREATE OR REPLACE FUNCTION public.fn_resumen_caja_cajero(
+    p_fecha date,
+    p_id_usuario character varying DEFAULT NULL
+)
+RETURNS TABLE(
+    total_ventas bigint,
+    total_efectivo numeric,
+    total_tarjeta numeric,
+    total_qr numeric,
+    total_recaudado numeric,
+    cant_efectivo bigint,
+    cant_tarjeta bigint,
+    cant_qr bigint
+)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        COUNT(DISTINCT v.id_venta)::bigint as total_ventas,
+        -- Montos
+        COALESCE(SUM(CASE WHEN p.medio = 'EFECTIVO' THEN (p.importe - COALESCE(p.vuelto, 0)) ELSE 0 END), 0) as total_efectivo,
+        COALESCE(SUM(CASE WHEN p.medio IN ('DEBITO', 'CREDITO', 'TARJETA') THEN p.importe ELSE 0 END), 0) as total_tarjeta,
+        COALESCE(SUM(CASE WHEN p.medio = 'QR' THEN p.importe ELSE 0 END), 0) as total_qr,
+        COALESCE(SUM(p.importe - COALESCE(p.vuelto, 0)), 0) as total_recaudado,
+        -- Conteos (Ventas únicas por medio de pago)
+        COUNT(DISTINCT CASE WHEN p.medio = 'EFECTIVO' THEN v.id_venta END)::bigint as cant_efectivo,
+        COUNT(DISTINCT CASE WHEN p.medio IN ('DEBITO', 'CREDITO', 'TARJETA') THEN v.id_venta END)::bigint as cant_tarjeta,
+        COUNT(DISTINCT CASE WHEN p.medio = 'QR' THEN v.id_venta END)::bigint as cant_qr
+    FROM public.ventas v
+    LEFT JOIN public.pagos p ON v.id_venta = p.id_venta
+    WHERE DATE(v.fecha_hora AT TIME ZONE 'America/La_Paz') = p_fecha
+      AND v.estado = 'ACTIVO'
+      AND (p_id_usuario IS NULL OR v.id_usuario = p_id_usuario)
+      AND v.id_cierre IS NULL; -- Solo turno abierto
+END;
+$$;
+
+-- =========================================================
+-- También actualizar fn_leer_ventas_cajero
+-- =========================================================
+
+CREATE OR REPLACE FUNCTION public.fn_leer_ventas_cajero(
+    p_fecha_inicio date, 
+    p_fecha_fin date,
+    p_id_usuario character varying DEFAULT NULL
+)
+RETURNS TABLE(id character varying, fecha timestamp without time zone, cliente text, cajero text, comprobante text, total numeric, estado boolean)
+LANGUAGE plpgsql
+AS $$
+BEGIN
+    RETURN QUERY
+    SELECT 
+        v.id_venta, v.fecha_hora,
+        COALESCE(c.nombres || ' ' || COALESCE(c.apellido_paterno, ''), v.razon_social, 'Cliente General')::text,
+        COALESCE(e.nombres || ' ' || COALESCE(e.apellido_paterno, ''), u.username, 'Sin asignar')::text,
+        COALESCE(v.tipo_comprobante || COALESCE(' - ' || v.numero_factura, ''), 'TICKET')::text,
+        v.total, (v.estado = 'ACTIVO')
+    FROM public.ventas v
+    LEFT JOIN public.clientes c ON v.id_cliente = c.id_cliente
+    LEFT JOIN public.usuarios u ON v.id_usuario = u.id_usuario
+    LEFT JOIN public.empleados e ON u.id_empleado = e.id_empleado
+    WHERE DATE(v.fecha_hora AT TIME ZONE 'America/La_Paz') BETWEEN p_fecha_inicio AND p_fecha_fin
+      AND (p_id_usuario IS NULL OR v.id_usuario = p_id_usuario)
+      AND (p_id_usuario IS NULL OR v.id_cierre IS NULL) 
+    ORDER BY v.fecha_hora DESC;
+END;
+$$;
+
+SELECT 'Funciones actualizadas con timezone Bolivia' as resultado;
